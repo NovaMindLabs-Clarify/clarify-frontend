@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -18,6 +17,7 @@ import 'package:local_notifier/local_notifier.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../core/config.dart';
 import '../core/localization.dart';
 import '../services/task_service.dart';
 import '../widgets/main_content_area.dart';
@@ -52,8 +52,6 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   bool _isListening = false;
   String _currentLocaleId = 'ru_RU';
 
-  final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
-  
   // 3. КОЛЛЕКЦИЯ ДЛЯ УМНЫХ ТАЙМЕРОВ (БЕЗ НАГРУЗКИ НА CPU)
   final Map<String, Timer> _activeAlarms = {};
 
@@ -62,7 +60,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   bool _isDuplicating = false;
 
   String selectedMenu = 'Мой день';
-  final String baseUrl = 'https://clarify-backend-g6np.onrender.com';
+  final String baseUrl = AppConfig.backendBaseUrl;
   bool isAiTyping = false;
   bool _isOffline = false; 
   String rightPanelState = 'none';
@@ -115,7 +113,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
       await Supabase.instance.client.from('user_status')
           .update({
             'is_in_zen': newState, 
-            'zen_until': newState ? DateTime.now().add(const Duration(minutes: 45)).toIso8601String() : null
+            'zen_until': newState ? DateTime.now().add(AppConfig.zenModeDuration).toIso8601String() : null
           })
           .eq('user_id', user.id);
           
@@ -229,7 +227,13 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   }
 
   late ConfettiController _confettiController;
-  bool _hasShownDailyReviewToday = false;
+  // Храним дату (ДД.ММ.ГГГГ), для которой уже показывали обзор — а не просто bool,
+  // иначе поздравление не повторится на следующий день без перезапуска приложения.
+  String? _dailyReviewShownForDate;
+
+  // Даты, для которых уже показали предупреждение о перегрузке — чтобы не спамить
+  // диалогом на каждой 11-й, 12-й и т.д. задаче после смены `== 10` на `>= 10`.
+  final Set<String> _burnoutWarnedDates = {};
 
   @override
   void initState() {
@@ -244,8 +248,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     _initRealtime(); // <--- ВОТ ЭТА НОВАЯ СТРОЧКА
     
     _initSpeech();
-    _initNotifications();
-    _initGlobalHotkeys(); 
+    _initGlobalHotkeys();
   }
 
   void _loadLocalData() {
@@ -472,17 +475,6 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     super.dispose();
   }
 
-  void _initNotifications() async {
-    const AndroidInitializationSettings androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const InitializationSettings initSettings = InitializationSettings(
-      android: androidSettings,
-      iOS: DarwinInitializationSettings(),
-      macOS: DarwinInitializationSettings(),
-    );
-    try { await _notificationsPlugin.initialize(settings: initSettings); } catch (e) { print("Пуши не поддерживаются: $e"); }
-    // ТАЙМЕР ПОЛЛИНГА УДАЛЕН.
-  }
-
 // --- НОВЫЙ МЕТОД ЗАГРУЗКИ КОМАНД ---
   Future<void> _fetchWorkspaces() async {
     final user = Supabase.instance.client.auth.currentUser;
@@ -518,9 +510,9 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   }
 
    void _checkDailyReviewTrigger() {
-    if (_hasShownDailyReviewToday) return; // Если уже хвалили сегодня — пропускаем
-
     final todayStr = _formatDate(DateTime.now());
+    if (_dailyReviewShownForDate == todayStr) return; // Уже хвалили сегодня — пропускаем
+
     final todayTasks = tasks.where((t) => t['due_date'] == todayStr && t['parent_id'] == null).toList();
 
     // Если на сегодня вообще не было задач — ничего не делаем
@@ -528,9 +520,9 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
 
     // Проверяем, все ли задачи на сегодня выполнены
     final allDone = todayTasks.every((t) => t['is_completed'] == true);
-    
+
     if (allDone) {
-      _hasShownDailyReviewToday = true;
+      _dailyReviewShownForDate = todayStr;
       _showDailyReviewOverlay(todayTasks.length);
     }
   }
@@ -863,10 +855,12 @@ void _showDailyReviewOverlay(int taskCount) {
   }
 
 void _checkBurnoutWarning(String dateStr) {
+    if (_burnoutWarnedDates.contains(dateStr)) return; // Уже предупреждали про этот день
+
     final dayTasks = tasks.where((t) => t['due_date'] == dateStr && t['parent_id'] == null).toList();
 
-    // Меняем триггер на 10 задач
-    if (dayTasks.length == 10) {
+    if (dayTasks.length >= AppConfig.burnoutTaskThreshold) {
+      _burnoutWarnedDates.add(dateStr);
       showGeneralDialog(
         context: context,
         barrierDismissible: true,
@@ -1171,10 +1165,9 @@ void _checkBurnoutWarning(String dateStr) {
                         ),
                         const SizedBox(height: 16),
                         TextField(
-                          controller: titleController, 
-                          style: TextStyle(color: textColor, fontSize: 16), 
-                          autofocus: true, 
-                          maxLength: 10,
+                          controller: titleController,
+                          style: TextStyle(color: textColor, fontSize: 16),
+                          autofocus: true,
                           onChanged: (value) {
                             final parsed = _parseSmartInput(value);
                             if (parsed['time'] != null) {
@@ -1414,7 +1407,7 @@ void _checkBurnoutWarning(String dateStr) {
                           ]
                         ),
                         const SizedBox(height: 16),
-                        TextField(controller: titleController, style: TextStyle(color: textColor, fontSize: 16), maxLength: 10, decoration: InputDecoration(labelText: "Заголовок".tr(widget.currentLang), labelStyle: TextStyle(color: textMuted), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.blueAccent)))),
+                        TextField(controller: titleController, style: TextStyle(color: textColor, fontSize: 16), decoration: InputDecoration(labelText: "Заголовок".tr(widget.currentLang), labelStyle: TextStyle(color: textMuted), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.blueAccent)))),
                         const SizedBox(height: 12),
                         Row(
                           children: [
@@ -1514,7 +1507,7 @@ void _checkBurnoutWarning(String dateStr) {
                                 
                                 if (newDateStr != null && newDateStr != task['due_date']) {
                                   final dayCount = tasks.where((t) => t['due_date'] == newDateStr && t['parent_id'] == null).length;
-                                  if (dayCount >= 25) {
+                                  if (dayCount >= AppConfig.dailyTaskLimit) {
                                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Достигнут лимит (25) на день!")));
                                     setStateDialog(() => isSaving = false);
                                     return;
@@ -1896,7 +1889,7 @@ Row(
   }
 
   void _handlePlusTap(DateTime date, int currentDayTaskCount) {
-    if (currentDayTaskCount >= 25) { ScaffoldMessenger.of(context).showSnackBar( SnackBar(content: Text("Лимит задач (25) исчерпан!".tr(widget.currentLang)), backgroundColor: Colors.redAccent)); return; }
+    if (currentDayTaskCount >= AppConfig.dailyTaskLimit) { ScaffoldMessenger.of(context).showSnackBar( SnackBar(content: Text("Лимит задач (25) исчерпан!".tr(widget.currentLang)), backgroundColor: Colors.redAccent)); return; }
     if (_isDuplicating && _taskToDuplicate != null) { _showManualAddDialog(preselectedDate: date, sourceTaskForDuplicate: _taskToDuplicate); } 
     else { _showManualAddDialog(preselectedDate: date); }
   }
@@ -1906,7 +1899,7 @@ Row(
   void _handleTaskDropped({required Map<String, dynamic> task, required String targetDateStr, required int currentTargetTaskCount}) async {
     await _fetchTasks();
     _checkBurnoutWarning(targetDateStr); 
-    if (currentTargetTaskCount >= 25) { ScaffoldMessenger.of(context).showSnackBar( SnackBar(content: Text("Лимит 25 задач!".tr(widget.currentLang)), backgroundColor: Colors.redAccent)); return; }
+    if (currentTargetTaskCount >= AppConfig.dailyTaskLimit) { ScaffoldMessenger.of(context).showSnackBar( SnackBar(content: Text("Лимит 25 задач!".tr(widget.currentLang)), backgroundColor: Colors.redAccent)); return; }
     if (HardwareKeyboard.instance.isControlPressed) {
       int? newTaskId = await _createTaskManually({"title": task['title'], "due_date": targetDateStr, "due_time": task['due_time'], "note": task['note'], "priority": task['priority'], "tags": task['tags'], "recurrence": task['recurrence'], "parent_id": task['parent_id'], "is_completed": false});
       if (newTaskId != null && task['parent_id'] == null) {
@@ -1930,14 +1923,12 @@ Row(
 
     final bool overdue = _isOverdue(task);
 
-    // Жестко ограничиваем заголовок до 10 символов
-    String rawTitle = task['title'] ?? '';
-    String displayTitle = rawTitle.length > 10 ? '${rawTitle.substring(0, 10)}...' : rawTitle;
+    String displayTitle = task['title'] ?? '';
 
     return GestureDetector(
       onTap: () => _handleTaskTap(task),
       child: Container(
-        margin: EdgeInsets.only(bottom: 4 * _s, left: 4 * _s, right: 4 * _s), 
+        margin: EdgeInsets.only(bottom: 4 * _s, left: 4 * _s, right: 4 * _s),
         decoration: BoxDecoration(
           color: isDone ? Colors.transparent : (overdue ? Colors.redAccent.withOpacity(0.08) : Colors.transparent),
           borderRadius: BorderRadius.circular(6 * _s),
@@ -2016,13 +2007,12 @@ Row(
     
     final bool overdue = _isOverdue(task);
 
-    String rawTitle = task['title'] ?? '';
-    String displayTitle = rawTitle.length > 10 ? '${rawTitle.substring(0, 10)}...' : rawTitle;
+    String displayTitle = task['title'] ?? '';
 
     return GestureDetector(
       onTap: () => _handleTaskTap(task),
       child: Container(
-        margin: EdgeInsets.only(bottom: 12 * _s), color: Colors.transparent, 
+        margin: EdgeInsets.only(bottom: 12 * _s), color: Colors.transparent,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center, // <-- ИДЕАЛЬНОЕ ВЫРАВНИВАНИЕ ПО ЦЕНТРУ
           children: [
@@ -2116,7 +2106,14 @@ Row(
         leading: Checkbox(shape: const CircleBorder(), side: BorderSide(color: isDone ? glassBorderColor : (hasPriority ? _getPriorityColor(task['priority']) : (overdue ? Colors.redAccent : glassBorderColor)), width: 2.0), value: isDone, onChanged: (val) => _toggleTask(task), activeColor: Colors.blueAccent),
         title: Row(
           children: [
-            Text(task['title'] ?? '', style: TextStyle(fontSize: 18, decoration: isDone ? TextDecoration.lineThrough : TextDecoration.none, color: isDone ? textMuted : textColor, fontWeight: FontWeight.w600)),
+            Expanded(
+              child: Text(
+                task['title'] ?? '',
+                style: TextStyle(fontSize: 18, decoration: isDone ? TextDecoration.lineThrough : TextDecoration.none, color: isDone ? textMuted : textColor, fontWeight: FontWeight.w600),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
             if (hasRecurrence) Padding(padding: const EdgeInsets.only(left: 8), child: Icon(Icons.repeat, size: 16, color: isDone ? textMuted : Colors.orange),),
             if (hasSubtasks) Padding(padding: const EdgeInsets.only(left: 12), child: Text("[${stats['done']}/${stats['total']}]", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: allDone ? Colors.green : Colors.orange)),)
           ],
@@ -2993,7 +2990,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
                             icon: const Icon(Icons.telegram, color: Colors.blueAccent, size: 20),
                             label: Text("Поддержка".tr(widget.currentLang), style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
                             onPressed: () async {
-                              final Uri url = Uri.parse('https://t.me/ClarifyPlan'); 
+                              final Uri url = Uri.parse(AppConfig.telegramSupportUrl);
                               if (await canLaunchUrl(url)) {
                                 await launchUrl(url, mode: LaunchMode.externalApplication);
                               } else {

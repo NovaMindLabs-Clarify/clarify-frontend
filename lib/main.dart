@@ -17,6 +17,7 @@ import 'package:hotkey_manager/hotkey_manager.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:local_notifier/local_notifier.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
+import 'core/config.dart';
 import 'core/localization.dart';
 import 'screens/desktop_planner_screen.dart';
 // Вставь это где-то среди других импортов
@@ -383,12 +384,12 @@ class _AuthScreenState extends State<AuthScreen> {
     debugPrint('!!! КНОПКА НАЖАТА, ЗАПУСКАЕМ СЕРВЕР !!!'); 
 
     try {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 8765);
-      debugPrint('Локальный сервер запущен на порту 8765');
-      
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, AppConfig.yandexOAuthCallbackPort);
+      debugPrint('Локальный сервер запущен на порту ${AppConfig.yandexOAuthCallbackPort}');
+
       final authUrl = Uri.https('oauth.yandex.ru', '/authorize', {
         'response_type': 'code',
-        'client_id': '8a185fbf29224afa926cdfc55e78c7ad', 
+        'client_id': AppConfig.yandexClientId,
         'redirect_uri': 'https://laghxzqqgxhspwcbbcml.supabase.co/functions/v1/vk-auth',
       });
       
@@ -443,7 +444,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _sendCodeToFastAPI(String code) async {
-    final backendUrl = Uri.parse('https://clarify-backend-g6np.onrender.com/auth/yandex'); 
+    final backendUrl = Uri.parse('${AppConfig.backendBaseUrl}/auth/yandex');
     
     try {
       debugPrint('Отправляем код Яндекса на бэкенд...');
