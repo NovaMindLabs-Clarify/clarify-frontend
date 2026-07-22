@@ -4,7 +4,6 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
 import 'dart:ui';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:app_links/app_links.dart';
@@ -19,6 +18,7 @@ import 'package:local_notifier/local_notifier.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
 import 'core/config.dart';
 import 'core/localization.dart';
+import 'core/theme/design_tokens.dart';
 import 'screens/desktop_planner_screen.dart';
 // Вставь это где-то среди других импортов
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -211,23 +211,23 @@ class _SmartPlannerAppState extends State<SmartPlannerApp> with TrayListener {
       theme: ThemeData(
         brightness: Brightness.light,
         scaffoldBackgroundColor: Colors.transparent,
-        fontFamily: GoogleFonts.inter().fontFamily, // <-- ДОБАВИЛИ МАГИЮ
-        textTheme: GoogleFonts.interTextTheme(ThemeData.light().textTheme),
+        fontFamily: 'Golos Text',
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF4F46E5), 
+          seedColor: const Color(0xFF4F46E5),
           brightness: Brightness.light,
         ),
+        extensions: const [ClarifyTokens.light],
         useMaterial3: true,
       ),
       darkTheme: ThemeData(
         brightness: Brightness.dark,
         scaffoldBackgroundColor: Colors.transparent,
-        fontFamily: GoogleFonts.inter().fontFamily, // <-- ДОБАВИЛИ МАГИЮ
-        textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
+        fontFamily: 'Golos Text',
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF4F46E5), 
+          seedColor: const Color(0xFF4F46E5),
           brightness: Brightness.dark,
         ),
+        extensions: const [ClarifyTokens.dark],
         useMaterial3: true,
       ),
       home: !_isAuthenticated

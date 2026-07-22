@@ -36,7 +36,6 @@ dependencies:
   cupertino_icons: ^1.0.8
   http: ^1.6.0
   speech_to_text: ^7.4.0
-  google_fonts: ^8.1.0
   supabase_flutter: ^2.5.0
   flutter_dotenv: ^5.1.0
   shared_preferences: ^2.3.0
@@ -97,11 +96,12 @@ flutter:
   # list giving the asset and other descriptors for the font. For
   # example:
   fonts:
-    - family: Inter
+    - family: Golos Text
       fonts:
-        - asset: assets/fonts/Inter_18pt-Regular.ttf
-        - asset: assets/fonts/Inter_18pt-Bold.ttf
-          weight: 700
+        - asset: assets/fonts/GolosText-Variable.ttf
+    - family: Unbounded
+      fonts:
+        - asset: assets/fonts/Unbounded-Variable.ttf
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
