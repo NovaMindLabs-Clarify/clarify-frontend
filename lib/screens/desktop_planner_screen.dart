@@ -1949,7 +1949,7 @@ Row(
   }
 
   void _handlePlusTap(DateTime date, int currentDayTaskCount) {
-    if (currentDayTaskCount >= AppConfig.dailyTaskLimit) { ScaffoldMessenger.of(context).showSnackBar( SnackBar(content: Text("Лимит задач (25) исчерпан!".tr(widget.currentLang)), backgroundColor: Colors.redAccent)); return; }
+    if (currentDayTaskCount >= AppConfig.dailyTaskLimit) { ScaffoldMessenger.of(context).showSnackBar( SnackBar(content: Text("Лимит задач (100) исчерпан!".tr(widget.currentLang)), backgroundColor: Colors.redAccent)); return; }
     if (_isDuplicating && _taskToDuplicate != null) { _showManualAddDialog(preselectedDate: date, sourceTaskForDuplicate: _taskToDuplicate); } 
     else { _showManualAddDialog(preselectedDate: date); }
   }
@@ -1959,7 +1959,7 @@ Row(
   void _handleTaskDropped({required Map<String, dynamic> task, required String targetDateStr, required int currentTargetTaskCount}) async {
     await _fetchTasks();
     _checkBurnoutWarning(targetDateStr); 
-    if (currentTargetTaskCount >= AppConfig.dailyTaskLimit) { ScaffoldMessenger.of(context).showSnackBar( SnackBar(content: Text("Лимит 25 задач!".tr(widget.currentLang)), backgroundColor: Colors.redAccent)); return; }
+    if (currentTargetTaskCount >= AppConfig.dailyTaskLimit) { ScaffoldMessenger.of(context).showSnackBar( SnackBar(content: Text("Лимит 100 задач!".tr(widget.currentLang)), backgroundColor: Colors.redAccent)); return; }
     if (HardwareKeyboard.instance.isControlPressed) {
       int? newTaskId = await _createTaskManually({"title": task['title'], "due_date": targetDateStr, "due_time": task['due_time'], "note": task['note'], "priority": task['priority'], "tags": task['tags'], "recurrence": task['recurrence'], "parent_id": task['parent_id'], "is_completed": false});
       if (newTaskId != null && task['parent_id'] == null) {

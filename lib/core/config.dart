@@ -10,7 +10,7 @@ class AppConfig {
   static const int yandexOAuthCallbackPort = 8765;
   static const String yandexClientId = '8a185fbf29224afa926cdfc55e78c7ad';
 
-  static const int dailyTaskLimit = 25;
+  static const int dailyTaskLimit = 100;
 
   static const String telegramSupportUrl = 'https://t.me/ClarifyPlan';
 
