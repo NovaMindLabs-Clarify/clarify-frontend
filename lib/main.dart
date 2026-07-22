@@ -53,8 +53,9 @@ Future<void> main(List<String> args) async {
   bool isAutostart = args.contains('--autostart');
 
   await Hive.initFlutter();
-  await Hive.openBox('tasks_cache'); 
+  await Hive.openBox('tasks_cache');
   await Hive.openBox('settings');
+  await Hive.openBox('pending_ops');
 
   await hotKeyManager.unregisterAll();
 

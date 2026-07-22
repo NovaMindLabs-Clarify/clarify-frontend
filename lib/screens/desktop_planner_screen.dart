@@ -62,7 +62,13 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   String selectedMenu = 'Мой день';
   final String baseUrl = AppConfig.backendBaseUrl;
   bool isAiTyping = false;
-  bool _isOffline = false; 
+  bool _isOffline = false;
+  // Сводку о пропущенных дедлайнах показываем один раз за запуск приложения,
+  // при первой успешной загрузке задач — не при каждом _fetchTasks().
+  bool _hasCheckedMissedDeadlinesOnStartup = false;
+  // Сколько изменений ждут отправки на сервер (см. TaskService.pendingOpsCount) —
+  // отражается в шапке, чтобы пользователь не думал, будто изменение просто исчезло.
+  int _pendingOpsCount = 0;
   String rightPanelState = 'none';
   DateTime _currentCalendarDate = DateTime.now();
 
@@ -635,15 +641,20 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
       if (mounted) {
         setState(() {
           tasks = fetchedTasks;
-          _isOffline = false; 
-          _applyFilters(); 
+          _isOffline = false;
+          _pendingOpsCount = _taskService.pendingOpsCount;
+          _applyFilters();
           _rebuildAllAlarms();
         });
+        _checkMissedDeadlinesOnStartup();
       }
     } catch (e) {
-      print("!!! РЕАЛЬНАЯ ОШИБКА БАЗЫ ДАННЫХ: $e"); 
+      print("!!! РЕАЛЬНАЯ ОШИБКА БАЗЫ ДАННЫХ: $e");
       if (mounted) {
-        setState(() => _isOffline = true); 
+        setState(() {
+          _isOffline = true;
+          _pendingOpsCount = _taskService.pendingOpsCount;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
@@ -660,6 +671,32 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
         );
       }
     }
+  }
+
+  // Уведомления о дедлайнах (см. _scheduleTaskAlarms) работают только пока
+  // приложение запущено — это Dart Timer, не системный планировщик ОС.
+  // Настоящие OS-level scheduled-уведомления через flutter_local_notifications
+  // технически возможны на Windows (zonedSchedule), но их cancel() официально
+  // не работает для приложений, не упакованных в MSIX (см. README пакета
+  // flutter_local_notifications_windows) — а Clarify сейчас распространяется
+  // как обычный .exe. Использовать их означало бы получить уведомления,
+  // которые нельзя отменить при переносе/выполнении/удалении задачи — то есть
+  // риск показать уведомление с устаревшим содержимым, что хуже отсутствия
+  // уведомления вовсе. Поэтому вместо этого — сводка при следующем запуске:
+  // честный, проверяемый компромисс, не требующий MSIX-упаковки.
+  void _checkMissedDeadlinesOnStartup() {
+    if (_hasCheckedMissedDeadlinesOnStartup) return;
+    _hasCheckedMissedDeadlinesOnStartup = true;
+
+    final overdueTasks = tasks.where((t) => _isOverdue(t)).toList();
+    if (overdueTasks.isEmpty) return;
+
+    final firstTitle = overdueTasks.first['title'] ?? '';
+    final body = overdueTasks.length == 1
+        ? 'Задача "$firstTitle" просрочена.'
+        : 'Просрочено задач: ${overdueTasks.length}. Например: "$firstTitle".';
+
+    _triggerPushNotification('Пока вас не было', body);
   }
 
   // --- МАГИЯ REALTIME ---
@@ -723,10 +760,21 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   Future<void> _updateTaskData(dynamic taskId, Map<String, dynamic> taskData) async {
     try {
       await _taskService.updateTask(taskId, taskData); // <--- ИСПОЛЬЗУЕМ СЕРВИС
-          
-      await _fetchTasks(); 
+
+      await _fetchTasks();
     } catch (e) {
+      // updateTask уже поставил изменение в очередь на повтор (TaskService.flushPendingOps) —
+      // сообщаем об этом пользователю, а не просто теряем изменение молча.
       print("Ошибка обновления задачи: $e".tr(widget.currentLang));
+      if (mounted) {
+        setState(() => _pendingOpsCount = _taskService.pendingOpsCount);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Нет сети. Изменение отправим, когда сеть восстановится.".tr(widget.currentLang)),
+            backgroundColor: Colors.orangeAccent,
+          ),
+        );
+      }
     }
   }
 
@@ -916,16 +964,28 @@ void _checkBurnoutWarning(String dateStr) {
   }
 
   Future<void> _deleteTask(dynamic taskId) async {
+    // Удаляем локально сразу (как и при создании задачи) — теперь это безопасно:
+    // если сеть недоступна, TaskService поставит удаление в очередь и повторит
+    // его сам при следующей успешной синхронизации.
+    setState(() {
+      tasks.removeWhere((t) => t['id'] == taskId);
+      _applyFilters();
+      _rebuildAllAlarms();
+    });
+
     try {
       await _taskService.deleteTask(taskId); // <--- ИСПОЛЬЗУЕМ СЕРВИС
-
-      setState(() {
-        tasks.removeWhere((t) => t['id'] == taskId);
-        _applyFilters();
-        _rebuildAllAlarms(); // Удаляем будильники
-      });
     } catch (e) {
       print("Ошибка удаления: $e".tr(widget.currentLang));
+      if (mounted) {
+        setState(() => _pendingOpsCount = _taskService.pendingOpsCount);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Нет сети. Удаление отправим, когда сеть восстановится.".tr(widget.currentLang)),
+            backgroundColor: Colors.orangeAccent,
+          ),
+        );
+      }
     }
   }
   
@@ -2603,12 +2663,22 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                       ),
                                     ],
 
-                                    if (_isOffline) 
+                                    if (_isOffline)
                                       Padding(
                                         padding: EdgeInsets.only(right: 12 * _s),
                                         child: Icon(Icons.cloud_off, color: Colors.orangeAccent, size: 24 * _s),
                                       ),
-                                    
+
+                                    if (_pendingOpsCount > 0)
+                                      Padding(
+                                        padding: EdgeInsets.only(right: 12 * _s),
+                                        child: Tooltip(
+                                          message: "Несинхронизированных изменений: $_pendingOpsCount".tr(widget.currentLang),
+                                          child: Icon(Icons.sync_problem, color: Colors.orangeAccent, size: 24 * _s),
+                                        ),
+                                      ),
+
+
                                     // 🚀 НОВАЯ КНОПКА СВИНЦОВОГО КУПОЛА
                                     ElevatedButton.icon(
                                       style: ElevatedButton.styleFrom(
