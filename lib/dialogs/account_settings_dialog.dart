@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../core/config.dart';
 import '../core/localization.dart';
+import '../core/theme/design_tokens.dart';
 
 /// Диалог настроек аккаунта: аватар, имя, автозапуск, язык, смена пароля,
 /// выход. Вынесено из DesktopPlannerScreen (P3.1, docs/IMPROVEMENT_PLAN.md) —
@@ -29,6 +30,7 @@ void showAccountSettingsDialog({
     Color? customColor,
   }) buildGlassContainer,
 }) {
+  final t = context.tokens;
   final user = Supabase.instance.client.auth.currentUser;
   if (user == null) return;
 
@@ -77,9 +79,9 @@ void showAccountSettingsDialog({
 
               setStateDialog(() => avatarUrl = newUrl);
               onProfileChanged();
-              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Аватар обновлен!'.tr(currentLang)), backgroundColor: Colors.green));
+              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Аватар обновлен!'.tr(currentLang)), backgroundColor: t.success));
             } catch (e) {
-              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'.tr(currentLang)), backgroundColor: Colors.redAccent));
+              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'.tr(currentLang)), backgroundColor: t.danger));
             } finally {
               setStateDialog(() => isLoading = false);
             }
@@ -92,9 +94,9 @@ void showAccountSettingsDialog({
             await Supabase.instance.client.auth.updateUser(UserAttributes(data: {'avatar_url': null}));
             setStateDialog(() => avatarUrl = null);
             onProfileChanged();
-            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Аватарка удалена!'.tr(currentLang)), backgroundColor: Colors.green));
+            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Аватарка удалена!'.tr(currentLang)), backgroundColor: t.success));
           } catch (e) {
-            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'.tr(currentLang)), backgroundColor: Colors.redAccent));
+            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'.tr(currentLang)), backgroundColor: t.danger));
           } finally {
             setStateDialog(() => isLoading = false);
           }
@@ -129,14 +131,14 @@ void showAccountSettingsDialog({
                           showDialog(
                             context: context,
                             builder: (dialogCtx) => AlertDialog(
-                              backgroundColor: isDark ? const Color(0xFF2C2C2C) : Colors.white,
+                              backgroundColor: t.surface2,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                               title: Text("Фото профиля".tr(currentLang), style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
                               content: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   ListTile(
-                                    leading: const Icon(Icons.upload, color: Colors.blueAccent),
+                                    leading: Icon(Icons.upload, color: t.accent),
                                     title: Text("Загрузить новое".tr(currentLang), style: TextStyle(color: textColor)),
                                     onTap: () {
                                       Navigator.pop(dialogCtx);
@@ -146,8 +148,8 @@ void showAccountSettingsDialog({
                                   if (hasAvatar) ...[
                                     const Divider(),
                                     ListTile(
-                                      leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                                      title: Text("Удалить текущее".tr(currentLang), style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                                      leading: Icon(Icons.delete_outline, color: t.danger),
+                                      title: Text("Удалить текущее".tr(currentLang), style: TextStyle(color: t.danger, fontWeight: FontWeight.bold)),
                                       onTap: () {
                                         Navigator.pop(dialogCtx);
                                         deleteAvatar();
@@ -164,7 +166,7 @@ void showAccountSettingsDialog({
                           children: [
                             CircleAvatar(
                               radius: 45,
-                              backgroundColor: isDark ? Colors.black45 : Colors.white54,
+                              backgroundColor: t.surfaceSunken,
                               backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl!) : null,
                               child: avatarUrl == null
                                 ? Text(fullName.isNotEmpty ? fullName[0].toUpperCase() : '?', style: TextStyle(fontSize: 32, color: textMuted))
@@ -172,8 +174,8 @@ void showAccountSettingsDialog({
                             ),
                             Container(
                               padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(color: Colors.blueAccent, shape: BoxShape.circle, border: Border.all(color: glassBorderColor, width: 2)),
-                              child: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
+                              decoration: BoxDecoration(color: t.accent, shape: BoxShape.circle, border: Border.all(color: glassBorderColor, width: 2)),
+                              child: Icon(Icons.camera_alt, size: 16, color: t.onAccent),
                             ),
                           ],
                         ),
@@ -185,7 +187,7 @@ void showAccountSettingsDialog({
                           Expanded(
                             child: TextField(
                               controller: nameController, style: TextStyle(color: textColor),
-                              decoration: InputDecoration(labelText: "Никнейм".tr(currentLang), labelStyle: TextStyle(color: textMuted), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.blueAccent)), isDense: true)
+                              decoration: InputDecoration(labelText: "Никнейм".tr(currentLang), labelStyle: TextStyle(color: textMuted), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: t.accent)), isDense: true)
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -199,12 +201,12 @@ void showAccountSettingsDialog({
                                 onProfileChanged();
                                 if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Имя сохранено!'.tr(currentLang))));
                               } catch (e) {
-                                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'.tr(currentLang)), backgroundColor: Colors.redAccent));
+                                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'.tr(currentLang)), backgroundColor: t.danger));
                               } finally {
                                 setStateDialog(() => isLoading = false);
                               }
                             },
-                            child: Text("Сохранить".tr(currentLang), style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold))
+                            child: Text("Сохранить".tr(currentLang), style: TextStyle(color: t.accent, fontWeight: FontWeight.bold))
                           )
                         ],
                       ),
@@ -223,7 +225,7 @@ void showAccountSettingsDialog({
                           ),
                           Switch(
                             value: isAutostart,
-                            activeColor: Colors.blueAccent,
+                            activeColor: t.accent,
                             onChanged: (val) async {
                               setStateDialog(() => isAutostart = val);
                               if (val) {
@@ -257,8 +259,8 @@ void showAccountSettingsDialog({
                             child: ToggleButtons(
                               borderRadius: BorderRadius.circular(12),
                               borderColor: Colors.transparent, selectedBorderColor: Colors.transparent,
-                              fillColor: Colors.blueAccent.withOpacity(0.2),
-                              selectedColor: Colors.blueAccent, color: textMuted,
+                              fillColor: t.accentSoft,
+                              selectedColor: t.accent, color: textMuted,
                               constraints: const BoxConstraints(minHeight: 36, minWidth: 48),
                               isSelected: [currentLang == 'ru', currentLang == 'en'],
                               onPressed: (index) {
@@ -280,11 +282,11 @@ void showAccountSettingsDialog({
                         child: OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 16),
-                            side: BorderSide(color: Colors.blueAccent.withOpacity(0.5)),
+                            side: BorderSide(color: t.accent.withValues(alpha: 0.5)),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
                           ),
-                          icon: const Icon(Icons.telegram, color: Colors.blueAccent, size: 20),
-                          label: Text("Поддержка".tr(currentLang), style: const TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
+                          icon: Icon(Icons.telegram, color: t.accent, size: 20),
+                          label: Text("Поддержка".tr(currentLang), style: TextStyle(color: t.accent, fontWeight: FontWeight.bold)),
                           onPressed: () async {
                             final Uri url = Uri.parse(AppConfig.telegramSupportUrl);
                             if (await canLaunchUrl(url)) {
@@ -292,7 +294,7 @@ void showAccountSettingsDialog({
                             } else {
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text("Не удалось открыть Telegram".tr(currentLang)), backgroundColor: Colors.redAccent)
+                                  SnackBar(content: Text("Не удалось открыть Telegram".tr(currentLang)), backgroundColor: t.danger)
                                 );
                               }
                             }
@@ -304,7 +306,7 @@ void showAccountSettingsDialog({
 
                       TextField(
                         controller: TextEditingController(text: email), style: TextStyle(color: textMuted), enabled: false,
-                        decoration: InputDecoration(labelText: "Email", labelStyle: TextStyle(color: textMuted), disabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor.withOpacity(0.5))), filled: true, fillColor: isDark ? Colors.black.withOpacity(0.2) : Colors.black.withOpacity(0.05), isDense: true)
+                        decoration: InputDecoration(labelText: "Email", labelStyle: TextStyle(color: textMuted), disabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor.withValues(alpha: 0.5))), filled: true, fillColor: t.surfaceSunken, isDense: true)
                       ),
                       const SizedBox(height: 24),
                       Divider(color: glassBorderColor),
@@ -324,13 +326,13 @@ void showAccountSettingsDialog({
                         Column(
                           children: [
                             if (hasPasswordAuth) ...[
-                              TextField(controller: oldPasswordController, obscureText: true, style: TextStyle(color: textColor), decoration: InputDecoration(labelText: "Текущий пароль".tr(currentLang), labelStyle: TextStyle(color: textMuted), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.redAccent.withOpacity(0.5))), isDense: true)),
+                              TextField(controller: oldPasswordController, obscureText: true, style: TextStyle(color: textColor), decoration: InputDecoration(labelText: "Текущий пароль".tr(currentLang), labelStyle: TextStyle(color: textMuted), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: t.accent)), isDense: true)),
                               const SizedBox(height: 12),
                             ],
 
-                            TextField(controller: newPasswordController, obscureText: true, style: TextStyle(color: textColor), decoration: InputDecoration(labelText: "Новый пароль".tr(currentLang), labelStyle: TextStyle(color: textMuted), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.blueAccent)), isDense: true)),
+                            TextField(controller: newPasswordController, obscureText: true, style: TextStyle(color: textColor), decoration: InputDecoration(labelText: "Новый пароль".tr(currentLang), labelStyle: TextStyle(color: textMuted), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: t.accent)), isDense: true)),
                             const SizedBox(height: 12),
-                            TextField(controller: confirmPasswordController, obscureText: true, style: TextStyle(color: textColor), decoration: InputDecoration(labelText: "Подтвердите пароль".tr(currentLang), labelStyle: TextStyle(color: textMuted), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.blueAccent)), isDense: true)),
+                            TextField(controller: confirmPasswordController, obscureText: true, style: TextStyle(color: textColor), decoration: InputDecoration(labelText: "Подтвердите пароль".tr(currentLang), labelStyle: TextStyle(color: textMuted), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: t.accent)), isDense: true)),
                             const SizedBox(height: 16),
                             Row(
                               children: [
@@ -338,20 +340,20 @@ void showAccountSettingsDialog({
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 14)),
+                                    style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 14)),
                                     onPressed: isLoading ? null : () async {
                                       final oldPass = oldPasswordController.text;
                                       final newPass = newPasswordController.text;
                                       final confPass = confirmPasswordController.text;
 
-                                      if (newPass != confPass) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Новые пароли не совпадают!'.tr(currentLang)), backgroundColor: Colors.redAccent)); return; }
-                                      if (newPass.length < 6) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Минимум 6 символов!'.tr(currentLang)), backgroundColor: Colors.redAccent)); return; }
+                                      if (newPass != confPass) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Новые пароли не совпадают!'.tr(currentLang)), backgroundColor: t.danger)); return; }
+                                      if (newPass.length < 6) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Минимум 6 символов!'.tr(currentLang)), backgroundColor: t.danger)); return; }
 
                                       setStateDialog(() => isLoading = true);
                                       try {
                                         if (hasPasswordAuth) {
-                                          if (oldPass.isEmpty) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Введите текущий пароль!'.tr(currentLang)), backgroundColor: Colors.redAccent)); setStateDialog(() => isLoading = false); return; }
-                                          if (oldPass == newPass) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Новый пароль должен отличаться!'.tr(currentLang)), backgroundColor: Colors.orangeAccent)); setStateDialog(() => isLoading = false); return; }
+                                          if (oldPass.isEmpty) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Введите текущий пароль!'.tr(currentLang)), backgroundColor: t.danger)); setStateDialog(() => isLoading = false); return; }
+                                          if (oldPass == newPass) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Новый пароль должен отличаться!'.tr(currentLang)), backgroundColor: t.warning)); setStateDialog(() => isLoading = false); return; }
 
                                           await Supabase.instance.client.auth.signInWithPassword(email: email, password: oldPass);
                                         }
@@ -361,19 +363,19 @@ void showAccountSettingsDialog({
                                         setStateDialog(() { isChangingPassword = false; oldPasswordController.clear(); newPasswordController.clear(); confirmPasswordController.clear(); });
 
                                         if (context.mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(hasPasswordAuth ? 'Пароль успешно изменен!'.tr(currentLang) : 'Пароль установлен! Теперь вы можете входить по Email.'.tr(currentLang)), backgroundColor: Colors.green));
+                                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(hasPasswordAuth ? 'Пароль успешно изменен!'.tr(currentLang) : 'Пароль установлен! Теперь вы можете входить по Email.'.tr(currentLang)), backgroundColor: t.success));
                                           if (!hasPasswordAuth) Navigator.of(context).pop();
                                         }
                                       } on AuthException catch (e) {
                                         if (context.mounted) {
                                           if (e.message.contains('Invalid login credentials')) {
-                                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Неверный текущий пароль!'.tr(currentLang)), backgroundColor: Colors.redAccent));
+                                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Неверный текущий пароль!'.tr(currentLang)), backgroundColor: t.danger));
                                           } else {
-                                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: ${e.message}'.tr(currentLang)), backgroundColor: Colors.redAccent));
+                                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: ${e.message}'.tr(currentLang)), backgroundColor: t.danger));
                                           }
                                         }
                                       } catch (e) {
-                                        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'.tr(currentLang)), backgroundColor: Colors.redAccent));
+                                        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'.tr(currentLang)), backgroundColor: t.danger));
                                       } finally {
                                         setStateDialog(() => isLoading = false);
                                       }
@@ -391,7 +393,7 @@ void showAccountSettingsDialog({
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent.withOpacity(0.1), foregroundColor: Colors.redAccent, padding: const EdgeInsets.symmetric(vertical: 16), elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Colors.redAccent))),
+                          style: ElevatedButton.styleFrom(backgroundColor: t.dangerSoft, foregroundColor: t.danger, padding: const EdgeInsets.symmetric(vertical: 16), elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: t.danger))),
                           icon: const Icon(Icons.exit_to_app, size: 20),
                           label: Text("Выйти из аккаунта".tr(currentLang), style: TextStyle(fontWeight: FontWeight.bold)),
                           onPressed: () async {

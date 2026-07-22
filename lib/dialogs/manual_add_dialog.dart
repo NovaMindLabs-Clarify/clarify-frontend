@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/localization.dart';
+import '../core/theme/design_tokens.dart';
 
 /// Диалог создания новой задачи (в т.ч. дублирования). Вынесено из
 /// DesktopPlannerScreen (P3.1, docs/IMPROVEMENT_PLAN.md) — логика и разметка
@@ -49,6 +50,7 @@ void showManualAddDialog({
   DateTime? preselectedDate,
   Map<String, dynamic>? sourceTaskForDuplicate,
 }) {
+  final t = context.tokens;
   final s = scale;
   final bool isFromDuplicate = sourceTaskForDuplicate != null;
   final TextEditingController titleController = TextEditingController(text: isFromDuplicate ? sourceTaskForDuplicate['title'] : '');
@@ -151,7 +153,7 @@ void showManualAddDialog({
                         children: [
                           TextButton(onPressed: () => shiftDate(1, 0, setStateDialog, selectedDate), child: Text("+1 День".tr(currentLang))),
                           TextButton(onPressed: () => shiftDate(7, 0, setStateDialog, selectedDate), child: Text("+1 Неделя".tr(currentLang))),
-                          TextButton(onPressed: () => setStateDialog(() => selectedDate = null), child: Text("Убрать".tr(currentLang), style: TextStyle(color: Colors.redAccent))),
+                          TextButton(onPressed: () => setStateDialog(() => selectedDate = null), child: Text("Убрать".tr(currentLang), style: TextStyle(color: t.danger))),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -160,7 +162,7 @@ void showManualAddDialog({
                           Icon(Icons.repeat, size: 18, color: textMuted),
                           const SizedBox(width: 8),
                           DropdownButton<String>(
-                            value: selectedRecurrence, dropdownColor: isDark ? const Color(0xFF1E1E1E) : Colors.white, underline: const SizedBox(), style: TextStyle(fontSize: 14, color: textColor),
+                            value: selectedRecurrence, dropdownColor: t.surface2, underline: const SizedBox(), style: TextStyle(fontSize: 14, color: textColor),
                             items: [
                               DropdownMenuItem(value: 'none', child: Text("Без повтора".tr(currentLang), style: TextStyle(color: textColor))),
                               DropdownMenuItem(value: 'daily', child: Text("Каждый день".tr(currentLang), style: TextStyle(color: textColor))),
@@ -172,9 +174,9 @@ void showManualAddDialog({
                         ],
                       ),
                       const SizedBox(height: 12),
-                      TextField(controller: tagsController, style: TextStyle(color: textColor), decoration: InputDecoration(labelText: "Теги (через запятую)".tr(currentLang), labelStyle: TextStyle(color: textMuted), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.blueAccent)), isDense: true)),
+                      TextField(controller: tagsController, style: TextStyle(color: textColor), decoration: InputDecoration(labelText: "Теги (через запятую)".tr(currentLang), labelStyle: TextStyle(color: textMuted), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: t.accent)), isDense: true)),
                       const SizedBox(height: 12),
-                      TextField(controller: noteController, style: TextStyle(color: textColor), maxLines: 2, decoration: InputDecoration(labelText: "Заметка".tr(currentLang), labelStyle: TextStyle(color: textMuted), alignLabelWithHint: true, enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.blueAccent)))),
+                      TextField(controller: noteController, style: TextStyle(color: textColor), maxLines: 2, decoration: InputDecoration(labelText: "Заметка".tr(currentLang), labelStyle: TextStyle(color: textMuted), alignLabelWithHint: true, enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: t.accent)))),
                       const SizedBox(height: 16),
                       Divider(color: glassBorderColor),
                       const SizedBox(height: 8),
@@ -190,7 +192,7 @@ void showManualAddDialog({
                                 children: [
                                   Icon(Icons.circle_outlined, size: 16, color: textMuted), const SizedBox(width: 8),
                                   Expanded(child: Text(subTitle, style: TextStyle(color: textColor))),
-                                  IconButton(icon: Icon(Icons.close, size: 16, color: Colors.red[300]), padding: EdgeInsets.zero, constraints: const BoxConstraints(), onPressed: () => setStateDialog(() => tempSubtasks.removeAt(idx)))
+                                  IconButton(icon: Icon(Icons.close, size: 16, color: t.danger), padding: EdgeInsets.zero, constraints: const BoxConstraints(), onPressed: () => setStateDialog(() => tempSubtasks.removeAt(idx)))
                                 ],
                               ),
                             );
@@ -201,7 +203,7 @@ void showManualAddDialog({
                         children: [
                           Expanded(child: TextField(controller: subtaskController, style: TextStyle(color: textColor), decoration: InputDecoration(hintText: "Добавить пункт...".tr(currentLang), hintStyle: TextStyle(color: textMuted), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), isDense: true), onSubmitted: (text) { if (text.trim().isNotEmpty) { setStateDialog(() { tempSubtasks.add(text.trim()); subtaskController.clear(); }); } })),
                           const SizedBox(width: 12),
-                          IconButton(style: IconButton.styleFrom(backgroundColor: highlightColor, padding: const EdgeInsets.all(12)), icon: const Icon(Icons.add, color: Colors.blueAccent), onPressed: () { if (subtaskController.text.trim().isNotEmpty) { setStateDialog(() { tempSubtasks.add(subtaskController.text.trim()); subtaskController.clear(); }); } })
+                          IconButton(style: IconButton.styleFrom(backgroundColor: highlightColor, padding: const EdgeInsets.all(12)), icon: Icon(Icons.add, color: t.accent), onPressed: () { if (subtaskController.text.trim().isNotEmpty) { setStateDialog(() { tempSubtasks.add(subtaskController.text.trim()); subtaskController.clear(); }); } })
                         ],
                       ),
 
@@ -209,7 +211,7 @@ void showManualAddDialog({
                       if (selectedMenu.startsWith('ws_')) ...[
                         SizedBox(height: 12 * s),
                         DropdownButtonFormField<String>(
-                          dropdownColor: isDark ? const Color(0xFF2C2C2C) : Colors.white,
+                          dropdownColor: t.surface2,
                           decoration: InputDecoration(
                             labelText: "Назначить на...".tr(currentLang),
                             labelStyle: TextStyle(color: textMuted),
@@ -237,7 +239,7 @@ void showManualAddDialog({
                           TextButton(onPressed: () { Navigator.pop(context); if (isDuplicating) onDuplicateHandled(); }, child: Text("Отмена".tr(currentLang), style: TextStyle(color: textMuted))),
                           const SizedBox(width: 12),
                           ElevatedButton(
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                            style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                             onPressed: isSaving ? null : () async {
                               if (titleController.text.trim().isEmpty) return;
 
@@ -280,13 +282,13 @@ void showManualAddDialog({
 
                               if (isDuplicating) {
                                 onDuplicateHandled();
-                                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Задача скопирована!".tr(currentLang)), backgroundColor: Colors.blueAccent));
+                                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Задача скопирована!".tr(currentLang)), backgroundColor: t.accent));
                               }
 
                               if (context.mounted) setStateDialog(() => isSaving = false);
                             },
                             child: isSaving
-                                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: t.onAccent, strokeWidth: 2))
                                 : Text("Сохранить".tr(currentLang), style: TextStyle(fontWeight: FontWeight.bold))
                           ),
                         ],

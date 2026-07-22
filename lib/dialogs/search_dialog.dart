@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/localization.dart';
+import '../core/theme/design_tokens.dart';
 
 /// Диалог поиска задач (Ctrl+F). Вынесено из DesktopPlannerScreen (P3.1,
 /// docs/IMPROVEMENT_PLAN.md) — логика и разметка не менялись, только доступ
@@ -19,6 +20,7 @@ void showSearchDialog({
     Color? customColor,
   }) buildGlassContainer,
 }) {
+  final t = context.tokens;
   String query = '';
   showDialog(
     context: context,
@@ -47,7 +49,7 @@ void showSearchDialog({
                         hintText: "Поиск задач...".tr(currentLang),
                         hintStyle: TextStyle(color: textMuted),
                         border: InputBorder.none,
-                        icon: const Icon(Icons.search, color: Colors.blueAccent, size: 28),
+                        icon: Icon(Icons.search, color: t.accent, size: 28),
                       ),
                       onChanged: (val) => setStateDialog(() => query = val),
                     ),
@@ -68,7 +70,7 @@ void showSearchDialog({
                                 return ListTile(
                                   title: Text(task['title'] ?? '', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
                                   subtitle: task['note'] != null ? Text(task['note'], maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: textMuted)) : null,
-                                  trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.blueAccent),
+                                  trailing: Icon(Icons.arrow_forward_ios, size: 14, color: t.accent),
                                   onTap: () {
                                     Navigator.pop(context);
                                     onTaskSelected(task);

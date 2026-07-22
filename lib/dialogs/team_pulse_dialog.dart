@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/localization.dart';
+import '../core/theme/design_tokens.dart';
 
 /// "Пульс команды" — сводка за сегодня по воркспейсу. Вынесено из
 /// DesktopPlannerScreen (P3.1, docs/IMPROVEMENT_PLAN.md) — логика и разметка
@@ -38,6 +39,7 @@ void showTeamPulseDialog({
     Color? customColor,
   }) buildGlassContainer,
 }) {
+  final t = context.tokens;
   final s = scale;
   final todayStr = formatDate(DateTime.now());
 
@@ -76,7 +78,7 @@ void showTeamPulseDialog({
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.monitor_heart, color: Colors.redAccent, size: 28 * s),
+                          Icon(Icons.monitor_heart, color: t.accent, size: 28 * s),
                           SizedBox(width: 12 * s),
                           Text("Пульс команды".tr(currentLang), style: TextStyle(fontSize: 20 * s, fontWeight: FontWeight.w900, color: textColor)),
                         ],
@@ -88,9 +90,9 @@ void showTeamPulseDialog({
 
                   Row(
                     children: [
-                      Expanded(child: _buildStatCard("Закрыто", totalCompleted.toString(), Colors.green, s, currentLang, textColor)),
+                      Expanded(child: _buildStatCard("Закрыто", totalCompleted.toString(), t.success, s, currentLang, textColor)),
                       SizedBox(width: 16 * s),
-                      Expanded(child: _buildStatCard("В работе", totalActive.toString(), Colors.blueAccent, s, currentLang, textColor)),
+                      Expanded(child: _buildStatCard("В работе", totalActive.toString(), t.accent, s, currentLang, textColor)),
                     ],
                   ),
 
@@ -109,10 +111,10 @@ void showTeamPulseDialog({
                           padding: EdgeInsets.only(bottom: 12 * s),
                           child: Row(
                             children: [
-                              CircleAvatar(radius: 16 * s, backgroundColor: Colors.primaries[members.indexOf(member) % Colors.primaries.length].shade700, child: Text(initial, style: TextStyle(color: Colors.white, fontSize: 14 * s, fontWeight: FontWeight.bold))),
+                              CircleAvatar(radius: 16 * s, backgroundColor: t.tagPalette[members.indexOf(member) % t.tagPalette.length], child: Text(initial, style: TextStyle(color: Colors.white, fontSize: 14 * s, fontWeight: FontWeight.bold))),
                               SizedBox(width: 12 * s),
                               Expanded(child: Text(name, style: TextStyle(color: textColor, fontWeight: FontWeight.w600, fontSize: 16 * s))),
-                              Container(padding: EdgeInsets.symmetric(horizontal: 12 * s, vertical: 6 * s), decoration: BoxDecoration(color: Colors.green.withOpacity(0.15), borderRadius: BorderRadius.circular(16 * s)), child: Text("${entry.value} задач", style: TextStyle(color: Colors.green, fontWeight: FontWeight.w900, fontSize: 13 * s))),
+                              Container(padding: EdgeInsets.symmetric(horizontal: 12 * s, vertical: 6 * s), decoration: BoxDecoration(color: t.successSoft, borderRadius: BorderRadius.circular(16 * s)), child: Text("${entry.value} задач", style: TextStyle(color: t.success, fontWeight: FontWeight.w900, fontSize: 13 * s))),
                             ],
                           ),
                         );

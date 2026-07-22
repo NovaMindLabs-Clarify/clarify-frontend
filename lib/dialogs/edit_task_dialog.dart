@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/config.dart';
 import '../core/localization.dart';
+import '../core/theme/design_tokens.dart';
 
 /// Диалог редактирования существующей задачи. Вынесено из
 /// DesktopPlannerScreen (P3.1, docs/IMPROVEMENT_PLAN.md) — логика и разметка
@@ -28,6 +29,7 @@ void showEditTaskDialog({
     Color? customColor,
   }) buildGlassContainer,
 }) {
+  final t = context.tokens;
   final TextEditingController titleController = TextEditingController(text: task['title']);
   final TextEditingController noteController = TextEditingController(text: task['note'] ?? '');
   final TextEditingController tagsController = TextEditingController(text: task['tags'] ?? '');
@@ -71,7 +73,7 @@ void showEditTaskDialog({
                         ]
                       ),
                       const SizedBox(height: 16),
-                      TextField(controller: titleController, style: TextStyle(color: textColor, fontSize: 16), decoration: InputDecoration(labelText: "Заголовок".tr(currentLang), labelStyle: TextStyle(color: textMuted), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.blueAccent)))),
+                      TextField(controller: titleController, style: TextStyle(color: textColor, fontSize: 16), decoration: InputDecoration(labelText: "Заголовок".tr(currentLang), labelStyle: TextStyle(color: textMuted), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: t.accent)))),
                       const SizedBox(height: 12),
                       Row(
                         children: [
@@ -105,7 +107,7 @@ void showEditTaskDialog({
                         children: [
                           TextButton(onPressed: () => localShiftDate(1, 0, setStateDialog), child: Text("+1 День".tr(currentLang))),
                           TextButton(onPressed: () => localShiftDate(7, 0, setStateDialog), child: Text("+1 Неделя".tr(currentLang))),
-                          TextButton(onPressed: () => setStateDialog(() => selectedDate = null), child: Text("Убрать".tr(currentLang), style: TextStyle(color: Colors.redAccent))),
+                          TextButton(onPressed: () => setStateDialog(() => selectedDate = null), child: Text("Убрать".tr(currentLang), style: TextStyle(color: t.danger))),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -114,7 +116,7 @@ void showEditTaskDialog({
                           Icon(Icons.repeat, size: 18, color: textMuted),
                           const SizedBox(width: 8),
                           DropdownButton<String>(
-                            value: selectedRecurrence, dropdownColor: isDark ? const Color(0xFF1E1E1E) : Colors.white, underline: const SizedBox(), style: TextStyle(fontSize: 14, color: textColor),
+                            value: selectedRecurrence, dropdownColor: t.surface2, underline: const SizedBox(), style: TextStyle(fontSize: 14, color: textColor),
                             items: [
                               DropdownMenuItem(value: 'none', child: Text("Без повтора".tr(currentLang), style: TextStyle(color: textColor))),
                               DropdownMenuItem(value: 'daily', child: Text("Каждый день".tr(currentLang), style: TextStyle(color: textColor))),
@@ -126,18 +128,18 @@ void showEditTaskDialog({
                         ],
                       ),
                       const SizedBox(height: 12),
-                      TextField(controller: tagsController, style: TextStyle(color: textColor), decoration: InputDecoration(labelText: "Теги".tr(currentLang), labelStyle: TextStyle(color: textMuted), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.blueAccent)), isDense: true)),
+                      TextField(controller: tagsController, style: TextStyle(color: textColor), decoration: InputDecoration(labelText: "Теги".tr(currentLang), labelStyle: TextStyle(color: textMuted), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: t.accent)), isDense: true)),
                       const SizedBox(height: 12),
-                      TextField(controller: noteController, style: TextStyle(color: textColor), maxLines: 2, decoration: InputDecoration(labelText: "Заметка".tr(currentLang), labelStyle: TextStyle(color: textMuted), alignLabelWithHint: true, enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.blueAccent)))),
+                      TextField(controller: noteController, style: TextStyle(color: textColor), maxLines: 2, decoration: InputDecoration(labelText: "Заметка".tr(currentLang), labelStyle: TextStyle(color: textMuted), alignLabelWithHint: true, enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: t.accent)))),
 
                       if (task['workspace_id'] != null) ...[
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          dropdownColor: isDark ? const Color(0xFF2C2C2C) : Colors.white,
+                          dropdownColor: t.surface2,
                           decoration: InputDecoration(
                             labelText: "Назначить на...".tr(currentLang),
                             labelStyle: TextStyle(color: textMuted),
-                            prefixIcon: const Icon(Icons.person_outline, color: Colors.blueAccent, size: 20),
+                            prefixIcon: Icon(Icons.person_outline, color: t.accent, size: 20),
                             enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: glassBorderColor)),
                           ),
                           value: selectedAssigneeId,
@@ -159,7 +161,7 @@ void showEditTaskDialog({
                           TextButton(onPressed: () => Navigator.pop(context), child: Text("Отмена".tr(currentLang), style: TextStyle(color: textMuted))),
                           const SizedBox(width: 12),
                           ElevatedButton(
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                            style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                             onPressed: isSaving ? null : () async {
                               if (titleController.text.trim().isEmpty) return;
 
@@ -193,7 +195,7 @@ void showEditTaskDialog({
                               if (context.mounted) setStateDialog(() => isSaving = false);
                             },
                             child: isSaving
-                                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: t.onAccent, strokeWidth: 2))
                                 : Text("Сохранить".tr(currentLang), style: TextStyle(fontWeight: FontWeight.bold)),
                           ),
                         ],

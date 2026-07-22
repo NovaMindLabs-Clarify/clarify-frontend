@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/localization.dart';
+import '../core/theme/design_tokens.dart';
 
 /// Диалог деталей задачи: чек-лист подзадач + обсуждение (комментарии).
 /// Вынесено из DesktopPlannerScreen (P3.1, docs/IMPROVEMENT_PLAN.md) —
@@ -36,6 +37,7 @@ void showTaskDetailsDialog({
     Color? customColor,
   }) buildGlassContainer,
 }) {
+  final t = context.tokens;
   // Контроллеры для подзадач и чата
   final TextEditingController subtaskController = TextEditingController();
   final TextEditingController commentController = TextEditingController();
@@ -97,16 +99,16 @@ void showTaskDetailsDialog({
                         const SizedBox(height: 12),
                         Wrap(
                           spacing: 8,
-                          children: task['tags'].toString().split(',').map((t) => GestureDetector(onTap: () { Navigator.pop(context); onTagTap(t.trim()); }, child: Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: highlightColor, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.blueAccent.withOpacity(0.4))), child: Text("#${t.trim()}", style: const TextStyle(fontSize: 13, color: Colors.blueAccent, fontWeight: FontWeight.bold))), )).toList(),
+                          children: task['tags'].toString().split(',').map((tag) => GestureDetector(onTap: () { Navigator.pop(context); onTagTap(tag.trim()); }, child: Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: highlightColor, borderRadius: BorderRadius.circular(16), border: Border.all(color: t.accent.withValues(alpha: 0.4))), child: Text("#${tag.trim()}", style: TextStyle(fontSize: 13, color: t.accent, fontWeight: FontWeight.bold))), )).toList(),
                         )
                       ],
                       const SizedBox(height: 24),
                       Row(
                         children: [
-                          Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.blueAccent.withOpacity(0.1), borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.event, color: Colors.blueAccent, size: 20)),
+                          Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: t.accentSoft, borderRadius: BorderRadius.circular(8)), child: Icon(Icons.event, color: t.accent, size: 20)),
                           const SizedBox(width: 12),
                           Text("${task['due_date'] ?? 'Входящие (Без даты)'.tr(currentLang)}  •  ${task['due_time'] ?? 'Весь день'.tr(currentLang)}", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: textColor)),
-                          if (task['recurrence'] != null && task['recurrence'] != 'none') ...[const SizedBox(width: 12), const Icon(Icons.repeat, size: 18, color: Colors.orange)]
+                          if (task['recurrence'] != null && task['recurrence'] != 'none') ...[SizedBox(width: 12), Icon(Icons.repeat, size: 18, color: t.text3)]
                         ],
                       ),
 
@@ -115,7 +117,7 @@ void showTaskDetailsDialog({
                         const SizedBox(height: 16),
                         Row(
                           children: [
-                            Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.orangeAccent.withOpacity(0.1), borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.person, color: Colors.orangeAccent, size: 20)),
+                            Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: t.accentSoft, borderRadius: BorderRadius.circular(8)), child: Icon(Icons.person, color: t.accent, size: 20)),
                             const SizedBox(width: 12),
                             Builder(builder: (context) {
                               var members = workspaceMembers[task['workspace_id']] ?? [];
@@ -138,7 +140,7 @@ void showTaskDetailsDialog({
                               p: TextStyle(color: textColor, fontSize: 15, height: 1.5),
                               strong: TextStyle(color: textColor, fontWeight: FontWeight.bold),
                               em: TextStyle(color: textColor, fontStyle: FontStyle.italic),
-                              listBullet: const TextStyle(color: Colors.blueAccent),
+                              listBullet: TextStyle(color: t.accent),
                             )
                           )
                         ),
@@ -148,7 +150,7 @@ void showTaskDetailsDialog({
                       // ЧЕК-ЛИСТ (ПОДЗАДАЧИ)
                       Row(
                         children: [
-                          const Icon(Icons.checklist, color: Colors.blueAccent), const SizedBox(width: 8),
+                          Icon(Icons.checklist, color: t.accent), const SizedBox(width: 8),
                           Text("Чек-лист".tr(currentLang), style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)), const Spacer(),
                           if (subtasks.isNotEmpty) Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: glassColor, borderRadius: BorderRadius.circular(12)), child: Text("${subtasks.where((t) => t['is_completed'] == true).length} из ${subtasks.length}", style: TextStyle(color: textMuted, fontWeight: FontWeight.bold))),
                         ],
@@ -162,9 +164,9 @@ void showTaskDetailsDialog({
                               margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.symmetric(vertical: 4), decoration: BoxDecoration(color: isSubDone ? doneCardColor : cardColor, borderRadius: BorderRadius.circular(12), border: Border.all(color: glassBorderColor)),
                               child: Row(
                                 children: [
-                                  Checkbox(value: isSubDone, activeColor: Colors.blueAccent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)), onChanged: (val) async { await onToggleTask(subtask); setStateDialog(() {}); }),
+                                  Checkbox(value: isSubDone, activeColor: t.accent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)), onChanged: (val) async { await onToggleTask(subtask); setStateDialog(() {}); }),
                                   Expanded(child: Text(subtask['title'], style: TextStyle(fontSize: 15, decoration: isSubDone ? TextDecoration.lineThrough : TextDecoration.none, color: isSubDone ? textMuted : textColor))),
-                                  IconButton(icon: Icon(Icons.close, size: 18, color: Colors.red[300]), onPressed: () async { await onDeleteTask(subtask['id']); setStateDialog(() {}); })
+                                  IconButton(icon: Icon(Icons.close, size: 18, color: t.danger), onPressed: () async { await onDeleteTask(subtask['id']); setStateDialog(() {}); })
                                 ],
                               ),
                             );
@@ -181,7 +183,7 @@ void showTaskDetailsDialog({
                               setStateDialog(() {});
                             })),
                           const SizedBox(width: 8),
-                          IconButton(style: IconButton.styleFrom(backgroundColor: highlightColor, padding: const EdgeInsets.all(12)), icon: const Icon(Icons.add, color: Colors.blueAccent),
+                          IconButton(style: IconButton.styleFrom(backgroundColor: highlightColor, padding: const EdgeInsets.all(12)), icon: Icon(Icons.add, color: t.accent),
                             onPressed: () {
                               if (subtaskController.text.trim().isEmpty) return;
                               final text = subtaskController.text;
@@ -198,7 +200,7 @@ void showTaskDetailsDialog({
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          const Icon(Icons.chat_bubble_outline, color: Colors.blueAccent),
+                          Icon(Icons.chat_bubble_outline, color: t.accent),
                           const SizedBox(width: 8),
                           Text("Обсуждение".tr(currentLang), style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
                         ],
@@ -236,24 +238,24 @@ void showTaskDetailsDialog({
                                       if (!isMyComment)
                                         Padding(
                                           padding: const EdgeInsets.only(right: 8),
-                                          child: CircleAvatar(radius: 14, backgroundColor: Colors.orangeAccent, child: Text(initial, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold))),
+                                          child: CircleAvatar(radius: 14, backgroundColor: t.tagPalette[7], child: Text(initial, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold))),
                                         ),
 
                                       Flexible(
                                         child: Container(
                                           padding: const EdgeInsets.all(12),
                                           decoration: BoxDecoration(
-                                            color: isMyComment ? Colors.blueAccent.withOpacity(0.1) : glassColor,
+                                            color: isMyComment ? t.accentSoft : glassColor,
                                             borderRadius: BorderRadius.circular(12).copyWith(
                                               topLeft: !isMyComment ? const Radius.circular(0) : const Radius.circular(12),
                                               topRight: isMyComment ? const Radius.circular(0) : const Radius.circular(12),
                                             ),
-                                            border: Border.all(color: isMyComment ? Colors.blueAccent.withOpacity(0.3) : glassBorderColor)
+                                            border: Border.all(color: isMyComment ? t.accent.withValues(alpha: 0.3) : glassBorderColor)
                                           ),
                                           child: Column(
                                             crossAxisAlignment: isMyComment ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                                             children: [
-                                              Text(authorName, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isMyComment ? Colors.blueAccent : textMuted)),
+                                              Text(authorName, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isMyComment ? t.accent : textMuted)),
                                               const SizedBox(height: 4),
                                               Text(c['text'] ?? '', style: TextStyle(fontSize: 14, color: textColor)),
                                             ],
@@ -264,7 +266,7 @@ void showTaskDetailsDialog({
                                       if (isMyComment)
                                         Padding(
                                           padding: const EdgeInsets.only(left: 8),
-                                          child: CircleAvatar(radius: 14, backgroundColor: Colors.blueAccent, child: Text(initial, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold))),
+                                          child: CircleAvatar(radius: 14, backgroundColor: t.accent, child: Text(initial, style: TextStyle(color: t.onAccent, fontSize: 12, fontWeight: FontWeight.bold))),
                                         ),
                                     ],
                                   ),
@@ -316,8 +318,8 @@ void showTaskDetailsDialog({
                           ),
                           const SizedBox(width: 8),
                           IconButton(
-                            style: IconButton.styleFrom(backgroundColor: Colors.blueAccent, padding: const EdgeInsets.all(12)),
-                            icon: const Icon(Icons.send, color: Colors.white, size: 20),
+                            style: IconButton.styleFrom(backgroundColor: t.accent, padding: const EdgeInsets.all(12)),
+                            icon: Icon(Icons.send, color: t.onAccent, size: 20),
                             onPressed: () async {
                               if (commentController.text.trim().isEmpty) return;
                               final text = commentController.text.trim();
@@ -351,12 +353,12 @@ void showTaskDetailsDialog({
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          TextButton.icon(icon: const Icon(Icons.delete_outline, color: Colors.redAccent), label: Text("Удалить".tr(currentLang), style: TextStyle(color: Colors.redAccent)), onPressed: () { Navigator.of(context).pop(); onDeleteTask(task['id']); }),
+                          TextButton.icon(icon: Icon(Icons.delete_outline, color: t.danger), label: Text("Удалить".tr(currentLang), style: TextStyle(color: t.danger)), onPressed: () { Navigator.of(context).pop(); onDeleteTask(task['id']); }),
                           Row(
                             children: [
-                              TextButton.icon(icon: const Icon(Icons.copy, color: Colors.blueAccent), label: Text("Дублировать".tr(currentLang), style: TextStyle(color: Colors.blueAccent)), onPressed: () { onDuplicate(task); Navigator.of(context).pop(); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Кликни на плюсик любого дня"))); }),
+                              TextButton.icon(icon: Icon(Icons.copy, color: t.accent), label: Text("Дублировать".tr(currentLang), style: TextStyle(color: t.accent)), onPressed: () { onDuplicate(task); Navigator.of(context).pop(); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Кликни на плюсик любого дня"))); }),
                               const SizedBox(width: 8),
-                              ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), icon: const Icon(Icons.edit, size: 18), label: Text("Изменить".tr(currentLang), style: TextStyle(fontWeight: FontWeight.bold)), onPressed: () { Navigator.of(context).pop(); onEdit(task); }),
+                              ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), icon: const Icon(Icons.edit, size: 18), label: Text("Изменить".tr(currentLang), style: TextStyle(fontWeight: FontWeight.bold)), onPressed: () { Navigator.of(context).pop(); onEdit(task); }),
                             ]
                           )
                         ]

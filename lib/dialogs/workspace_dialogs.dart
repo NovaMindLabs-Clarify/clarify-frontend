@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/localization.dart';
+import '../core/theme/design_tokens.dart';
 
 /// Диалоги управления проектами (папками) и командами (воркспейсами).
 /// Вынесено из DesktopPlannerScreen (P3.1, docs/IMPROVEMENT_PLAN.md) — логика
@@ -16,17 +17,18 @@ void showAddFolderDialog({
   required String currentLang,
   required void Function(String folderName) onFolderAdded,
 }) {
+  final t = context.tokens;
   final ctrl = TextEditingController();
   showDialog(
     context: context,
     builder: (context) => AlertDialog(
-      backgroundColor: isDark ? const Color(0xFF2C2C2C) : Colors.white,
+      backgroundColor: t.surface2,
       title: Text("Новый проект".tr(currentLang), style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
       content: TextField(controller: ctrl, style: TextStyle(color: textColor), decoration: InputDecoration(hintText: "Название папки".tr(currentLang), hintStyle: TextStyle(color: textMuted), enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: glassBorderColor)))),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: Text("Отмена".tr(currentLang), style: TextStyle(color: textMuted))),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white),
+          style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent),
           onPressed: () {
             if (ctrl.text.trim().isNotEmpty) {
               onFolderAdded(ctrl.text.trim());
@@ -50,6 +52,7 @@ void showCreateWorkspaceDialog({
   required String currentLang,
   required Future<void> Function() onWorkspaceCreated,
 }) {
+  final t = context.tokens;
   final ctrl = TextEditingController();
   bool isCreating = false;
   final s = scale;
@@ -59,7 +62,7 @@ void showCreateWorkspaceDialog({
     barrierColor: Colors.black.withOpacity(0.4),
     builder: (context) => StatefulBuilder(builder: (context, setStateDialog) {
       return AlertDialog(
-        backgroundColor: isDark ? const Color(0xFF2C2C2C) : Colors.white,
+        backgroundColor: t.surface2,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20 * s)),
         title: Text("Новая команда".tr(currentLang), style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
         content: TextField(
@@ -78,7 +81,7 @@ void showCreateWorkspaceDialog({
             child: Text("Отмена".tr(currentLang), style: TextStyle(color: textMuted)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent),
             onPressed: isCreating ? null : () async {
               if (ctrl.text.trim().isEmpty) return;
               setStateDialog(() => isCreating = true);
@@ -112,7 +115,7 @@ void showCreateWorkspaceDialog({
               }
             },
             child: isCreating
-                ? SizedBox(width: 16 * s, height: 16 * s, child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                ? SizedBox(width: 16 * s, height: 16 * s, child: CircularProgressIndicator(color: t.onAccent, strokeWidth: 2))
                 : Text("Создать".tr(currentLang)),
           ),
         ],
@@ -131,6 +134,7 @@ void showInviteMemberDialog({
   required Color glassBorderColor,
   required String currentLang,
 }) {
+  final t = context.tokens;
   final emailCtrl = TextEditingController();
   bool isSending = false;
   final s = scale;
@@ -140,7 +144,7 @@ void showInviteMemberDialog({
     barrierColor: Colors.black.withOpacity(0.4),
     builder: (context) => StatefulBuilder(builder: (context, setStateDialog) {
       return AlertDialog(
-        backgroundColor: isDark ? const Color(0xFF2C2C2C) : Colors.white,
+        backgroundColor: t.surface2,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20 * s)),
         title: Text("Пригласить коллегу".tr(currentLang), style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
         content: Column(
@@ -167,7 +171,7 @@ void showInviteMemberDialog({
             child: Text("Отмена".tr(currentLang), style: TextStyle(color: textMuted)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.orangeAccent, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent),
             onPressed: isSending ? null : () async {
               if (emailCtrl.text.trim().isEmpty) return;
               if (!emailCtrl.text.contains('@')) {
@@ -193,7 +197,7 @@ void showInviteMemberDialog({
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(response.toString()),
-                      backgroundColor: response.toString().startsWith('Успех') ? Colors.green : Colors.redAccent,
+                      backgroundColor: response.toString().startsWith('Успех') ? t.success : t.danger,
                     ),
                   );
                 }
@@ -206,7 +210,7 @@ void showInviteMemberDialog({
               }
             },
             child: isSending
-                ? SizedBox(width: 16 * s, height: 16 * s, child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                ? SizedBox(width: 16 * s, height: 16 * s, child: CircularProgressIndicator(color: t.onAccent, strokeWidth: 2))
                 : Text("Пригласить".tr(currentLang), style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
