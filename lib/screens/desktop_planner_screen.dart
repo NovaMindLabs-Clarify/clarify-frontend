@@ -23,6 +23,7 @@ import '../services/task_service.dart';
 import '../widgets/main_content_area.dart';
 import '../widgets/sidebar_menu.dart';
 import '../widgets/window_buttons.dart';
+import '../widgets/task_cards.dart';
 
 class DesktopPlannerScreen extends StatefulWidget {
   final bool isDark;
@@ -1972,271 +1973,6 @@ Row(
     }
   }
 
-  Widget _buildCalendarTaskRow(Map<String, dynamic> task) {
-    final bool isDone = task['is_completed'] == true;
-    Color priorityColor = _getPriorityColor(task['priority']);
-    bool hasPriority = task['priority'] != null && task['priority'] != 'none';
-    bool hasRecurrence = task['recurrence'] != null && task['recurrence'] != 'none';
-    final stats = _getSubtaskStats(task['id']);
-    final bool hasSubtasks = stats['total']! > 0;
-    final bool allDone = hasSubtasks && stats['done'] == stats['total'];
-
-    final bool overdue = _isOverdue(task);
-
-    String displayTitle = task['title'] ?? '';
-
-    return GestureDetector(
-      onTap: () => _handleTaskTap(task),
-      child: Container(
-        margin: EdgeInsets.only(bottom: 4 * _s, left: 4 * _s, right: 4 * _s),
-        decoration: BoxDecoration(
-          color: isDone ? Colors.transparent : (overdue ? Colors.redAccent.withOpacity(0.08) : Colors.transparent),
-          borderRadius: BorderRadius.circular(6 * _s),
-        ),
-        padding: EdgeInsets.symmetric(vertical: 2 * _s),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // ПРИНУДИТЕЛЬНОЕ масштабирование кругляшка
-            SizedBox(
-              width: 16 * _s, 
-              height: 16 * _s, 
-              child: Transform.scale(
-                scale: 0.7 * _s, // Уменьшаем сам рисунок чекбокса
-                child: Checkbox(
-                  shape: const CircleBorder(), 
-                  side: BorderSide(color: isDone ? glassBorderColor : (hasPriority ? priorityColor : (overdue ? Colors.redAccent : glassBorderColor)), width: hasPriority || overdue ? 2.0 : 1.5), 
-                  value: isDone, 
-                  activeColor: Colors.blueAccent, 
-                  onChanged: (val) => _toggleTask(task)
-                )
-              )
-            ),
-            SizedBox(width: 4 * _s),
-            
-            Expanded(
-              child: Text(
-                displayTitle, 
-                style: TextStyle(
-                  fontSize: 11 * _s, 
-                  fontWeight: FontWeight.w600, 
-                  decoration: isDone ? TextDecoration.lineThrough : TextDecoration.none, 
-                  color: isDone ? textMuted : textColor, 
-                ),
-                maxLines: 1, // Запрет переноса строк
-                overflow: TextOverflow.ellipsis, // Многоточие, если не влезает
-              ),
-            ),
-            
-            SizedBox(width: 4 * _s),
-            
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (overdue) Icon(Icons.error_outline, size: 10 * _s, color: Colors.redAccent),
-                if (task['due_time'] != null) Text(task['due_time'], style: TextStyle(fontSize: 10 * _s, fontWeight: overdue ? FontWeight.bold : FontWeight.normal, color: overdue ? Colors.redAccent : textMuted)),
-                if (hasRecurrence) Padding(padding: EdgeInsets.only(left: 4 * _s), child: Icon(Icons.repeat, size: 10 * _s, color: isDone ? textMuted : Colors.orange)),
-                if (hasSubtasks) Padding(padding: EdgeInsets.only(left: 4 * _s), child: Text("[${stats['done']}/${stats['total']}]", style: TextStyle(fontSize: 10 * _s, fontWeight: FontWeight.bold, color: allDone ? Colors.green : Colors.orange))),
-                if (task['tags'] != null && task['tags'].toString().trim().isNotEmpty) Padding(padding: EdgeInsets.only(left: 4 * _s), child: Text("[${task['tags'].toString().split(',')[0].trim()}]", style: TextStyle(fontSize: 10 * _s, fontWeight: FontWeight.bold, color: Colors.blueAccent))),
-              ],
-            ),
-            
-            GestureDetector(onTap: () => _deleteTask(task['id']), child: Padding(padding: EdgeInsets.only(left: 4 * _s), child: Icon(Icons.close, size: 12 * _s, color: textMuted))),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildCalendarTaskCard(Map<String, dynamic> task) { 
-    return LongPressDraggable<Map<String, dynamic>>(
-      data: task, delay: const Duration(milliseconds: 200), 
-      feedback: Material(color: Colors.transparent, child: SizedBox(width: 150, child: _buildCalendarTaskRow(task))), 
-      childWhenDragging: Opacity(opacity: 0.3, child: _buildCalendarTaskRow(task)), child: _buildCalendarTaskRow(task)
-    ); 
-  }
-
-  Widget _buildBoardTaskCardExpanded(Map<String, dynamic> task) {
-    final bool isDone = task['is_completed'] == true;
-    Color priorityColor = _getPriorityColor(task['priority']);
-    bool hasPriority = task['priority'] != null && task['priority'] != 'none';
-    bool hasRecurrence = task['recurrence'] != null && task['recurrence'] != 'none';
-    final stats = _getSubtaskStats(task['id']);
-    final bool hasSubtasks = stats['total']! > 0;
-    final bool allDone = hasSubtasks && stats['done'] == stats['total'];
-    
-    final bool overdue = _isOverdue(task);
-
-    String displayTitle = task['title'] ?? '';
-
-    return GestureDetector(
-      onTap: () => _handleTaskTap(task),
-      child: Container(
-        margin: EdgeInsets.only(bottom: 12 * _s), color: Colors.transparent,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center, // <-- ИДЕАЛЬНОЕ ВЫРАВНИВАНИЕ ПО ЦЕНТРУ
-          children: [
-            SizedBox(
-              width: 44 * _s, 
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center, // <-- Центрируем иконку и время
-                children: [
-                  if (overdue) Padding(padding: EdgeInsets.only(bottom: 2 * _s), child: Icon(Icons.error_outline, size: 16 * _s, color: Colors.redAccent)),
-                  Text(task['due_time'] ?? '--:--', style: TextStyle(fontSize: 13 * _s, fontWeight: FontWeight.bold, color: overdue ? Colors.redAccent : textMuted)),
-                ],
-              )
-            ),
-            Expanded(
-              child: _buildGlassContainer(
-                customColor: isDone ? doneCardColor : (overdue ? Colors.redAccent.withOpacity(0.08) : null),
-                padding: EdgeInsets.symmetric(horizontal: 12 * _s, vertical: 12 * _s),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      width: 20 * _s, 
-                      height: 20 * _s, 
-                      child: Transform.scale(
-                        scale: 0.9 * _s,
-                        child: Checkbox(shape: const CircleBorder(), side: BorderSide(color: isDone ? glassBorderColor : (hasPriority ? priorityColor : (overdue ? Colors.redAccent : glassBorderColor)), width: 2.0), value: isDone, onChanged: (val) => _toggleTask(task), activeColor: Colors.blueAccent)
-                      )
-                    ),
-                    SizedBox(width: 10 * _s),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            displayTitle, 
-                            style: TextStyle(
-                              fontSize: 15 * _s, 
-                              decoration: isDone ? TextDecoration.lineThrough : TextDecoration.none, 
-                              color: isDone ? textMuted : textColor, 
-                              fontWeight: FontWeight.bold
-                            ), 
-                            maxLines: 1, 
-                            overflow: TextOverflow.ellipsis, 
-                          ),
-                          if (hasRecurrence || hasSubtasks || (task['tags'] != null && task['tags'].toString().trim().isNotEmpty))
-                            Padding(
-                              padding: EdgeInsets.only(top: 6 * _s),
-                              child: Wrap(
-                                spacing: 8 * _s,
-                                runSpacing: 4 * _s,
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                children: [
-                                  if (hasRecurrence) Icon(Icons.repeat, size: 14 * _s, color: isDone ? textMuted : Colors.orange),
-                                  if (hasSubtasks) Text("[${stats['done']}/${stats['total']}]", style: TextStyle(fontSize: 12 * _s, fontWeight: FontWeight.bold, color: allDone ? Colors.green : Colors.orange)),
-                                  if (task['tags'] != null && task['tags'].toString().trim().isNotEmpty)
-                                    GestureDetector(onTap: () => setState(() => activeTagFilter = task['tags'].toString().split(',')[0].trim()), child: Text("[${task['tags'].toString().split(',')[0].trim()}]", style: TextStyle(fontSize: 12 * _s, fontWeight: FontWeight.bold, color: Colors.blueAccent))),
-                                ],
-                              ),
-                            )
-                        ]
-                      )
-                    ),
-                    IconButton(padding: EdgeInsets.zero, constraints: const BoxConstraints(), icon: Icon(Icons.close, size: 18 * _s, color: textMuted), onPressed: () => _deleteTask(task['id']))
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildListTaskCard(Map<String, dynamic> task) {
-    final bool isDone = task['is_completed'] == true;
-    bool hasPriority = task['priority'] != null && task['priority'] != 'none';
-    bool hasRecurrence = task['recurrence'] != null && task['recurrence'] != 'none';
-    final stats = _getSubtaskStats(task['id']);
-    final bool hasSubtasks = stats['total']! > 0;
-    final bool allDone = hasSubtasks && stats['done'] == stats['total'];
-    
-    final bool overdue = _isOverdue(task);
-
-    return _buildGlassContainer(
-      margin: const EdgeInsets.only(bottom: 12),
-      customColor: isDone ? doneCardColor : (overdue ? Colors.redAccent.withOpacity(0.08) : null),
-      child: ListTile(
-        onTap: () => _handleTaskTap(task), 
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        leading: Checkbox(shape: const CircleBorder(), side: BorderSide(color: isDone ? glassBorderColor : (hasPriority ? _getPriorityColor(task['priority']) : (overdue ? Colors.redAccent : glassBorderColor)), width: 2.0), value: isDone, onChanged: (val) => _toggleTask(task), activeColor: Colors.blueAccent),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                task['title'] ?? '',
-                style: TextStyle(fontSize: 18, decoration: isDone ? TextDecoration.lineThrough : TextDecoration.none, color: isDone ? textMuted : textColor, fontWeight: FontWeight.w600),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            if (hasRecurrence) Padding(padding: const EdgeInsets.only(left: 8), child: Icon(Icons.repeat, size: 16, color: isDone ? textMuted : Colors.orange),),
-            if (hasSubtasks) Padding(padding: const EdgeInsets.only(left: 12), child: Text("[${stats['done']}/${stats['total']}]", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: allDone ? Colors.green : Colors.orange)),)
-          ],
-        ),
-        subtitle: (task['due_time'] != null || task['note'] != null || task['tags'] != null) 
-            ? Padding(
-                padding: const EdgeInsets.only(top: 8), 
-                child: Row(
-                  children: [
-                    if (task['due_date'] != null || task['due_time'] != null) ...[
-                      if (overdue) const Padding(padding: EdgeInsets.only(right: 4), child: Icon(Icons.error_outline, size: 16, color: Colors.redAccent)),
-                      Text("${task['due_date'] != null ? '${task['due_date']} ' : ''}${task['due_time'] ?? ''}  ", style: TextStyle(fontSize: 14, color: overdue ? Colors.redAccent : textMuted, fontWeight: overdue ? FontWeight.bold : FontWeight.normal)),
-                    ],
-                    if (task['tags'] != null && task['tags'].toString().trim().isNotEmpty) GestureDetector(onTap: () => setState(() => activeTagFilter = task['tags'].toString().split(',')[0].trim()), child: Padding(padding: const EdgeInsets.only(right: 12), child: Text("[${task['tags'].toString().split(',')[0].trim()}]", style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.blueAccent)), )),
-                    if (task['note'] != null && task['note'].toString().isNotEmpty) Expanded(child: Text(task['note'], style: TextStyle(fontSize: 14, color: textMuted), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                  ],
-                )
-              ) 
-            : null,
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (task['assigned_to'] != null)
-              Builder(builder: (context) {
-                var members = workspaceMembers[task['workspace_id']] ?? [];
-                // Я также чуть усилил типизацию здесь, чтобы Dart не ругался на пустые мапы
-                var member = members.firstWhere(
-                  (m) => m['user_id'] == task['assigned_to'], 
-                  orElse: () => <String, dynamic>{}
-                );
-                
-                if (member.isEmpty) return const SizedBox();
-                
-                String rawName = member['full_name']?.toString().trim() ?? '';
-                String name = rawName.isNotEmpty ? rawName : '?';
-                String initial = name[0].toUpperCase();
-                
-                return Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: Tooltip(
-                    message: "Ответственный: $name",
-                    child: CircleAvatar(
-                      radius: 14,
-                      backgroundColor: Colors.primaries[members.indexOf(member) % Colors.primaries.length].shade700,
-                      child: Text(
-                        initial, 
-                        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)
-                      ),
-                    ),
-                  ),
-                );
-              }),
-            
-            IconButton(
-              icon: Icon(Icons.close, color: Colors.red[300], size: 26), 
-              onPressed: () => _deleteTask(task['id'])
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildStatisticsDashboard() {
     final now = DateTime.now();
     List<int> weeklyStats = List.filled(7, 0);
@@ -2741,7 +2477,21 @@ Map<String, dynamic> _parseSmartInput(String text) {
                             ),
                           // Переходим к главному контенту (Через вынесенный виджет)
                           Expanded(
-                            child: MainContentArea(
+                            child: Builder(builder: (context) {
+                              final taskCardBuilders = TaskCardBuilders(
+                                isDark: widget.isDark,
+                                scale: _s,
+                                workspaceMembers: workspaceMembers,
+                                getPriorityColor: _getPriorityColor,
+                                getSubtaskStats: _getSubtaskStats,
+                                isOverdue: _isOverdue,
+                                onToggle: _toggleTask,
+                                onDelete: _deleteTask,
+                                onTap: _handleTaskTap,
+                                onTagTap: (tag) => setState(() => activeTagFilter = tag),
+                                buildGlassContainer: _buildGlassContainer,
+                              );
+                              return MainContentArea(
                               selectedMenu: selectedMenu,
                               currentLang: widget.currentLang,
                               customFolders: customFolders,
@@ -2767,12 +2517,13 @@ Map<String, dynamic> _parseSmartInput(String text) {
                               onPlusTap: (targetDate, currentTaskCount) {
                                 _handlePlusTap(targetDate, currentTaskCount);
                               },
-                              buildListTaskCard: _buildListTaskCard,
-                              buildBoardTaskCardExpanded: _buildBoardTaskCardExpanded,
-                              buildCalendarTaskCard: _buildCalendarTaskCard,
+                              buildListTaskCard: taskCardBuilders.buildListTaskCard,
+                              buildBoardTaskCardExpanded: taskCardBuilders.buildBoardTaskCardExpanded,
+                              buildCalendarTaskCard: taskCardBuilders.buildCalendarTaskCard,
                               buildGlassContainer: _buildGlassContainer,
                               buildStatisticsDashboard: _buildStatisticsDashboard,
-                            ),
+                              );
+                            }),
                           ),
                         ],
                       ),
