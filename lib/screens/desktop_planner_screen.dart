@@ -27,6 +27,7 @@ import '../widgets/statistics_dashboard.dart';
 import '../widgets/ai_chat_panel.dart';
 import '../dialogs/workspace_dialogs.dart';
 import '../dialogs/team_pulse_dialog.dart';
+import '../dialogs/search_dialog.dart';
 
 class DesktopPlannerScreen extends StatefulWidget {
   final bool isDark;
@@ -280,7 +281,15 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     await hotKeyManager.register(hotKey, keyDownHandler: (hotKey) { appWindow.show(); appWindow.restore(); _showManualAddDialog(); });
 
     HotKey searchKey = HotKey(key: PhysicalKeyboardKey.keyF, modifiers: [HotKeyModifier.control], scope: HotKeyScope.inapp);
-    await hotKeyManager.register(searchKey, keyDownHandler: (hotKey) => _showSearchDialog());
+    await hotKeyManager.register(searchKey, keyDownHandler: (hotKey) => showSearchDialog(
+      context: context,
+      currentLang: widget.currentLang,
+      textColor: textColor,
+      textMuted: textMuted,
+      tasks: tasks,
+      onTaskSelected: _showTaskDetailsDialog,
+      buildGlassContainer: _buildGlassContainer,
+    ));
   }
 
   void _deleteFolder(String folderName) {
@@ -813,77 +822,6 @@ void _checkBurnoutWarning(String dateStr) {
   void _applyFilters() {}
 
   void shiftDate(int days, int months, StateSetter setStateDialog, DateTime? currentDate) { DateTime baseDate = currentDate ?? DateTime.now(); setStateDialog(() => currentDate = DateTime(baseDate.year, baseDate.month + months, baseDate.day + days)); }
-
-  void _showSearchDialog() {
-    String query = '';
-    showDialog(
-      context: context,
-      barrierColor: Colors.black.withOpacity(0.6),
-      builder: (context) {
-        return StatefulBuilder(builder: (context, setStateDialog) {
-          final searchResults = query.isEmpty ? [] : tasks.where((t) => 
-            (t['title']?.toString().toLowerCase().contains(query.toLowerCase()) ?? false) ||
-            (t['note']?.toString().toLowerCase().contains(query.toLowerCase()) ?? false)
-          ).toList();
-
-          return Center(
-            child: Material(
-              color: Colors.transparent,
-              child: SizedBox(
-                width: 600,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildGlassContainer(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                      child: TextField(
-                        autofocus: true,
-                        style: TextStyle(color: textColor, fontSize: 20),
-                        decoration: InputDecoration(
-                          hintText: "Поиск задач...".tr(widget.currentLang),
-                          hintStyle: TextStyle(color: textMuted),
-                          border: InputBorder.none,
-                          icon: const Icon(Icons.search, color: Colors.blueAccent, size: 28),
-                        ),
-                        onChanged: (val) => setStateDialog(() => query = val),
-                      ),
-                    ),
-                    if (query.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      _buildGlassContainer(
-                        padding: const EdgeInsets.all(12),
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxHeight: 400),
-                          child: searchResults.isEmpty 
-                            ? Padding(padding: const EdgeInsets.all(16), child: Text("Ничего не найдено".tr(widget.currentLang), style: TextStyle(color: textMuted)))
-                            : ListView.builder(
-                                shrinkWrap: true,
-                                itemCount: searchResults.length,
-                                itemBuilder: (context, index) {
-                                  final task = searchResults[index];
-                                  return ListTile(
-                                    title: Text(task['title'] ?? '', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
-                                    subtitle: task['note'] != null ? Text(task['note'], maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: textMuted)) : null,
-                                    trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.blueAccent),
-                                    onTap: () {
-                                      Navigator.pop(context);
-                                      _showTaskDetailsDialog(task); 
-                                    },
-                                  );
-                                },
-                              ),
-                        )
-                      )
-                    ]
-                  ],
-                ),
-              ),
-            ),
-          );
-        });
-      }
-    );
-  }
 
   void _showManualAddDialog({DateTime? preselectedDate, Map<String, dynamic>? sourceTaskForDuplicate}) {
     final bool isFromDuplicate = sourceTaskForDuplicate != null;
