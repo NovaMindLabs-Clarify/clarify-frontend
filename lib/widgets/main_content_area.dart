@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/localization.dart';
+import '../core/theme/design_tokens.dart';
 
 class MainContentArea extends StatelessWidget {
   final String selectedMenu;
@@ -55,10 +56,12 @@ class MainContentArea extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textColor = isDark ? Colors.white : Colors.black87;
-    final textMuted = isDark ? Colors.white70 : Colors.black54;
-    final glassBorderColor = isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05);
-    final highlightColor = isDark ? Colors.white.withOpacity(0.1) : Colors.blue.withOpacity(0.1);
+    final t = isDark ? ClarifyTokens.dark : ClarifyTokens.light;
+    final textColor = t.text;
+    final textMuted = t.text2;
+    final glassBorderColor = t.border;
+    final highlightColor = t.accentSoft;
+    final emptyCellColor = t.surfaceSunken.withValues(alpha: isDark ? 0.5 : 0.6);
     
     final List<String> weekdaysRu = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
 
@@ -185,12 +188,14 @@ class MainContentArea extends StatelessWidget {
                       onAccept: (Map<String, dynamic> task) => onTaskDropped(task, cellDateStr, taskCount),
                       builder: (context, candidateData, rejectedData) {
                         return buildGlassContainer(
-                          customColor: candidateData.isNotEmpty ? highlightColor : null,
+                          // Пустая ячейка — surfaceSunken, заполненная — обычная surface: два разных,
+                          // но согласованных состояния вместо одинаковых голых прямоугольников.
+                          customColor: candidateData.isNotEmpty ? highlightColor : (taskCount == 0 ? emptyCellColor : null),
                           padding: EdgeInsets.all(12 * scale),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Padding(padding: EdgeInsets.only(bottom: 8 * scale, left: 8 * scale, top: 4 * scale), child: Text("$dayNumber", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18 * scale, color: cellDateStr == _formatDate(DateTime.now()) ? Colors.blueAccent : textColor)),),
+                              Padding(padding: EdgeInsets.only(bottom: 8 * scale, left: 8 * scale, top: 4 * scale), child: Text("$dayNumber", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18 * scale, color: cellDateStr == _formatDate(DateTime.now()) ? t.accent : textColor)),),
                               Expanded(child: Column(mainAxisAlignment: MainAxisAlignment.spaceBetween, crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(child: ScrollConfiguration(behavior: const ScrollBehavior().copyWith(scrollbars: false), child: ListView.builder(padding: EdgeInsets.zero, itemCount: dayTasks.length, itemBuilder: (context, taskIndex) => buildCalendarTaskCard(dayTasks[taskIndex])), ), ), Align(alignment: Alignment.bottomCenter, child: InkWell(onTap: () => onPlusTap(cellDate, taskCount), child: Padding(padding: EdgeInsets.only(bottom: 4 * scale), child: Icon(Icons.add, color: textMuted, size: 20 * scale), ), ), )], ), ),
                             ],
                           ),

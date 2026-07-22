@@ -460,7 +460,8 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   String _formatDate(DateTime d) => "${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}";
   DateTime? _parseDate(String dateStr) { try { final parts = dateStr.split('.'); if (parts.length == 3) return DateTime(int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0])); } catch (e) { return null; } return null; }
 
-  Color _getPriorityColor(String? priority) { switch (priority) { case 'red': return Colors.redAccent; case 'orange': return Colors.orangeAccent; case 'blue': return Colors.lightBlue; case 'gray': return textMuted; default: return borderStrong; } }
+  // 'red'/'orange'/'blue'/'gray' — исторические имена цвета в БД, семантически urgent/important/normal/low.
+  Color _getPriorityColor(String? priority) { switch (priority) { case 'red': return _tokens.danger; case 'orange': return _tokens.warning; case 'blue': return _tokens.accent; case 'gray': return textMuted; default: return borderStrong; } }
 
   List<Map<String, dynamic>> get filteredTasks { if (activeTagFilter == null) return tasks; return tasks.where((t) { if (t['tags'] == null) return false; List<String> tTags = t['tags'].toString().split(',').map((e) => e.trim()).toList(); return tTags.contains(activeTagFilter); }).toList(); }
   Map<String, int> _getSubtaskStats(dynamic parentId) { final subtasks = tasks.where((t) => t['parent_id'] == parentId).toList(); if (subtasks.isEmpty) return {'total': 0, 'done': 0}; return {'total': subtasks.length, 'done': subtasks.where((t) => t['is_completed'] == true).length}; }
