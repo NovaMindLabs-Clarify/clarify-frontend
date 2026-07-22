@@ -304,8 +304,8 @@ class _AuthScreenState extends State<AuthScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Неверный код!'.tr(widget.currentLang)), 
-            backgroundColor: Colors.redAccent
+            content: Text('Неверный код!'.tr(widget.currentLang)),
+            backgroundColor: context.tokens.danger
           )
         );
       }
@@ -346,11 +346,12 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Widget _buildOtpForm(Color textColor, Color textMuted) {
+    final t = context.tokens;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Icon(Icons.mark_email_read_outlined, size: 48, color: Colors.blueAccent),
+        Icon(Icons.mark_email_read_outlined, size: 48, color: t.accent),
         const SizedBox(height: 16),
         Text("Подтверждение".tr(widget.currentLang), textAlign: TextAlign.center, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: textColor)),
         const SizedBox(height: 8),
@@ -363,9 +364,9 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
         const SizedBox(height: 32),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 20), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 8),
+          style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent, padding: const EdgeInsets.symmetric(vertical: 20), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 8),
           onPressed: _isLoading ? null : _verifyOtp,
-          child: _isLoading ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : Text("Подтвердить".tr(widget.currentLang), style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          child: _isLoading ? SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: t.onAccent, strokeWidth: 2)) : Text("Подтвердить".tr(widget.currentLang), style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         ),
         const SizedBox(height: 16),
         TextButton(
@@ -512,6 +513,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Widget _buildAuthForm(Color textColor, Color textMuted) {
+    final t = context.tokens;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -519,8 +521,8 @@ class _AuthScreenState extends State<AuthScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text("Clarify", style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: textColor, letterSpacing: -0.5)),
-            IconButton(icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode, color: isDark ? Colors.yellow : textMuted), onPressed: widget.toggleTheme),
+            Text("Clarify", style: TextStyle(fontFamily: 'Unbounded', fontSize: 26, fontWeight: FontWeight.w700, color: textColor, letterSpacing: -0.01)),
+            IconButton(icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode, color: textMuted), onPressed: widget.toggleTheme),
           ],
         ),
         const SizedBox(height: 8),
@@ -569,10 +571,10 @@ class _AuthScreenState extends State<AuthScreen> {
 
         ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blueAccent, 
-            foregroundColor: Colors.white, 
-            padding: const EdgeInsets.symmetric(vertical: 20), 
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), 
+            backgroundColor: t.accent,
+            foregroundColor: t.onAccent,
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             elevation: 8
           ),
           onPressed: _isLoading ? null : () async {
@@ -587,17 +589,17 @@ class _AuthScreenState extends State<AuthScreen> {
                 email: email,
               );
               if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Код отправлен на почту!'.tr(widget.currentLang)), backgroundColor: Colors.green));
-                setState(() => _isOtpMode = true); 
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Код отправлен на почту!'.tr(widget.currentLang)), backgroundColor: t.success));
+                setState(() => _isOtpMode = true);
               }
             } catch (e) {
-              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'.tr(widget.currentLang)), backgroundColor: Colors.redAccent));
+              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'.tr(widget.currentLang)), backgroundColor: t.danger));
             } finally {
               if (context.mounted) setState(() => _isLoading = false);
             }
           },
-          child: _isLoading 
-            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
+          child: _isLoading
+            ? SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: t.onAccent, strokeWidth: 2))
             : Text("Получить ссылку для входа".tr(widget.currentLang), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         ),
       ],
@@ -654,7 +656,7 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
         setState(() => _avatarUrl = publicUrl);
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка загрузки: $e'.tr(widget.currentLang)), backgroundColor: Colors.redAccent));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка загрузки: $e'.tr(widget.currentLang)), backgroundColor: context.tokens.danger));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -679,7 +681,7 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
       );
 
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'.tr(widget.currentLang)), backgroundColor: Colors.redAccent));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'.tr(widget.currentLang)), backgroundColor: context.tokens.danger));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -707,7 +709,7 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text("Аватарка успешно удалена".tr(widget.currentLang)),
-            backgroundColor: Colors.green,
+            backgroundColor: context.tokens.success,
           ),
         );
       }
@@ -716,7 +718,7 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text("Ошибка при удалении: $e".tr(widget.currentLang)),
-            backgroundColor: Colors.redAccent,
+            backgroundColor: context.tokens.danger,
           ),
         );
       }
@@ -726,15 +728,16 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
   }
 
   void _showAvatarMenu() {
-    bool hasAvatar = _avatarBytes != null || _avatarUrl != null; 
-    final textColor = isDark ? Colors.white : Colors.black87;
+    bool hasAvatar = _avatarBytes != null || _avatarUrl != null;
+    final t = context.tokens;
+    final textColor = t.text;
 
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          backgroundColor: isDark ? const Color(0xFF2C2C2C) : Colors.white,
+          backgroundColor: t.surface2,
           title: Text(
             "Фото профиля".tr(widget.currentLang),
             style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
@@ -743,21 +746,21 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(Icons.upload, color: Colors.blueAccent),
+                leading: Icon(Icons.upload, color: t.accent),
                 title: Text("Загрузить новое".tr(widget.currentLang), style: TextStyle(color: textColor)),
                 onTap: () {
-                  Navigator.pop(context); 
-                  _pickAndUploadAvatar(); 
+                  Navigator.pop(context);
+                  _pickAndUploadAvatar();
                 },
               ),
-              
+
               if (hasAvatar) ...[
                 const Divider(),
                 ListTile(
-                  leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                  leading: Icon(Icons.delete_outline, color: t.danger),
                   title: Text(
-                    "Удалить текущее".tr(widget.currentLang), 
-                    style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
+                    "Удалить текущее".tr(widget.currentLang),
+                    style: TextStyle(color: t.danger, fontWeight: FontWeight.bold),
                   ),
                   onTap: () {
                     Navigator.pop(context); 
@@ -774,6 +777,7 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.tokens;
     final textColor = isDark ? Colors.white : Colors.black87;
     final textMuted = isDark ? Colors.white70 : Colors.black54;
 
@@ -798,9 +802,9 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text("Добро пожаловать в".tr(widget.currentLang), style: TextStyle(fontSize: 16, color: textMuted, fontWeight: FontWeight.bold)),
-                    Text("Clarify", style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: textColor, letterSpacing: -0.5)),
+                    Text("Clarify", style: TextStyle(fontFamily: 'Unbounded', fontSize: 30, fontWeight: FontWeight.w700, color: textColor, letterSpacing: -0.01)),
                     const SizedBox(height: 32),
-                    
+
                     GestureDetector(
                       onTap: _isLoading ? null : _showAvatarMenu,
                       child: Stack(
@@ -808,7 +812,7 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
                         children: [
                           CircleAvatar(
                             radius: 50,
-                            backgroundColor: isDark ? Colors.black45 : Colors.white54,
+                            backgroundColor: t.surfaceSunken,
                             backgroundImage: _avatarBytes != null ? MemoryImage(_avatarBytes!) : null,
                             child: _avatarBytes == null
                                 ? Icon(Icons.person, size: 50, color: textMuted.withOpacity(0.5))
@@ -816,8 +820,8 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
                           ),
                           Container(
                             padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(color: Colors.blueAccent, shape: BoxShape.circle, border: Border.all(color: isDark ? Colors.black87 : Colors.white, width: 2)),
-                            child: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
+                            decoration: BoxDecoration(color: t.accent, shape: BoxShape.circle, border: Border.all(color: isDark ? Colors.black87 : Colors.white, width: 2)),
+                            child: Icon(Icons.camera_alt, size: 16, color: t.onAccent),
                           ),
                         ],
                       ),
@@ -840,10 +844,10 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 20), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 8),
+                        style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent, padding: const EdgeInsets.symmetric(vertical: 20), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 8),
                         onPressed: _isLoading ? null : _saveProfile,
-                        child: _isLoading 
-                          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
+                        child: _isLoading
+                          ? SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: t.onAccent, strokeWidth: 2))
                           : Text("Начать планирование".tr(widget.currentLang), style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                       ),
                     )
