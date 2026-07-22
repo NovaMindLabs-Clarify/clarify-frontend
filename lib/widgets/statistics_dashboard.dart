@@ -1,6 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import '../core/localization.dart';
+import '../core/theme/design_tokens.dart';
 
 /// Раздел "Статистика". Вынесено из DesktopPlannerScreen (P3.1,
 /// docs/IMPROVEMENT_PLAN.md) — логика и разметка не менялись, только доступ
@@ -33,6 +34,7 @@ class StatisticsDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.tokens;
     final now = DateTime.now();
     List<int> weeklyStats = List.filled(7, 0);
     int totalDone = 0;
@@ -96,7 +98,7 @@ class StatisticsDashboard extends StatelessWidget {
                     children: [
                       Text("Выполнено за 7 дней".tr(currentLang), style: TextStyle(color: textMuted, fontSize: 16, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
-                      Text("$totalDone", style: TextStyle(fontSize: 48, fontWeight: FontWeight.w900, color: Colors.blueAccent)),
+                      Text("$totalDone", style: TextStyle(fontFamily: 'Unbounded', fontSize: 48, fontWeight: FontWeight.w700, color: t.accent, fontFeatures: const [FontFeature.tabularFigures()])),
                     ],
                   ),
                 ),
@@ -110,7 +112,7 @@ class StatisticsDashboard extends StatelessWidget {
                     children: [
                       Text("Всего задач в базе".tr(currentLang), style: TextStyle(color: textMuted, fontSize: 16, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
-                      Text("${tasks.length}", style: TextStyle(color: textColor, fontSize: 48, fontWeight: FontWeight.w900)),
+                      Text("${tasks.length}", style: TextStyle(fontFamily: 'Unbounded', color: textColor, fontSize: 48, fontWeight: FontWeight.w700, fontFeatures: const [FontFeature.tabularFigures()])),
                     ],
                   ),
                 ),
@@ -136,10 +138,10 @@ class StatisticsDashboard extends StatelessWidget {
                           sectionsSpace: 4,
                           centerSpaceRadius: 50,
                           sections: [
-                            if (doneCount > 0) PieChartSectionData(color: Colors.greenAccent[400], value: doneCount.toDouble(), title: '$doneCount', radius: 40, titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18, shadows: [Shadow(color: Colors.black45, blurRadius: 4)])),
-                            if (pendingCount > 0) PieChartSectionData(color: Colors.blueAccent, value: pendingCount.toDouble(), title: '$pendingCount', radius: 40, titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18, shadows: [Shadow(color: Colors.black45, blurRadius: 4)])),
-                            if (overdueCount > 0) PieChartSectionData(color: Colors.redAccent, value: overdueCount.toDouble(), title: '$overdueCount', radius: 40, titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18, shadows: [Shadow(color: Colors.black45, blurRadius: 4)])),
-                            if (noDateCount > 0) PieChartSectionData(color: Colors.grey[500], value: noDateCount.toDouble(), title: '$noDateCount', radius: 40, titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18, shadows: [Shadow(color: Colors.black45, blurRadius: 4)])),
+                            if (doneCount > 0) PieChartSectionData(color: t.success, value: doneCount.toDouble(), title: '$doneCount', radius: 40, titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18, shadows: [Shadow(color: Colors.black45, blurRadius: 4)])),
+                            if (pendingCount > 0) PieChartSectionData(color: t.accent, value: pendingCount.toDouble(), title: '$pendingCount', radius: 40, titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18, shadows: [Shadow(color: Colors.black45, blurRadius: 4)])),
+                            if (overdueCount > 0) PieChartSectionData(color: t.danger, value: overdueCount.toDouble(), title: '$overdueCount', radius: 40, titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18, shadows: [Shadow(color: Colors.black45, blurRadius: 4)])),
+                            if (noDateCount > 0) PieChartSectionData(color: Colors.grey.shade500, value: noDateCount.toDouble(), title: '$noDateCount', radius: 40, titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18, shadows: [Shadow(color: Colors.black45, blurRadius: 4)])),
                           ],
                         ),
                       ),
@@ -150,10 +152,10 @@ class StatisticsDashboard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          buildLegendItem('Сделано', Colors.greenAccent[400]!, doneCount),
-                          buildLegendItem('В процессе', Colors.blueAccent, pendingCount),
-                          buildLegendItem('Просрочено', Colors.redAccent, overdueCount),
-                          buildLegendItem('Без срока', Colors.grey[500]!, noDateCount),
+                          buildLegendItem('Сделано', t.success, doneCount),
+                          buildLegendItem('В процессе', t.accent, pendingCount),
+                          buildLegendItem('Просрочено', t.danger, overdueCount),
+                          buildLegendItem('Без срока', Colors.grey.shade500, noDateCount),
                         ],
                       ),
                     ),
@@ -206,7 +208,7 @@ class StatisticsDashboard extends StatelessWidget {
                           barRods: [
                             BarChartRodData(
                               toY: weeklyStats[index].toDouble(),
-                              color: index == 6 ? Colors.blueAccent : Colors.blueAccent.withOpacity(0.4),
+                              color: index == 6 ? t.accent : t.accent.withValues(alpha: 0.4),
                               width: 22,
                               borderRadius: BorderRadius.circular(6),
                             ),
