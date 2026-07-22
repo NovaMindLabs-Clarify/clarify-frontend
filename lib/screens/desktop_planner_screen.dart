@@ -9,7 +9,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:hotkey_manager/hotkey_manager.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:confetti/confetti.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:local_notifier/local_notifier.dart';
@@ -30,6 +29,7 @@ import '../dialogs/team_pulse_dialog.dart';
 import '../dialogs/search_dialog.dart';
 import '../dialogs/manual_add_dialog.dart';
 import '../dialogs/edit_task_dialog.dart';
+import '../dialogs/task_details_dialog.dart';
 
 class DesktopPlannerScreen extends StatefulWidget {
   final bool isDark;
@@ -875,342 +875,28 @@ void _checkBurnoutWarning(String dateStr) {
   }
 
   void _showTaskDetailsDialog(Map<String, dynamic> task) {
-    // Контроллеры для подзадач и чата
-    final TextEditingController subtaskController = TextEditingController();
-    final TextEditingController commentController = TextEditingController();
-    List<Map<String, dynamic>> comments = [];
-    bool isCommentsLoaded = false;
-
-    showDialog(
+    showTaskDetailsDialog(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.4),
-      builder: (context) {
-        return StatefulBuilder(builder: (context, setStateDialog) {
-          
-          // Загружаем комментарии (чат)
-          if (!isCommentsLoaded) {
-            isCommentsLoaded = true;
-            Supabase.instance.client
-                .from('task_comments')
-                .select()
-                .eq('task_id', task['id'])
-                .order('created_at', ascending: true)
-                .then((data) {
-              if (context.mounted) {
-                setStateDialog(() {
-                  comments = List<Map<String, dynamic>>.from(data);
-                });
-              }
-            });
-          }
-
-          // Вычисляем подзадачи (чек-лист)
-          final subtasks = tasks.where((t) => t['parent_id'] == task['id']).toList();
-          
-          return Center(
-            child: Material(
-              color: Colors.transparent,
-              child: _buildGlassContainer(
-                padding: const EdgeInsets.all(32),
-                child: SizedBox(
-                  width: 450, 
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text("Детали задачи".tr(widget.currentLang), style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textMuted, letterSpacing: 1.2)),
-                            IconButton(icon: Icon(Icons.close, color: textMuted), padding: EdgeInsets.zero, constraints: const BoxConstraints(), onPressed: () => Navigator.pop(context))
-                          ]
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            if (task['priority'] != null && task['priority'] != 'none') Container(margin: const EdgeInsets.only(right: 12), width: 14, height: 14, decoration: BoxDecoration(shape: BoxShape.circle, color: _getPriorityColor(task['priority']), boxShadow: [BoxShadow(color: _getPriorityColor(task['priority']).withOpacity(0.5), blurRadius: 8)])),
-                            Expanded(child: Text(task['title'] ?? '', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: textColor))),
-                          ],
-                        ),
-                        if (task['tags'] != null && task['tags'].toString().trim().isNotEmpty) ...[
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 8,
-                            children: task['tags'].toString().split(',').map((t) => GestureDetector(onTap: () { Navigator.pop(context); setState(() => activeTagFilter = t.trim()); }, child: Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: highlightColor, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.blueAccent.withOpacity(0.4))), child: Text("#${t.trim()}", style: const TextStyle(fontSize: 13, color: Colors.blueAccent, fontWeight: FontWeight.bold))), )).toList(),
-                          )
-                        ],
-                        const SizedBox(height: 24),
-                        Row(
-                          children: [
-                            Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.blueAccent.withOpacity(0.1), borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.event, color: Colors.blueAccent, size: 20)), 
-                            const SizedBox(width: 12),
-                            Text("${task['due_date'] ?? 'Входящие (Без даты)'.tr(widget.currentLang)}  •  ${task['due_time'] ?? 'Весь день'.tr(widget.currentLang)}", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: textColor)),
-                            if (task['recurrence'] != null && task['recurrence'] != 'none') ...[const SizedBox(width: 12), const Icon(Icons.repeat, size: 18, color: Colors.orange)]
-                          ],
-                        ),
-                        
-                        // ИСПОЛНИТЕЛЬ
-                        if (task['assigned_to'] != null) ...[
-                          const SizedBox(height: 16),
-                          Row(
-                            children: [
-                              Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.orangeAccent.withOpacity(0.1), borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.person, color: Colors.orangeAccent, size: 20)), 
-                              const SizedBox(width: 12),
-                              Builder(builder: (context) {
-                                var members = workspaceMembers[task['workspace_id']] ?? [];
-                                var member = members.firstWhere((m) => m['user_id'] == task['assigned_to'], orElse: () => <String, dynamic>{});
-                                String name = member.isNotEmpty ? (member['full_name'] ?? 'Участник') : 'Неизвестно';
-                                return Text("Исполнитель: $name", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: textColor));
-                              }),
-                            ],
-                          ),
-                        ],
-
-                        if (task['note'] != null && task['note'].toString().isNotEmpty) ...[
-                          const SizedBox(height: 24),
-                          Container(
-                            width: double.infinity, padding: const EdgeInsets.all(16), 
-                            decoration: BoxDecoration(color: doneCardColor, borderRadius: BorderRadius.circular(12), border: Border.all(color: glassBorderColor)), 
-                            child: MarkdownBody(
-                              data: task['note'], 
-                              styleSheet: MarkdownStyleSheet(
-                                p: TextStyle(color: textColor, fontSize: 15, height: 1.5),
-                                strong: TextStyle(color: textColor, fontWeight: FontWeight.bold),
-                                em: TextStyle(color: textColor, fontStyle: FontStyle.italic),
-                                listBullet: const TextStyle(color: Colors.blueAccent),
-                              )
-                            )
-                          ),
-                        ],
-                        const SizedBox(height: 32), Divider(color: glassBorderColor), const SizedBox(height: 16),
-                        
-                        // ЧЕК-ЛИСТ (ПОДЗАДАЧИ)
-                        Row(
-                          children: [
-                            const Icon(Icons.checklist, color: Colors.blueAccent), const SizedBox(width: 8),
-                            Text("Чек-лист".tr(widget.currentLang), style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)), const Spacer(),
-                            if (subtasks.isNotEmpty) Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: glassColor, borderRadius: BorderRadius.circular(12)), child: Text("${subtasks.where((t)=>t['is_completed']==true).length} из ${subtasks.length}", style: TextStyle(color: textMuted, fontWeight: FontWeight.bold))),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        if (subtasks.isNotEmpty)
-                          Column(
-                            children: subtasks.map((subtask) {
-                              bool isSubDone = subtask['is_completed'] == true;
-                              return Container(
-                                margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.symmetric(vertical: 4), decoration: BoxDecoration(color: isSubDone ? doneCardColor : cardColor, borderRadius: BorderRadius.circular(12), border: Border.all(color: glassBorderColor)),
-                                child: Row(
-                                  children: [
-                                    Checkbox(value: isSubDone, activeColor: Colors.blueAccent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)), onChanged: (val) async { await _toggleTask(subtask); setStateDialog((){}); }),
-                                    Expanded(child: Text(subtask['title'], style: TextStyle(fontSize: 15, decoration: isSubDone ? TextDecoration.lineThrough : TextDecoration.none, color: isSubDone ? textMuted : textColor))),
-                                    IconButton(icon: Icon(Icons.close, size: 18, color: Colors.red[300]), onPressed: () async { await _deleteTask(subtask['id']); setStateDialog((){}); })
-                                  ],
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        const SizedBox(height: 8),
-                        // --- ЗАМЕНИ ЭТОТ БЛОК ---
-Row(
-  children: [
-    Expanded(child: TextField(controller: subtaskController, style: TextStyle(color: textColor), decoration: InputDecoration(hintText: "Добавить пункт...".tr(widget.currentLang), hintStyle: TextStyle(color: textMuted), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14), isDense: true), 
-    onSubmitted: (text) { // <--- Убрали async
-      if (text.trim().isEmpty) return; 
-      subtaskController.clear(); 
-      _createTaskManually({"title": text.trim(), "parent_id": task['id'], "is_completed": false}); // <--- Убрали await
-      setStateDialog((){}); 
-    })),
-    const SizedBox(width: 8),
-    IconButton(style: IconButton.styleFrom(backgroundColor: highlightColor, padding: const EdgeInsets.all(12)), icon: const Icon(Icons.add, color: Colors.blueAccent), 
-    onPressed: () { // <--- Убрали async
-      if (subtaskController.text.trim().isEmpty) return; 
-      final text = subtaskController.text; 
-      subtaskController.clear(); 
-      _createTaskManually({"title": text.trim(), "parent_id": task['id'], "is_completed": false}); // <--- Убрали await
-      setStateDialog((){}); 
-    })
-  ],
-),
-// --- КОНЕЦ ЗАМЕНЫ ---
-                        
-                        // ЧАТ (ОБСУЖДЕНИЕ)
-                        const SizedBox(height: 32),
-                        Divider(color: glassBorderColor),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            const Icon(Icons.chat_bubble_outline, color: Colors.blueAccent),
-                            const SizedBox(width: 8),
-                            Text("Обсуждение".tr(widget.currentLang), style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        
-                        if (comments.isNotEmpty)
-                          Container(
-                            constraints: const BoxConstraints(maxHeight: 250),
-                            margin: const EdgeInsets.only(bottom: 16),
-                            child: SingleChildScrollView(
-                              child: Column(
-                                children: comments.map((c) {
-                                  bool isMyComment = c['user_id'] == Supabase.instance.client.auth.currentUser?.id;
-                                  String authorName = "Пользователь";
-                                  String initial = "?";
-                                  if (task['workspace_id'] != null) {
-                                    var members = workspaceMembers[task['workspace_id']] ?? [];
-                                    var member = members.firstWhere((m) => m['user_id'] == c['user_id'], orElse: () => <String, dynamic>{});
-                                    if (member.isNotEmpty) {
-                                      authorName = member['full_name'] ?? authorName;
-                                      initial = authorName[0].toUpperCase();
-                                    }
-                                  } else if (isMyComment) {
-                                     authorName = "Я";
-                                     initial = "Я";
-                                  }
-
-                                  return Padding(
-                                    padding: const EdgeInsets.only(bottom: 12),
-                                    child: Row(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      mainAxisAlignment: isMyComment ? MainAxisAlignment.end : MainAxisAlignment.start,
-                                      children: [
-                                        if (!isMyComment)
-                                          Padding(
-                                            padding: const EdgeInsets.only(right: 8),
-                                            child: CircleAvatar(radius: 14, backgroundColor: Colors.orangeAccent, child: Text(initial, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold))),
-                                          ),
-                                        
-                                        Flexible(
-                                          child: Container(
-                                            padding: const EdgeInsets.all(12),
-                                            decoration: BoxDecoration(
-                                              color: isMyComment ? Colors.blueAccent.withOpacity(0.1) : glassColor,
-                                              borderRadius: BorderRadius.circular(12).copyWith(
-                                                topLeft: !isMyComment ? const Radius.circular(0) : const Radius.circular(12),
-                                                topRight: isMyComment ? const Radius.circular(0) : const Radius.circular(12),
-                                              ),
-                                              border: Border.all(color: isMyComment ? Colors.blueAccent.withOpacity(0.3) : glassBorderColor)
-                                            ),
-                                            child: Column(
-                                              crossAxisAlignment: isMyComment ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                                              children: [
-                                                Text(authorName, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isMyComment ? Colors.blueAccent : textMuted)),
-                                                const SizedBox(height: 4),
-                                                Text(c['text'] ?? '', style: TextStyle(fontSize: 14, color: textColor)),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-
-                                        if (isMyComment)
-                                          Padding(
-                                            padding: const EdgeInsets.only(left: 8),
-                                            child: CircleAvatar(radius: 14, backgroundColor: Colors.blueAccent, child: Text(initial, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold))),
-                                          ),
-                                      ],
-                                    ),
-                                  );
-                                }).toList(),
-                              ),
-                            ),
-                          ),
-                          
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: commentController,
-                                style: TextStyle(color: textColor),
-                                decoration: InputDecoration(
-                                  hintText: "Написать комментарий...".tr(widget.currentLang),
-                                  hintStyle: TextStyle(color: textMuted),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)),
-                                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                                  isDense: true
-                                ),
-                                onSubmitted: (text) async {
-                                  if (commentController.text.trim().isEmpty) return;
-                                  final submittedText = commentController.text.trim();
-                                  commentController.clear();
-                                  
-                                  final user = Supabase.instance.client.auth.currentUser;
-                                  if (user == null) return;
-                                  
-                                  final newComment = {
-                                    'task_id': task['id'],
-                                    'user_id': user.id,
-                                    'text': submittedText,
-                                  };
-                                  
-                                  setStateDialog(() {
-                                     comments.add({...newComment, 'created_at': DateTime.now().toIso8601String()});
-                                  });
-                                  
-                                  try {
-                                    await Supabase.instance.client.from('task_comments').insert(newComment);
-                                  } catch (e) {
-                                    print("Ошибка отправки комментария: $e");
-                                  }
-                                }
-                              )
-                            ),
-                            const SizedBox(width: 8),
-                            IconButton(
-                              style: IconButton.styleFrom(backgroundColor: Colors.blueAccent, padding: const EdgeInsets.all(12)),
-                              icon: const Icon(Icons.send, color: Colors.white, size: 20),
-                              onPressed: () async {
-                                if (commentController.text.trim().isEmpty) return;
-                                final text = commentController.text.trim();
-                                commentController.clear();
-                                
-                                final user = Supabase.instance.client.auth.currentUser;
-                                if (user == null) return;
-                                
-                                final newComment = {
-                                  'task_id': task['id'],
-                                  'user_id': user.id,
-                                  'text': text,
-                                };
-                                
-                                setStateDialog(() {
-                                   comments.add({...newComment, 'created_at': DateTime.now().toIso8601String()});
-                                });
-                                
-                                try {
-                                  await Supabase.instance.client.from('task_comments').insert(newComment);
-                                } catch (e) {
-                                  print("Ошибка отправки комментария: $e");
-                                }
-                              }
-                            )
-                          ],
-                        ),
-                        
-                        // КНОПКИ УПРАВЛЕНИЯ ЗАДАЧЕЙ
-                        const SizedBox(height: 32),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            TextButton.icon(icon: const Icon(Icons.delete_outline, color: Colors.redAccent), label: Text("Удалить".tr(widget.currentLang), style: TextStyle(color: Colors.redAccent)), onPressed: () { Navigator.of(context).pop(); _deleteTask(task['id']); }),
-                            Row(
-                              children: [
-                                TextButton.icon(icon: const Icon(Icons.copy, color: Colors.blueAccent), label: Text("Дублировать".tr(widget.currentLang), style: TextStyle(color: Colors.blueAccent)), onPressed: () { setState(() { _taskToDuplicate = task; _isDuplicating = true; }); Navigator.of(context).pop(); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Кликни на плюсик любого дня"))); }),
-                                const SizedBox(width: 8),
-                                ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), icon: const Icon(Icons.edit, size: 18), label: Text("Изменить".tr(widget.currentLang), style: TextStyle(fontWeight: FontWeight.bold)), onPressed: () { Navigator.of(context).pop(); _showEditTaskDialog(task); }),
-                              ]
-                            )
-                          ]
-                        )
-                      ],
-                    ),
-                  ),
-                )
-              ),
-            ),
-          );
-        });
-      }
+      task: task,
+      isDark: isDark,
+      textColor: textColor,
+      textMuted: textMuted,
+      glassColor: glassColor,
+      glassBorderColor: glassBorderColor,
+      cardColor: cardColor,
+      doneCardColor: doneCardColor,
+      highlightColor: highlightColor,
+      currentLang: widget.currentLang,
+      tasks: tasks,
+      workspaceMembers: workspaceMembers,
+      getPriorityColor: _getPriorityColor,
+      onToggleTask: _toggleTask,
+      onDeleteTask: _deleteTask,
+      createTaskManually: _createTaskManually,
+      onTagTap: (tag) => setState(() => activeTagFilter = tag),
+      onDuplicate: (task) => setState(() { _taskToDuplicate = task; _isDuplicating = true; }),
+      onEdit: _showEditTaskDialog,
+      buildGlassContainer: _buildGlassContainer,
     );
   }
 
