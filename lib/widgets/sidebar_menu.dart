@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/localization.dart';
+import '../core/theme/design_tokens.dart';
 
 class SidebarMenu extends StatelessWidget {
   final bool isDark;
@@ -39,9 +40,10 @@ class SidebarMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textColor = isDark ? Colors.white : Colors.black87;
-    final textMuted = isDark ? Colors.white70 : Colors.black54;
-    final highlightColor = isDark ? Colors.white.withOpacity(0.1) : Colors.blue.withOpacity(0.1);
+    final t = context.tokens;
+    final textColor = t.text;
+    final textMuted = t.text2;
+    final highlightColor = t.accentSoft;
 
     return buildGlassContainer(
       borderRadius: const BorderRadius.only(topRight: Radius.circular(24), bottomRight: Radius.circular(24)),
@@ -65,7 +67,7 @@ class SidebarMenu extends StatelessWidget {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12 * scale)),
                       selected: item == selectedMenu,
                       selectedTileColor: highlightColor,
-                      title: Text(item.tr(currentLang), style: TextStyle(fontSize: 16 * scale, fontWeight: item == selectedMenu ? FontWeight.bold : FontWeight.w600, color: item == selectedMenu ? Colors.blueAccent : textColor)),
+                      title: Text(item.tr(currentLang), style: TextStyle(fontSize: 16 * scale, fontWeight: item == selectedMenu ? FontWeight.bold : FontWeight.w600, color: item == selectedMenu ? t.accent : textColor)),
                       onTap: () => onMenuSelected(item), 
                     ),
                   )),
@@ -92,8 +94,8 @@ class SidebarMenu extends StatelessWidget {
                       selected: folder == selectedMenu,
                       selectedTileColor: highlightColor,
                       contentPadding: EdgeInsets.symmetric(horizontal: 16 * scale),
-                      leading: Icon(Icons.folder_outlined, size: 20 * scale, color: folder == selectedMenu ? Colors.blueAccent : textMuted),
-                      title: Text(folder, style: TextStyle(fontSize: 15 * scale, fontWeight: folder == selectedMenu ? FontWeight.bold : FontWeight.w600, color: folder == selectedMenu ? Colors.blueAccent : textColor), overflow: TextOverflow.ellipsis),
+                      leading: Icon(Icons.folder_outlined, size: 20 * scale, color: folder == selectedMenu ? t.accent : textMuted),
+                      title: Text(folder, style: TextStyle(fontSize: 15 * scale, fontWeight: folder == selectedMenu ? FontWeight.bold : FontWeight.w600, color: folder == selectedMenu ? t.accent : textColor), overflow: TextOverflow.ellipsis),
                       onTap: () => onMenuSelected(folder),
                       onLongPress: () => onDeleteFolder(folder), 
                     ),
@@ -105,28 +107,30 @@ class SidebarMenu extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text("КОМАНДЫ".tr(currentLang), style: TextStyle(fontSize: 12 * scale, fontWeight: FontWeight.bold, color: Colors.orangeAccent, letterSpacing: 1.2)),
+                        Text("КОМАНДЫ".tr(currentLang), style: TextStyle(fontSize: 12 * scale, fontWeight: FontWeight.bold, color: textMuted, letterSpacing: 1.2)),
                         InkWell(
                           onTap: onAddWorkspace,
-                          child: Icon(Icons.add_business, size: 20 * scale, color: Colors.orangeAccent)
+                          child: Icon(Icons.add_business, size: 20 * scale, color: textMuted)
                         ),
                       ],
                     ),
                   ),
-                  
+
                   ...workspaces.map((ws) {
                     String wsName = ws['name'].toString();
-                    String wsMenuKey = 'ws_${ws['id']}'; 
+                    String wsMenuKey = 'ws_${ws['id']}';
+                    // Метка команды — из назначаемой палитры по id, а не зашитый системный цвет.
+                    final wsColor = t.tagPalette[(ws['id'] as int) % t.tagPalette.length];
 
                     return Padding(
                       padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 2 * scale),
                       child: ListTile(
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12 * scale)),
                         selected: selectedMenu == wsMenuKey,
-                        selectedTileColor: Colors.orangeAccent.withOpacity(0.15),
+                        selectedTileColor: wsColor.withValues(alpha: 0.15),
                         contentPadding: EdgeInsets.symmetric(horizontal: 16 * scale),
-                        leading: Icon(Icons.group_work_outlined, size: 20 * scale, color: selectedMenu == wsMenuKey ? Colors.orangeAccent : textMuted),
-                        title: Text(wsName, style: TextStyle(fontSize: 15 * scale, fontWeight: selectedMenu == wsMenuKey ? FontWeight.bold : FontWeight.w600, color: selectedMenu == wsMenuKey ? Colors.orangeAccent : textColor), overflow: TextOverflow.ellipsis),
+                        leading: Icon(Icons.group_work_outlined, size: 20 * scale, color: selectedMenu == wsMenuKey ? wsColor : textMuted),
+                        title: Text(wsName, style: TextStyle(fontSize: 15 * scale, fontWeight: selectedMenu == wsMenuKey ? FontWeight.bold : FontWeight.w600, color: selectedMenu == wsMenuKey ? wsColor : textColor), overflow: TextOverflow.ellipsis),
                         onTap: () => onWorkspaceSelected(ws['id'] as int, wsMenuKey),
                       ),
                     );

@@ -14,7 +14,9 @@ import 'package:local_notifier/local_notifier.dart';
 
 import '../core/config.dart';
 import '../core/localization.dart';
+import '../core/theme/design_tokens.dart';
 import '../services/task_service.dart';
+import '../widgets/clarify_button.dart';
 import '../widgets/main_content_area.dart';
 import '../widgets/sidebar_menu.dart';
 import '../widgets/window_buttons.dart';
@@ -168,18 +170,19 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   bool get isDark => widget.isDark;
   Color get bgColor => Colors.transparent;
   String get bgImagePath => isDark ? 'assets/images/bg_dark.jpg' : 'assets/images/bg_light.jpg';
-  Color get glassColor => isDark ? Colors.black.withOpacity(0.2) : Colors.white.withOpacity(0.3);
-  Color get glassBorderColor => isDark ? Colors.white.withOpacity(0.15) : Colors.black.withOpacity(0.15);
+  ClarifyTokens get _tokens => isDark ? ClarifyTokens.dark : ClarifyTokens.light;
+  Color get glassColor => _tokens.surface.withValues(alpha: isDark ? 0.55 : 0.7);
+  Color get glassBorderColor => _tokens.border;
   Color get panelColor => glassColor;
   Color get cardColor => glassColor;
-  Color get doneCardColor => isDark ? Colors.black.withOpacity(0.4) : Colors.white.withOpacity(0.5);
+  Color get doneCardColor => _tokens.surfaceSunken.withValues(alpha: isDark ? 0.7 : 0.85);
   Color get borderColor => glassBorderColor;
-  Color get borderStrong => isDark ? Colors.white.withOpacity(0.2) : Colors.black.withOpacity(0.1);
-  Color get textColor => isDark ? const Color(0xFFF1F5F9) : const Color(0xFF1E293B);
-  Color get textMuted => isDark ? Colors.white70 : Colors.black54;
-  Color get highlightColor => isDark ? Colors.blueAccent.withOpacity(0.3) : Colors.blueAccent.withOpacity(0.15);
-  Color get chatBubbleAi => isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05);
-  Color get chatInput => isDark ? Colors.black.withOpacity(0.4) : Colors.white.withOpacity(0.5);
+  Color get borderStrong => _tokens.borderStrong;
+  Color get textColor => _tokens.text;
+  Color get textMuted => _tokens.text2;
+  Color get highlightColor => _tokens.accentSoft;
+  Color get chatBubbleAi => _tokens.surface2.withValues(alpha: isDark ? 0.6 : 0.8);
+  Color get chatInput => _tokens.surfaceSunken.withValues(alpha: isDark ? 0.7 : 0.85);
 
   Widget _buildGlassContainer({required Widget child, BorderRadius? borderRadius, EdgeInsetsGeometry? padding, EdgeInsetsGeometry? margin, Color? customColor}) {
     return Container(margin: margin, child: ClipRRect(borderRadius: borderRadius ?? BorderRadius.circular(16), child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 18.0, sigmaY: 18.0), child: Container(padding: padding, decoration: BoxDecoration(color: customColor ?? glassColor, borderRadius: borderRadius ?? BorderRadius.circular(16), border: Border.all(color: glassBorderColor, width: 1.0)), child: child))));
@@ -1125,16 +1128,11 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                       // Кнопка "Пригласить"
                                       Padding(
                                         padding: EdgeInsets.only(right: 16 * _s),
-                                        child: ElevatedButton.icon(
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.orangeAccent.withOpacity(0.1),
-                                            foregroundColor: Colors.orangeAccent,
-                                            elevation: 0,
-                                            padding: EdgeInsets.symmetric(horizontal: 16 * _s, vertical: 10 * _s),
-                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12 * _s), side: const BorderSide(color: Colors.orangeAccent))
-                                          ),
-                                          icon: Icon(Icons.person_add_alt_1, size: 20 * _s),
-                                          label: Text("Пригласить".tr(widget.currentLang), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14 * _s)),
+                                        child: ClarifyButton(
+                                          variant: ClarifyButtonVariant.outline,
+                                          scale: _s,
+                                          icon: Icons.person_add_alt_1,
+                                          label: "Пригласить".tr(widget.currentLang),
                                           onPressed: () => showInviteMemberDialog(
                                             context: context,
                                             workspaceId: int.parse(selectedMenu.substring(3)),
@@ -1152,7 +1150,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                     if (_isOffline)
                                       Padding(
                                         padding: EdgeInsets.only(right: 12 * _s),
-                                        child: Icon(Icons.cloud_off, color: Colors.orangeAccent, size: 24 * _s),
+                                        child: Icon(Icons.cloud_off, color: _tokens.warning, size: 24 * _s),
                                       ),
 
                                     if (_pendingOpsCount > 0)
@@ -1160,29 +1158,25 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                         padding: EdgeInsets.only(right: 12 * _s),
                                         child: Tooltip(
                                           message: "Несинхронизированных изменений: $_pendingOpsCount".tr(widget.currentLang),
-                                          child: Icon(Icons.sync_problem, color: Colors.orangeAccent, size: 24 * _s),
+                                          child: Icon(Icons.sync_problem, color: _tokens.warning, size: 24 * _s),
                                         ),
                                       ),
 
 
-                                    // 🚀 НОВАЯ КНОПКА СВИНЦОВОГО КУПОЛА
-                                    ElevatedButton.icon(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: _isMyZenActive ? Colors.deepPurpleAccent : Colors.transparent,
-                                        foregroundColor: _isMyZenActive ? Colors.white : textMuted,
-                                        elevation: 0,
-                                        padding: EdgeInsets.symmetric(horizontal: 16 * _s, vertical: 12 * _s),
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12 * _s), side: BorderSide(color: _isMyZenActive ? Colors.deepPurpleAccent : glassBorderColor))
-                                      ),
-                                      icon: Icon(Icons.self_improvement, size: 20 * _s),
-                                      label: Text(_isMyZenActive ? "В фокусе".tr(widget.currentLang) : "Фокусирование".tr(widget.currentLang), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15 * _s)),
+                                    // Фокус-режим — filled только пока активен, один и тот же акцент, что и везде
+                                    ClarifyButton(
+                                      variant: _isMyZenActive ? ClarifyButtonVariant.filled : ClarifyButtonVariant.outline,
+                                      scale: _s,
+                                      icon: Icons.self_improvement,
+                                      label: _isMyZenActive ? "В фокусе".tr(widget.currentLang) : "Фокусирование".tr(widget.currentLang),
                                       onPressed: _toggleZenMode,
                                     ),
                                     SizedBox(width: 12 * _s),
-                                    // 🚀 КНОПКА ПУЛЬСА КОМАНДЫ (Только внутри воркспейса)
+                                    // Пульс команды (только внутри воркспейса) — нейтральная иконка, не тревожный красный
                                     if (selectedMenu.startsWith('ws_')) ...[
-                                      IconButton(
-                                        icon: Icon(Icons.monitor_heart_outlined, color: Colors.redAccent, size: 26 * _s),
+                                      ClarifyIconButton(
+                                        icon: Icons.monitor_heart_outlined,
+                                        scale: _s,
                                         tooltip: "Пульс команды".tr(widget.currentLang),
                                         onPressed: () => showTeamPulseDialog(
                                           context: context,
@@ -1199,17 +1193,19 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                       ),
                                       SizedBox(width: 4 * _s),
                                     ],
-                                    IconButton(icon: Icon(Icons.refresh, color: textMuted, size: 26 * _s), onPressed: _fetchTasks),
+                                    ClarifyIconButton(icon: Icons.refresh, scale: _s, onPressed: _fetchTasks),
                                     SizedBox(width: 4 * _s),
-                                    IconButton(
-                                      icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode, color: isDark ? Colors.yellow : textMuted, size: 26 * _s),
+                                    ClarifyIconButton(
+                                      icon: isDark ? Icons.light_mode : Icons.dark_mode,
+                                      scale: _s,
                                       onPressed: widget.toggleTheme,
                                     ),
                                     SizedBox(width: 16 * _s),
-                                    ElevatedButton.icon(
-                                      style: ElevatedButton.styleFrom(backgroundColor: rightPanelState == 'ai' ? highlightColor : Colors.blueAccent.withOpacity(0.9), foregroundColor: rightPanelState == 'ai' ? Colors.redAccent : Colors.white, padding: EdgeInsets.symmetric(horizontal: 20 * _s, vertical: 12 * _s), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12 * _s)), elevation: 0, side: BorderSide(color: rightPanelState == 'ai' ? Colors.red[300]! : Colors.transparent)),
-                                      icon: Icon(rightPanelState == 'ai' ? Icons.close : Icons.auto_awesome, size: 20 * _s),
-                                      label: Text(rightPanelState == 'ai' ? "Закрыть чат".tr(widget.currentLang) : "AI Ассистент".tr(widget.currentLang), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15 * _s)),
+                                    ClarifyButton(
+                                      variant: rightPanelState == 'ai' ? ClarifyButtonVariant.outline : ClarifyButtonVariant.filled,
+                                      scale: _s,
+                                      icon: rightPanelState == 'ai' ? Icons.close : Icons.auto_awesome,
+                                      label: rightPanelState == 'ai' ? "Закрыть чат".tr(widget.currentLang) : "AI Ассистент".tr(widget.currentLang),
                                       onPressed: () => setState(() => rightPanelState = rightPanelState == 'ai' ? 'none' : 'ai'),
                                     ),
                                   ],
@@ -1223,13 +1219,13 @@ Map<String, dynamic> _parseSmartInput(String text) {
                               child: Row(
                                 children: [
                                   Container(
-                                    padding: EdgeInsets.symmetric(horizontal: 16 * _s, vertical: 8 * _s), decoration: BoxDecoration(color: highlightColor, borderRadius: BorderRadius.circular(24 * _s), border: Border.all(color: Colors.blueAccent.withOpacity(0.4))),
+                                    padding: EdgeInsets.symmetric(horizontal: 16 * _s, vertical: 8 * _s), decoration: BoxDecoration(color: highlightColor, borderRadius: BorderRadius.circular(ClarifyRadius.pill), border: Border.all(color: _tokens.accent.withValues(alpha: 0.4))),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Icon(Icons.filter_alt, size: 18 * _s, color: Colors.blueAccent), SizedBox(width: 8 * _s),
-                                        Text("Тег: #$activeTagFilter".tr(widget.currentLang), style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold, fontSize: 15 * _s)), SizedBox(width: 12 * _s),
-                                        InkWell(onTap: () => setState(() => activeTagFilter = null), child: Container(padding: EdgeInsets.all(4 * _s), decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.blueAccent.withOpacity(0.6)), child: Icon(Icons.close, size: 14 * _s, color: Colors.white),))
+                                        Icon(Icons.filter_alt, size: 18 * _s, color: _tokens.accent), SizedBox(width: 8 * _s),
+                                        Text("Тег: #$activeTagFilter".tr(widget.currentLang), style: TextStyle(color: _tokens.accent, fontWeight: FontWeight.bold, fontSize: 15 * _s)), SizedBox(width: 12 * _s),
+                                        InkWell(onTap: () => setState(() => activeTagFilter = null), child: Container(padding: EdgeInsets.all(4 * _s), decoration: BoxDecoration(shape: BoxShape.circle, color: _tokens.accent.withValues(alpha: 0.6)), child: Icon(Icons.close, size: 14 * _s, color: _tokens.onAccent),))
                                       ],
                                     )
                                   ),
