@@ -1,0 +1,304 @@
+import 'package:flutter/material.dart';
+import '../core/localization.dart';
+
+/// Диалог создания новой задачи (в т.ч. дублирования). Вынесено из
+/// DesktopPlannerScreen (P3.1, docs/IMPROVEMENT_PLAN.md) — логика и разметка
+/// не менялись, только доступ к состоянию родителя заменён на явные
+/// параметры функции.
+///
+/// ИЗВЕСТНЫЙ БАГ, обнаруженный при переносе (не исправлен в этом коммите —
+/// извлечение кода должно быть чистым перемещением, не поведенческим
+/// изменением): кнопки "+1 День"/"+1 Неделя" вызывают [shiftDate], которая
+/// принимает `selectedDate` ПО ЗНАЧЕНИЮ и переприсваивает свой локальный
+/// параметр — это не обновляет `selectedDate` в диалоге, поэтому видимая
+/// дата на кнопке не меняется по клику (`setStateDialog` форсирует
+/// перерисовку, но с тем же значением). В `_showEditTaskDialog` аналогичная
+/// кнопка работает правильно, т.к. использует локальное замыкание, а не
+/// функцию с параметром. См. docs/IMPROVEMENT_PLAN.md — стоит завести туда
+/// отдельный пункt на исправление.
+void showManualAddDialog({
+  required BuildContext context,
+  required bool isDark,
+  required double scale,
+  required Color textColor,
+  required Color textMuted,
+  required Color glassBorderColor,
+  required Color doneCardColor,
+  required Color highlightColor,
+  required String currentLang,
+  required String selectedMenu,
+  required String? activeTagFilter,
+  required List<Map<String, dynamic>> tasks,
+  required List<String> customFolders,
+  required Map<int, List<Map<String, dynamic>>> workspaceMembers,
+  required bool isDuplicating,
+  required VoidCallback onDuplicateHandled,
+  required Future<int?> Function(Map<String, dynamic> taskData) createTaskManually,
+  required void Function(String dateStr) checkBurnoutWarning,
+  required Map<String, dynamic> Function(String text) parseSmartInput,
+  required Color Function(String? priority) getPriorityColor,
+  required String Function(DateTime date) formatDate,
+  required void Function(int days, int months, StateSetter setStateDialog, DateTime? currentDate) shiftDate,
+  required Widget Function({
+    required Widget child,
+    BorderRadius? borderRadius,
+    EdgeInsetsGeometry? padding,
+    EdgeInsetsGeometry? margin,
+    Color? customColor,
+  }) buildGlassContainer,
+  DateTime? preselectedDate,
+  Map<String, dynamic>? sourceTaskForDuplicate,
+}) {
+  final s = scale;
+  final bool isFromDuplicate = sourceTaskForDuplicate != null;
+  final TextEditingController titleController = TextEditingController(text: isFromDuplicate ? sourceTaskForDuplicate['title'] : '');
+  final TextEditingController noteController = TextEditingController(text: isFromDuplicate ? (sourceTaskForDuplicate['note'] ?? '') : '');
+  final TextEditingController tagsController = TextEditingController(text: isFromDuplicate ? (sourceTaskForDuplicate['tags'] ?? '') : (activeTagFilter ?? ''));
+  final TextEditingController subtaskController = TextEditingController();
+
+  String selectedPriority = isFromDuplicate ? (sourceTaskForDuplicate['priority'] ?? 'none') : 'none';
+  String selectedRecurrence = isFromDuplicate ? (sourceTaskForDuplicate['recurrence'] ?? 'none') : 'none';
+  String? selectedAssigneeId;
+  DateTime? selectedDate = preselectedDate ?? DateTime.now();
+  TimeOfDay? selectedTime;
+
+  if (isFromDuplicate && sourceTaskForDuplicate['due_time'] != null) {
+    final parts = sourceTaskForDuplicate['due_time'].split(':');
+    selectedTime = TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+  }
+
+  List<String> tempSubtasks = [];
+  if (isFromDuplicate) {
+    final existingSubs = tasks.where((t) => t['parent_id'] == sourceTaskForDuplicate['id']).toList();
+    tempSubtasks = existingSubs.map((s) => s['title'].toString()).toList();
+  }
+
+  bool isSaving = false;
+
+  showDialog(
+    context: context,
+    barrierColor: Colors.black.withOpacity(0.4),
+    builder: (context) {
+      return StatefulBuilder(builder: (context, setStateDialog) {
+        return Center(
+          child: Material(
+            color: Colors.transparent,
+            child: buildGlassContainer(
+              padding: const EdgeInsets.all(24),
+              child: SizedBox(
+                width: 450,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(isFromDuplicate ? "Дублирование".tr(currentLang) : "Новая задача".tr(currentLang), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: textColor)),
+                          IconButton(icon: Icon(Icons.close, color: textMuted), onPressed: () { Navigator.pop(context); if (isDuplicating) onDuplicateHandled(); })
+                        ]
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: titleController,
+                        style: TextStyle(color: textColor, fontSize: 16),
+                        autofocus: true,
+                        onChanged: (value) {
+                          final parsed = parseSmartInput(value);
+                          if (parsed['time'] != null) {
+                            final parts = parsed['time'].split(':');
+                            setStateDialog(() => selectedTime = TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1])));
+                          }
+                          if (parsed['tags'] != null) {
+                            final currentTags = tagsController.text.trim();
+                            if (!currentTags.contains(parsed['tags'])) {
+                              tagsController.text = currentTags.isEmpty ? parsed['tags'] : "$currentTags, ${parsed['tags']}";
+                            }
+                          }
+                        },
+                        decoration: InputDecoration(labelText: "Заголовок".tr(currentLang), labelStyle: TextStyle(color: textMuted), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)))
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Text("Приоритет: ".tr(currentLang), style: TextStyle(color: textMuted, fontSize: 14)),
+                          const SizedBox(width: 8),
+                          ...['none', 'red', 'orange', 'blue', 'gray'].map((pVal) {
+                            Color btnColor = pVal == 'none' ? Colors.transparent : getPriorityColor(pVal);
+                            bool isSelected = selectedPriority == pVal;
+                            return GestureDetector(
+                              onTap: () => setStateDialog(() => selectedPriority = pVal),
+                              child: Container(
+                                margin: const EdgeInsets.only(right: 8), width: 26, height: 26,
+                                decoration: BoxDecoration(color: btnColor, shape: BoxShape.circle, border: isSelected ? Border.all(color: textColor, width: 2) : Border.all(color: glassBorderColor, width: 1)),
+                                child: isSelected && pVal == 'none' ? Icon(Icons.close, size: 14, color: textMuted) : null,
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(child: OutlinedButton.icon(icon: Icon(Icons.calendar_today, size: 18, color: textColor), label: Text(selectedDate == null ? "Без даты".tr(currentLang) : formatDate(selectedDate!), style: TextStyle(color: textColor)), style: OutlinedButton.styleFrom(side: BorderSide(color: glassBorderColor), padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), onPressed: () async { final picked = await showDatePicker(context: context, initialDate: selectedDate ?? DateTime.now(), firstDate: DateTime(2000), lastDate: DateTime(2101)); if (picked != null) setStateDialog(() => selectedDate = picked); })),
+                          const SizedBox(width: 12),
+                          Expanded(child: OutlinedButton.icon(icon: Icon(Icons.access_time, size: 18, color: textColor), label: Text(selectedTime == null ? "Время".tr(currentLang) : selectedTime!.format(context), style: TextStyle(color: textColor)), style: OutlinedButton.styleFrom(side: BorderSide(color: glassBorderColor), padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), onPressed: () async { final picked = await showTimePicker(context: context, initialTime: TimeOfDay.now()); if (picked != null) setStateDialog(() => selectedTime = picked); })),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          TextButton(onPressed: () => shiftDate(1, 0, setStateDialog, selectedDate), child: Text("+1 День".tr(currentLang))),
+                          TextButton(onPressed: () => shiftDate(7, 0, setStateDialog, selectedDate), child: Text("+1 Неделя".tr(currentLang))),
+                          TextButton(onPressed: () => setStateDialog(() => selectedDate = null), child: Text("Убрать".tr(currentLang), style: TextStyle(color: Colors.redAccent))),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(Icons.repeat, size: 18, color: textMuted),
+                          const SizedBox(width: 8),
+                          DropdownButton<String>(
+                            value: selectedRecurrence, dropdownColor: isDark ? const Color(0xFF1E1E1E) : Colors.white, underline: const SizedBox(), style: TextStyle(fontSize: 14, color: textColor),
+                            items: [
+                              DropdownMenuItem(value: 'none', child: Text("Без повтора".tr(currentLang), style: TextStyle(color: textColor))),
+                              DropdownMenuItem(value: 'daily', child: Text("Каждый день".tr(currentLang), style: TextStyle(color: textColor))),
+                              DropdownMenuItem(value: 'weekly', child: Text("Каждую неделю".tr(currentLang), style: TextStyle(color: textColor))),
+                              DropdownMenuItem(value: 'monthly', child: Text("Каждый месяц".tr(currentLang), style: TextStyle(color: textColor))),
+                            ],
+                            onChanged: (val) => setStateDialog(() => selectedRecurrence = val!),
+                          )
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(controller: tagsController, style: TextStyle(color: textColor), decoration: InputDecoration(labelText: "Теги (через запятую)".tr(currentLang), labelStyle: TextStyle(color: textMuted), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.blueAccent)), isDense: true)),
+                      const SizedBox(height: 12),
+                      TextField(controller: noteController, style: TextStyle(color: textColor), maxLines: 2, decoration: InputDecoration(labelText: "Заметка".tr(currentLang), labelStyle: TextStyle(color: textMuted), alignLabelWithHint: true, enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.blueAccent)))),
+                      const SizedBox(height: 16),
+                      Divider(color: glassBorderColor),
+                      const SizedBox(height: 8),
+                      Text("Чек-лист (Подзадачи):".tr(currentLang), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textColor)),
+                      const SizedBox(height: 8),
+                      if (tempSubtasks.isNotEmpty)
+                        Column(
+                          children: tempSubtasks.asMap().entries.map((entry) {
+                            int idx = entry.key; String subTitle = entry.value;
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 6), padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), decoration: BoxDecoration(color: doneCardColor, borderRadius: BorderRadius.circular(12), border: Border.all(color: glassBorderColor)),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.circle_outlined, size: 16, color: textMuted), const SizedBox(width: 8),
+                                  Expanded(child: Text(subTitle, style: TextStyle(color: textColor))),
+                                  IconButton(icon: Icon(Icons.close, size: 16, color: Colors.red[300]), padding: EdgeInsets.zero, constraints: const BoxConstraints(), onPressed: () => setStateDialog(() => tempSubtasks.removeAt(idx)))
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(child: TextField(controller: subtaskController, style: TextStyle(color: textColor), decoration: InputDecoration(hintText: "Добавить пункт...".tr(currentLang), hintStyle: TextStyle(color: textMuted), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), isDense: true), onSubmitted: (text) { if (text.trim().isNotEmpty) { setStateDialog(() { tempSubtasks.add(text.trim()); subtaskController.clear(); }); } })),
+                          const SizedBox(width: 12),
+                          IconButton(style: IconButton.styleFrom(backgroundColor: highlightColor, padding: const EdgeInsets.all(12)), icon: const Icon(Icons.add, color: Colors.blueAccent), onPressed: () { if (subtaskController.text.trim().isNotEmpty) { setStateDialog(() { tempSubtasks.add(subtaskController.text.trim()); subtaskController.clear(); }); } })
+                        ],
+                      ),
+
+                      // 🚀 ВЫБОР ИСПОЛНИТЕЛЯ ТЕПЕРЬ ПРАВИЛЬНО ВНУТРИ СПИСКА CHILDREN
+                      if (selectedMenu.startsWith('ws_')) ...[
+                        SizedBox(height: 12 * s),
+                        DropdownButtonFormField<String>(
+                          dropdownColor: isDark ? const Color(0xFF2C2C2C) : Colors.white,
+                          decoration: InputDecoration(
+                            labelText: "Назначить на...".tr(currentLang),
+                            labelStyle: TextStyle(color: textMuted),
+                            prefixIcon: Icon(Icons.person_outline, color: textMuted, size: 20 * s),
+                            enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: glassBorderColor)),
+                          ),
+                          value: selectedAssigneeId,
+                          items: [
+                            DropdownMenuItem(value: null, child: Text("Никто", style: TextStyle(color: textColor))),
+                            ...(workspaceMembers[int.parse(selectedMenu.substring(3))] ?? []).map((m) => DropdownMenuItem(
+                              value: m['user_id'] as String,
+                              child: Text(m['full_name'] ?? 'Участник', style: TextStyle(color: textColor)),
+                            )),
+                          ],
+                          onChanged: (val) => setStateDialog(() => selectedAssigneeId = val),
+                        ),
+                      ],
+
+                      const SizedBox(height: 24),
+
+                      // КНОПКИ ОТМЕНА И СОХРАНИТЬ
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(onPressed: () { Navigator.pop(context); if (isDuplicating) onDuplicateHandled(); }, child: Text("Отмена".tr(currentLang), style: TextStyle(color: textMuted))),
+                          const SizedBox(width: 12),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                            onPressed: isSaving ? null : () async {
+                              if (titleController.text.trim().isEmpty) return;
+
+                              setStateDialog(() => isSaving = true);
+
+                              int? currentWorkspaceId;
+                              if (selectedMenu.startsWith('ws_')) {
+                                currentWorkspaceId = int.tryParse(selectedMenu.substring(3));
+                              }
+
+                              // Запускаем фоновую анонимную функцию для создания главной задачи и ее подзадач
+                              () async {
+                                int? newTaskId = await createTaskManually({
+                                  "title": titleController.text.trim(),
+                                  "due_date": selectedDate != null ? formatDate(selectedDate!) : null,
+                                  "due_time": selectedTime != null ? "${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}" : null,
+                                  "note": noteController.text.trim().isNotEmpty ? noteController.text.trim() : null,
+                                  "priority": selectedPriority,
+                                  "tags": tagsController.text.trim().isNotEmpty ? tagsController.text.trim() : null,
+                                  "recurrence": selectedRecurrence == 'none' ? null : selectedRecurrence,
+                                  "is_completed": false,
+                                  "parent_id": null,
+                                  "folder": customFolders.contains(selectedMenu) ? selectedMenu : null,
+                                  "workspace_id": currentWorkspaceId,
+                                  "assigned_to": selectedAssigneeId,
+                                });
+
+                                if (newTaskId != null && tempSubtasks.isNotEmpty) {
+                                  for (String subTitle in tempSubtasks) {
+                                    await createTaskManually({"title": subTitle, "parent_id": newTaskId, "is_completed": false});
+                                  }
+                                }
+                              }(); // Круглые скобки в конце сразу запускают эту фоновую задачу
+
+                              if (context.mounted) Navigator.pop(context);
+
+                              if (selectedDate != null) {
+                                checkBurnoutWarning(formatDate(selectedDate!));
+                              }
+
+                              if (isDuplicating) {
+                                onDuplicateHandled();
+                                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Задача скопирована!".tr(currentLang)), backgroundColor: Colors.blueAccent));
+                              }
+
+                              if (context.mounted) setStateDialog(() => isSaving = false);
+                            },
+                            child: isSaving
+                                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                : Text("Сохранить".tr(currentLang), style: TextStyle(fontWeight: FontWeight.bold))
+                          ),
+                        ],
+                      )
+                    ],
+                  ),
+                ),
+              )
+            ),
+          ),
+        );
+      });
+    },
+  );
+}
