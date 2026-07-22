@@ -26,6 +26,7 @@ import '../widgets/task_cards.dart';
 import '../widgets/statistics_dashboard.dart';
 import '../widgets/ai_chat_panel.dart';
 import '../dialogs/workspace_dialogs.dart';
+import '../dialogs/team_pulse_dialog.dart';
 
 class DesktopPlannerScreen extends StatefulWidget {
   final bool isDark;
@@ -812,115 +813,6 @@ void _checkBurnoutWarning(String dateStr) {
   void _applyFilters() {}
 
   void shiftDate(int days, int months, StateSetter setStateDialog, DateTime? currentDate) { DateTime baseDate = currentDate ?? DateTime.now(); setStateDialog(() => currentDate = DateTime(baseDate.year, baseDate.month + months, baseDate.day + days)); }
-
-// --- ФАЗА 3: УМНЫЙ ДАЙДЖЕСТ (ПУЛЬС КОМАНДЫ) ---
-  Widget _buildStatCard(String title, String value, Color color) {
-    return Container(
-      padding: EdgeInsets.all(16 * _s),
-      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(16 * _s), border: Border.all(color: color.withOpacity(0.3))),
-      child: Column(
-        children: [
-          Text(value, style: TextStyle(fontSize: 32 * _s, fontWeight: FontWeight.w900, color: color)),
-          SizedBox(height: 4 * _s),
-          Text(title.tr(widget.currentLang), style: TextStyle(fontSize: 12 * _s, fontWeight: FontWeight.bold, color: textColor)),
-        ],
-      ),
-    );
-  }
-
-  void _showTeamPulseDialog(int wsId) {
-    final todayStr = _formatDate(DateTime.now());
-    
-    // Фильтруем задачи текущей команды ТОЛЬКО на сегодня
-    var wsTasks = tasks.where((t) => t['workspace_id'] == wsId && t['due_date'] == todayStr && t['parent_id'] == null).toList();
-    
-    int totalCompleted = wsTasks.where((t) => t['is_completed'] == true).length;
-    int totalActive = wsTasks.length - totalCompleted;
-
-    // Считаем вклад каждого (кто сколько закрыл)
-    Map<String, int> heroStats = {};
-    for (var t in wsTasks.where((t) => t['is_completed'] == true && t['assigned_to'] != null)) {
-      String uid = t['assigned_to'].toString();
-      heroStats[uid] = (heroStats[uid] ?? 0) + 1;
-    }
-
-    // Сортируем героев по количеству закрытых задач (по убыванию)
-    var sortedHeroes = heroStats.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
-
-    showDialog(
-      context: context,
-      barrierColor: Colors.black.withOpacity(0.4),
-      builder: (context) {
-        return Center(
-          child: Material(
-            color: Colors.transparent,
-            child: _buildGlassContainer(
-              padding: EdgeInsets.all(32 * _s),
-              child: SizedBox(
-                width: 400 * _s,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.monitor_heart, color: Colors.redAccent, size: 28 * _s),
-                            SizedBox(width: 12 * _s),
-                            Text("Пульс команды".tr(widget.currentLang), style: TextStyle(fontSize: 20 * _s, fontWeight: FontWeight.w900, color: textColor)),
-                          ],
-                        ),
-                        IconButton(icon: Icon(Icons.close, color: textMuted), onPressed: () => Navigator.pop(context))
-                      ]
-                    ),
-                    SizedBox(height: 24 * _s),
-                    
-                    Row(
-                      children: [
-                        Expanded(child: _buildStatCard("Закрыто", totalCompleted.toString(), Colors.green)),
-                        SizedBox(width: 16 * _s),
-                        Expanded(child: _buildStatCard("В работе", totalActive.toString(), Colors.blueAccent)),
-                      ],
-                    ),
-                    
-                    if (sortedHeroes.isNotEmpty) ...[
-                      SizedBox(height: 32 * _s),
-                      Align(alignment: Alignment.centerLeft, child: Text("🏆 ГЕРОИ ДНЯ:", style: TextStyle(fontWeight: FontWeight.w900, color: textMuted, fontSize: 12 * _s, letterSpacing: 1.2))),
-                      SizedBox(height: 16 * _s),
-                      Column(
-                        children: sortedHeroes.map((entry) {
-                          var members = workspaceMembers[wsId] ?? [];
-                          var member = members.firstWhere((m) => m['user_id'] == entry.key, orElse: () => <String, dynamic>{});
-                          String name = member.isNotEmpty ? (member['full_name'] ?? 'Участник') : 'Кто-то';
-                          String initial = name[0].toUpperCase();
-                          
-                          return Padding(
-                            padding: EdgeInsets.only(bottom: 12 * _s),
-                            child: Row(
-                              children: [
-                                CircleAvatar(radius: 16 * _s, backgroundColor: Colors.primaries[members.indexOf(member) % Colors.primaries.length].shade700, child: Text(initial, style: TextStyle(color: Colors.white, fontSize: 14 * _s, fontWeight: FontWeight.bold))),
-                                SizedBox(width: 12 * _s),
-                                Expanded(child: Text(name, style: TextStyle(color: textColor, fontWeight: FontWeight.w600, fontSize: 16 * _s))),
-                                Container(padding: EdgeInsets.symmetric(horizontal: 12 * _s, vertical: 6 * _s), decoration: BoxDecoration(color: Colors.green.withOpacity(0.15), borderRadius: BorderRadius.circular(16 * _s)), child: Text("${entry.value} задач", style: TextStyle(color: Colors.green, fontWeight: FontWeight.w900, fontSize: 13 * _s)))
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                      )
-                    ] else ...[
-                      SizedBox(height: 32 * _s),
-                      Text("Пока никто ничего не выполнил.\nСамое время начать! 🚀", textAlign: TextAlign.center, style: TextStyle(color: textMuted, fontSize: 15 * _s))
-                    ]
-                  ],
-                ),
-              )
-            )
-          )
-        );
-      }
-    );
-  }
 
   void _showSearchDialog() {
     String query = '';
@@ -2054,7 +1946,18 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                       IconButton(
                                         icon: Icon(Icons.monitor_heart_outlined, color: Colors.redAccent, size: 26 * _s),
                                         tooltip: "Пульс команды".tr(widget.currentLang),
-                                        onPressed: () => _showTeamPulseDialog(int.parse(selectedMenu.substring(3))),
+                                        onPressed: () => showTeamPulseDialog(
+                                          context: context,
+                                          wsId: int.parse(selectedMenu.substring(3)),
+                                          scale: _s,
+                                          currentLang: widget.currentLang,
+                                          textColor: textColor,
+                                          textMuted: textMuted,
+                                          tasks: tasks,
+                                          workspaceMembers: workspaceMembers,
+                                          formatDate: _formatDate,
+                                          buildGlassContainer: _buildGlassContainer,
+                                        ),
                                       ),
                                       SizedBox(width: 4 * _s),
                                     ],
