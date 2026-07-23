@@ -3,7 +3,9 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/localization.dart';
 import '../../core/theme/design_tokens.dart';
 import '../../widgets/clarify_button.dart';
-import 'widgets/mobile_task_row.dart';
+import 'widgets/swipe_to_delete_task_row.dart';
+import '../../widgets/user_profile_modal.dart';
+import '../../widgets/conversations_screen.dart';
 
 /// "Команды" — полный паритет с десктопом: список воркспейсов, участники,
 /// приглашение, «Пульс команды», задачи команды. Раздела не было в первом
@@ -17,6 +19,7 @@ class MobileTeamsScreen extends StatelessWidget {
   final void Function(int workspaceId) onOpenMembers;
   final void Function(int workspaceId) onInvite;
   final void Function(int workspaceId) onShowPulse;
+  final void Function(int workspaceId) onLeaveOrDeleteWorkspace;
   final Color Function(String? priority) getPriorityColor;
   final Map<String, int> Function(dynamic parentId) getSubtaskStats;
   final bool Function(Map<String, dynamic> task) isOverdue;
@@ -34,6 +37,7 @@ class MobileTeamsScreen extends StatelessWidget {
     required this.onOpenMembers,
     required this.onInvite,
     required this.onShowPulse,
+    required this.onLeaveOrDeleteWorkspace,
     required this.getPriorityColor,
     required this.getSubtaskStats,
     required this.isOverdue,
@@ -90,6 +94,7 @@ class MobileTeamsScreen extends StatelessWidget {
                                 tasks: tasks.where((task) => task['workspace_id'] == wsId && task['parent_id'] == null).toList(),
                                 onInvite: () => onInvite(wsId),
                                 onShowPulse: () => onShowPulse(wsId),
+                                onLeaveOrDeleteWorkspace: () => onLeaveOrDeleteWorkspace(wsId),
                                 getPriorityColor: getPriorityColor,
                                 getSubtaskStats: getSubtaskStats,
                                 isOverdue: isOverdue,
@@ -139,6 +144,7 @@ class _WorkspaceDetailPage extends StatelessWidget {
   final List<Map<String, dynamic>> tasks;
   final VoidCallback onInvite;
   final VoidCallback onShowPulse;
+  final VoidCallback onLeaveOrDeleteWorkspace;
   final Color Function(String? priority) getPriorityColor;
   final Map<String, int> Function(dynamic parentId) getSubtaskStats;
   final bool Function(Map<String, dynamic> task) isOverdue;
@@ -154,6 +160,7 @@ class _WorkspaceDetailPage extends StatelessWidget {
     required this.tasks,
     required this.onInvite,
     required this.onShowPulse,
+    required this.onLeaveOrDeleteWorkspace,
     required this.getPriorityColor,
     required this.getSubtaskStats,
     required this.isOverdue,
@@ -177,6 +184,8 @@ class _WorkspaceDetailPage extends StatelessWidget {
         actions: [
           ClarifyIconButton(icon: LucideIcons.heartPulse, onPressed: onShowPulse, tooltip: 'Пульс команды'.tr(currentLang)),
           const SizedBox(width: 4),
+          ClarifyIconButton(icon: LucideIcons.logOut, onPressed: onLeaveOrDeleteWorkspace, tooltip: 'Покинуть/удалить команду'.tr(currentLang)),
+          const SizedBox(width: 4),
         ],
       ),
       body: Column(
@@ -198,10 +207,21 @@ class _WorkspaceDetailPage extends StatelessWidget {
                             itemBuilder: (context, i) {
                               final m = members[i];
                               final name = (m['full_name'] ?? '?').toString();
-                              return CircleAvatar(
-                                radius: 17,
-                                backgroundColor: t.tagPalette[i % t.tagPalette.length],
-                                child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                              return GestureDetector(
+                                onTap: () => showUserProfileModal(
+                                  context: context,
+                                  userId: m['user_id'].toString(),
+                                  currentLang: currentLang,
+                                  teamRole: m['role']?.toString(),
+                                  onOpenConversation: (userId, name) => Navigator.of(context).push(MaterialPageRoute(
+                                    builder: (_) => ConversationScreen(currentLang: currentLang, partnerId: userId, partnerName: name),
+                                  )),
+                                ),
+                                child: CircleAvatar(
+                                  radius: 17,
+                                  backgroundColor: t.tagPalette[i % t.tagPalette.length],
+                                  child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                                ),
                               );
                             },
                           ),
@@ -219,14 +239,15 @@ class _WorkspaceDetailPage extends StatelessWidget {
                     itemCount: sorted.length,
                     itemBuilder: (context, index) {
                       final task = sorted[index];
-                      return MobileTaskRow(
+                      return SwipeToDeleteTaskRow(
                         task: task,
+                        currentLang: currentLang,
                         showDate: true,
                         priorityColor: getPriorityColor(task['priority']),
                         subtaskStats: getSubtaskStats(task['id']),
                         overdue: isOverdue(task),
                         onToggle: () => onToggleTask(task),
-                        onDelete: () => onDeleteTask(task['id']),
+                        onConfirmedDelete: () => onDeleteTask(task['id']),
                         onTap: () => onTaskTap(task),
                       );
                     },

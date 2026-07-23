@@ -17,4 +17,10 @@ class AppConfig {
   static const Duration zenModeDuration = Duration(minutes: 45);
 
   static const int burnoutTaskThreshold = 10;
+
+  /// Публичный ключ VAPID для Web Push (SOCIAL_PLAN.md §4.5) — не секрет (в
+  /// отличие от приватного, который живёт только в переменных окружения
+  /// backend на Render, см. backend/clarify-backend/PUSH_SETUP.md).
+  static const String vapidPublicKey =
+      'BE4cKKSz5qpsnfM-3IxlH7n7UFyZSfslZyFnBtxSHux0Rfhbsi5wUb4KoR4yR5HwYW7Y3z9sHjUwPC_R9OcHjdQ';
 }

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/localization.dart';
 import '../../core/theme/design_tokens.dart';
-import 'widgets/mobile_task_row.dart';
+import 'widgets/mobile_mini_calendar.dart';
+import 'widgets/swipe_to_delete_task_row.dart';
 
 enum _TaskFilter { today, upcoming, inbox, all }
 
@@ -18,6 +20,7 @@ class MobileTasksScreen extends StatefulWidget {
   final void Function(Map<String, dynamic> task) onToggle;
   final void Function(dynamic taskId) onDelete;
   final void Function(Map<String, dynamic> task) onTap;
+  final DateTime? initialDate;
 
   const MobileTasksScreen({
     super.key,
@@ -29,6 +32,7 @@ class MobileTasksScreen extends StatefulWidget {
     required this.onToggle,
     required this.onDelete,
     required this.onTap,
+    this.initialDate,
   });
 
   @override
@@ -37,11 +41,16 @@ class MobileTasksScreen extends StatefulWidget {
 
 class _MobileTasksScreenState extends State<MobileTasksScreen> {
   _TaskFilter _filter = _TaskFilter.today;
+  late DateTime? _calendarDate = widget.initialDate;
 
   String _formatDate(DateTime d) => '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
 
   List<Map<String, dynamic>> get _filtered {
     final base = widget.tasks.where((t) => t['parent_id'] == null).toList();
+    if (_calendarDate != null) {
+      final dateStr = _formatDate(_calendarDate!);
+      return base.where((t) => t['due_date'] == dateStr).toList();
+    }
     switch (_filter) {
       case _TaskFilter.today:
         final todayStr = _formatDate(DateTime.now());
@@ -69,19 +78,24 @@ class _MobileTasksScreenState extends State<MobileTasksScreen> {
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
           child: Text('Задачи'.tr(widget.currentLang), style: TextStyle(fontFamily: 'Golos Text', fontSize: 22, fontWeight: FontWeight.w700, color: t.text)),
         ),
+        MobileMiniCalendar(
+          currentLang: widget.currentLang,
+          selectedDate: _calendarDate ?? DateTime.now(),
+          onDaySelected: (day) => setState(() => _calendarDate = day),
+        ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                _FilterChip(label: 'Сегодня'.tr(widget.currentLang), active: _filter == _TaskFilter.today, onTap: () => setState(() => _filter = _TaskFilter.today)),
+                _FilterChip(label: 'Сегодня'.tr(widget.currentLang), active: _calendarDate == null && _filter == _TaskFilter.today, onTap: () => setState(() { _calendarDate = null; _filter = _TaskFilter.today; })),
                 const SizedBox(width: 8),
-                _FilterChip(label: '7 дней'.tr(widget.currentLang), active: _filter == _TaskFilter.upcoming, onTap: () => setState(() => _filter = _TaskFilter.upcoming)),
+                _FilterChip(label: '7 дней'.tr(widget.currentLang), active: _calendarDate == null && _filter == _TaskFilter.upcoming, onTap: () => setState(() { _calendarDate = null; _filter = _TaskFilter.upcoming; })),
                 const SizedBox(width: 8),
-                _FilterChip(label: 'Входящие'.tr(widget.currentLang), active: _filter == _TaskFilter.inbox, onTap: () => setState(() => _filter = _TaskFilter.inbox)),
+                _FilterChip(label: 'Входящие'.tr(widget.currentLang), active: _calendarDate == null && _filter == _TaskFilter.inbox, onTap: () => setState(() { _calendarDate = null; _filter = _TaskFilter.inbox; })),
                 const SizedBox(width: 8),
-                _FilterChip(label: 'Все'.tr(widget.currentLang), active: _filter == _TaskFilter.all, onTap: () => setState(() => _filter = _TaskFilter.all)),
+                _FilterChip(label: 'Все'.tr(widget.currentLang), active: _calendarDate == null && _filter == _TaskFilter.all, onTap: () => setState(() { _calendarDate = null; _filter = _TaskFilter.all; })),
               ],
             ),
           ),
@@ -92,20 +106,47 @@ class _MobileTasksScreenState extends State<MobileTasksScreen> {
               ? Center(
                   child: Text('Пусто. Отдыхаем!'.tr(widget.currentLang), style: TextStyle(fontSize: 15, color: t.text3)),
                 )
-              : ListView.builder(
+              // Long-press drag-handle для переупорядочивания — тот же жест, что и
+              // в десктопном «Мой день» (REDESIGN_V3_PLAN.md §3.13/5.13). Свайп
+              // (удаление) — горизонтальный, драг — вертикальный за отдельную
+              // ручку, конфликта между жестами на одной строке нет.
+              : ReorderableListView.builder(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
                   itemCount: tasks.length,
+                  onReorder: (oldIndex, newIndex) {
+                    setState(() {
+                      if (newIndex > oldIndex) newIndex -= 1;
+                      final item = tasks.removeAt(oldIndex);
+                      tasks.insert(newIndex, item);
+                    });
+                  },
                   itemBuilder: (context, index) {
                     final task = tasks[index];
-                    return MobileTaskRow(
-                      task: task,
-                      showDate: _filter != _TaskFilter.today,
-                      priorityColor: widget.getPriorityColor(task['priority']),
-                      subtaskStats: widget.getSubtaskStats(task['id']),
-                      overdue: widget.isOverdue(task),
-                      onToggle: () => widget.onToggle(task),
-                      onDelete: () => widget.onDelete(task['id']),
-                      onTap: () => widget.onTap(task),
+                    return Row(
+                      key: ValueKey(task['id'].toString()),
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: SwipeToDeleteTaskRow(
+                            task: task,
+                            currentLang: widget.currentLang,
+                            showDate: _filter != _TaskFilter.today,
+                            priorityColor: widget.getPriorityColor(task['priority']),
+                            subtaskStats: widget.getSubtaskStats(task['id']),
+                            overdue: widget.isOverdue(task),
+                            onToggle: () => widget.onToggle(task),
+                            onConfirmedDelete: () => widget.onDelete(task['id']),
+                            onTap: () => widget.onTap(task),
+                          ),
+                        ),
+                        ReorderableDelayedDragStartListener(
+                          index: index,
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 4, bottom: 8),
+                            child: Icon(LucideIcons.gripVertical, size: 20, color: t.text3),
+                          ),
+                        ),
+                      ],
                     );
                   },
                 ),

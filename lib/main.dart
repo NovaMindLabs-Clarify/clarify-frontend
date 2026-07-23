@@ -21,7 +21,9 @@ import 'core/localization.dart';
 import 'core/theme/design_tokens.dart';
 import 'widgets/clarify_glass.dart';
 import 'widgets/clarify_surface.dart';
+import 'widgets/clarify_toast.dart';
 import 'screens/desktop_planner_screen.dart';
+import 'screens/onboarding_flow.dart';
 // Вставь это где-то среди других импортов
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -115,19 +117,23 @@ class _SmartPlannerAppState extends State<SmartPlannerApp> with TrayListener {
   StreamSubscription<AuthState>? _authSubscription;
   bool _isAuthenticated = false;
   bool _hasName = false;
+  bool _hasSeenOnboarding = false;
 
   @override
   void initState() {
     super.initState();
     trayManager.addListener(this);
-    _initTray();                   
-    
+    _initTray();
+
+    _hasSeenOnboarding = Hive.box('settings').get('has_seen_onboarding', defaultValue: false) as bool;
+
     final user = Supabase.instance.client.auth.currentUser;
     _isAuthenticated = user != null;
     _hasName = user?.userMetadata?['full_name'] != null && user!.userMetadata!['full_name'].toString().trim().isNotEmpty;
     if (user != null && user.userMetadata?['app_language'] != null) {
       currentLang = user.userMetadata!['app_language'];
     }
+    if (user != null) _ensureProfile();
 
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
       final currentUser = data.session?.user;
@@ -139,6 +145,7 @@ class _SmartPlannerAppState extends State<SmartPlannerApp> with TrayListener {
             currentLang = currentUser.userMetadata!['app_language'];
           }
         });
+        if (currentUser != null) _ensureProfile();
       }
     });
   }
@@ -146,8 +153,20 @@ class _SmartPlannerAppState extends State<SmartPlannerApp> with TrayListener {
   @override
   void dispose() {
     trayManager.removeListener(this);
-    _authSubscription?.cancel(); 
+    _authSubscription?.cancel();
     super.dispose();
+  }
+
+  // Создаёт/синхронизирует строку в Supabase `profiles` (код друга + имя/аватар) —
+  // SOCIAL_PLAN.md §4.1. Fire-and-forget: ошибка (например, SQL из
+  // profile_friend_code.sql ещё не применён вручную в Supabase) не должна
+  // мешать входу в приложение.
+  Future<void> _ensureProfile() async {
+    try {
+      await Supabase.instance.client.rpc('ensure_profile');
+    } catch (e) {
+      debugPrint('Не удалось синхронизировать профиль (код друга): $e');
+    }
   }
 
   Future<void> _initTray() async {
@@ -235,8 +254,10 @@ class _SmartPlannerAppState extends State<SmartPlannerApp> with TrayListener {
         useMaterial3: true,
       ),
       home: !_isAuthenticated
-          ? AuthScreen(isDark: isDark, toggleTheme: toggleTheme, currentLang: currentLang, changeLang: changeLang)
-          : (_hasName 
+          ? (_hasSeenOnboarding
+              ? AuthScreen(isDark: isDark, toggleTheme: toggleTheme, currentLang: currentLang, changeLang: changeLang)
+              : OnboardingFlow(isDark: isDark, toggleTheme: toggleTheme, currentLang: currentLang, changeLang: changeLang))
+          : (_hasName
               ? DesktopPlannerScreen(isDark: isDark, toggleTheme: toggleTheme, currentLang: currentLang, changeLang: changeLang)
               : SetupProfileScreen(isDark: isDark, toggleTheme: toggleTheme, currentLang: currentLang, changeLang: changeLang)),
     );
@@ -246,21 +267,29 @@ class _SmartPlannerAppState extends State<SmartPlannerApp> with TrayListener {
 class AuthScreen extends StatefulWidget {
   final bool isDark;
   final VoidCallback toggleTheme;
-  final String currentLang;          
-  final Function(String) changeLang; 
+  final String currentLang;
+  final Function(String) changeLang;
+  final AuthMode initialMode;
 
-  const AuthScreen({super.key, required this.isDark, required this.toggleTheme, required this.currentLang, required this.changeLang});
+  const AuthScreen({super.key, required this.isDark, required this.toggleTheme, required this.currentLang, required this.changeLang, this.initialMode = AuthMode.login});
 
   @override
   State<AuthScreen> createState() => _AuthScreenState();
 }
 
+enum AuthMode { login, register }
+
 class _AuthScreenState extends State<AuthScreen> {
   final _emailController = TextEditingController();
-  final _otpController = TextEditingController(); 
-  
+  final _otpController = TextEditingController();
+  final _nameController = TextEditingController();
+
   bool _isLoading = false;
-  bool _isOtpMode = false; 
+  bool _isOtpMode = false;
+  // Настоящий шаг регистрации (REDESIGN_V3_PLAN.md §3.9/5.9) — «Войти» и
+  // «Создать аккаунт» больше не одна и та же безмолвная форма: у регистрации
+  // есть поле имени, которое уходит в профиль сразу после подтверждения кода.
+  AuthMode _mode = AuthMode.login;
 
   bool get isDark => widget.isDark;
   
@@ -274,6 +303,7 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   void initState() {
     super.initState();
+    _mode = widget.initialMode;
     _initDeepLinks();
   }
 
@@ -289,6 +319,7 @@ class _AuthScreenState extends State<AuthScreen> {
     _linkSubscription?.cancel();
     _emailController.dispose();
     _otpController.dispose();
+    _nameController.dispose();
     super.dispose();
   }
 
@@ -299,19 +330,20 @@ class _AuthScreenState extends State<AuthScreen> {
     setState(() => _isLoading = true);
     try {
       await Supabase.instance.client.auth.verifyOTP(
-        type: OtpType.email, 
+        type: OtpType.email,
         token: code,
         email: _emailController.text.trim(),
       );
+      // Имя уходит в профиль сразу после подтверждения — SetupProfileScreen
+      // для этой ветки не покажется (main.dart: _hasName сразу true).
+      final name = _nameController.text.trim();
+      if (_mode == AuthMode.register && name.isNotEmpty) {
+        await Supabase.instance.client.auth.updateUser(UserAttributes(data: {'full_name': name}));
+      }
     } catch (e) {
       print('Ошибка верификации: $e'); 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Неверный код!'.tr(widget.currentLang)),
-            backgroundColor: context.tokens.danger
-          )
-        );
+        ClarifyToast.show(context, 'Неверный код!'.tr(widget.currentLang), variant: ClarifyToastVariant.danger);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -374,12 +406,26 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   bool _isAuthInProgress = false;
+  // Статус на весь путь входа через Яндекс (REDESIGN_V3_PLAN.md §3.10/5.10) —
+  // кнопка блокируется и текст меняется по фазам, а не висит молча до 30 секунд.
+  String? _yandexPhase;
+
+  String? get _yandexStatusText {
+    switch (_yandexPhase) {
+      case 'waiting_browser':
+        return 'Ждём подтверждения в браузере…'.tr(widget.currentLang);
+      case 'verifying_backend':
+        return 'Проверяем на сервере…'.tr(widget.currentLang);
+      default:
+        return null;
+    }
+  }
 
   Future<void> _loginWithYandex() async {
-    if (_isAuthInProgress) return; 
+    if (_isAuthInProgress) return;
 
-    _isAuthInProgress = true;
-    debugPrint('!!! КНОПКА НАЖАТА, ЗАПУСКАЕМ СЕРВЕР !!!'); 
+    setState(() { _isAuthInProgress = true; _yandexPhase = 'waiting_browser'; });
+    debugPrint('!!! КНОПКА НАЖАТА, ЗАПУСКАЕМ СЕРВЕР !!!');
 
     try {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, AppConfig.yandexOAuthCallbackPort);
@@ -431,13 +477,17 @@ class _AuthScreenState extends State<AuthScreen> {
 
           if (code != null) {
             debugPrint('✅ КОД УСПЕШНО ПОЙМАН ВО FLUTTER: $code');
+            if (mounted) setState(() => _yandexPhase = 'verifying_backend');
             await _sendCodeToFastAPI(code);
           }
           break;
         }
       }
     } catch (e) {
-      debugPrint('!!! ОШИБКА АВТОРИЗАЦИИ: $e'); 
+      debugPrint('!!! ОШИБКА АВТОРИЗАЦИИ: $e');
+      if (mounted) ClarifyToast.show(context, 'Ошибка авторизации. Попробуйте еще раз.'.tr(widget.currentLang), variant: ClarifyToastVariant.danger);
+    } finally {
+      if (mounted) setState(() { _isAuthInProgress = false; _yandexPhase = null; });
     }
   }
 
@@ -485,26 +535,15 @@ class _AuthScreenState extends State<AuthScreen> {
           }
         }
 
-        if (!mounted) return;
-        setState(() {
-          _isAuthInProgress = false;
-        });
-
+        // _isAuthInProgress/_yandexPhase сбрасываются в finally у _loginWithYandex,
+        // который дожидается завершения этого метода — не дублируем здесь.
       } else {
         debugPrint('❌ Ошибка бэкенда: ${response.body}');
-        if (!mounted) return;
-        setState(() => _isAuthInProgress = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Ошибка авторизации. Попробуйте еще раз.')),
-        );
+        if (mounted) ClarifyToast.show(context, 'Ошибка авторизации. Попробуйте еще раз.'.tr(widget.currentLang), variant: ClarifyToastVariant.danger);
       }
     } catch (e) {
       debugPrint('❌ Ошибка сети: $e');
-      if (!mounted) return;
-      setState(() => _isAuthInProgress = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ошибка сети. Проверьте интернет-соединение.')),
-      );
+      if (mounted) ClarifyToast.show(context, 'Ошибка сети. Проверьте интернет-соединение.'.tr(widget.currentLang), variant: ClarifyToastVariant.danger);
     }
   }
 
@@ -523,16 +562,30 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
         const SizedBox(height: 8),
         Text("Войдите в систему или создайте аккаунт".tr(widget.currentLang), style: TextStyle(fontSize: 16, color: textMuted, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 32),
-        
+        const SizedBox(height: 20),
+
+        Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(color: isDark ? Colors.black.withOpacity(0.2) : Colors.white.withOpacity(0.4), borderRadius: BorderRadius.circular(14)),
+          child: Row(
+            children: [
+              Expanded(child: AuthModeTab(label: "Войти".tr(widget.currentLang), active: _mode == AuthMode.login, textColor: textColor, accent: t.accent, onAccent: t.onAccent, onTap: () => setState(() => _mode = AuthMode.login))),
+              Expanded(child: AuthModeTab(label: "Создать аккаунт".tr(widget.currentLang), active: _mode == AuthMode.register, textColor: textColor, accent: t.accent, onAccent: t.onAccent, onTap: () => setState(() => _mode = AuthMode.register))),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+
         const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: _loginWithYandex,
-                  icon: const Icon(LucideIcons.logIn, size: 18), 
-                  label: const Text('Яндекс', overflow: TextOverflow.ellipsis),
+                  onPressed: _isAuthInProgress ? null : _loginWithYandex,
+                  icon: _isAuthInProgress
+                      ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Icon(LucideIcons.logIn, size: 18),
+                  label: Text(_yandexStatusText ?? 'Яндекс', overflow: TextOverflow.ellipsis),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.redAccent,
                     foregroundColor: Colors.white,
@@ -553,12 +606,26 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
         const SizedBox(height: 24),
 
+        if (_mode == AuthMode.register) ...[
+          TextField(
+            controller: _nameController, style: TextStyle(color: textColor),
+            decoration: InputDecoration(
+              labelText: "Как вас зовут?".tr(widget.currentLang),
+              labelStyle: TextStyle(color: textMuted),
+              filled: true, fillColor: isDark ? Colors.black.withOpacity(0.2) : Colors.white.withOpacity(0.4),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+              prefixIcon: Icon(LucideIcons.user, color: textMuted),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+
         TextField(
           controller: _emailController, style: TextStyle(color: textColor), keyboardType: TextInputType.emailAddress,
           decoration: InputDecoration(
-            labelText: "Ваш Email".tr(widget.currentLang), 
-            labelStyle: TextStyle(color: textMuted), 
-            filled: true, fillColor: isDark ? Colors.black.withOpacity(0.2) : Colors.white.withOpacity(0.4), 
+            labelText: "Ваш Email".tr(widget.currentLang),
+            labelStyle: TextStyle(color: textMuted),
+            filled: true, fillColor: isDark ? Colors.black.withOpacity(0.2) : Colors.white.withOpacity(0.4),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
             prefixIcon: Icon(LucideIcons.mail, color: textMuted),
           ),
@@ -576,29 +643,64 @@ class _AuthScreenState extends State<AuthScreen> {
           onPressed: _isLoading ? null : () async {
             final email = _emailController.text.trim();
             if (email.isEmpty) {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Введите Email!'.tr(widget.currentLang))));
+              ClarifyToast.show(context, 'Введите Email!'.tr(widget.currentLang), variant: ClarifyToastVariant.warning);
+              return;
+            }
+            if (_mode == AuthMode.register && _nameController.text.trim().isEmpty) {
+              ClarifyToast.show(context, 'Как к вам обращаться?'.tr(widget.currentLang), variant: ClarifyToastVariant.warning);
               return;
             }
             setState(() => _isLoading = true);
             try {
               await Supabase.instance.client.auth.signInWithOtp(
                 email: email,
+                data: _mode == AuthMode.register ? {'full_name': _nameController.text.trim()} : null,
               );
               if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Код отправлен на почту!'.tr(widget.currentLang)), backgroundColor: t.success));
+                ClarifyToast.show(context, 'Код отправлен на почту!'.tr(widget.currentLang), variant: ClarifyToastVariant.success);
                 setState(() => _isOtpMode = true);
               }
             } catch (e) {
-              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'.tr(widget.currentLang)), backgroundColor: t.danger));
+              if (context.mounted) ClarifyToast.show(context, 'Ошибка: $e'.tr(widget.currentLang), variant: ClarifyToastVariant.danger);
             } finally {
               if (context.mounted) setState(() => _isLoading = false);
             }
           },
           child: _isLoading
             ? SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: t.onAccent, strokeWidth: 2))
-            : Text("Получить ссылку для входа".tr(widget.currentLang), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            : Text(
+                (_mode == AuthMode.register ? "Создать аккаунт" : "Получить ссылку для входа").tr(widget.currentLang),
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
         ),
       ],
+    );
+  }
+}
+
+class AuthModeTab extends StatelessWidget {
+  final String label;
+  final bool active;
+  final Color textColor;
+  final Color accent;
+  final Color onAccent;
+  final VoidCallback onTap;
+
+  const AuthModeTab({super.key, required this.label, required this.active, required this.textColor, required this.accent, required this.onAccent, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: AnimatedContainer(
+        duration: ClarifyMotion.base,
+        curve: ClarifyMotion.standard,
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(color: active ? accent : Colors.transparent, borderRadius: BorderRadius.circular(10)),
+        alignment: Alignment.center,
+        child: Text(label, style: TextStyle(color: active ? onAccent : textColor, fontWeight: FontWeight.w600, fontSize: 14)),
+      ),
     );
   }
 }
@@ -652,7 +754,7 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
         setState(() => _avatarUrl = publicUrl);
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка загрузки: $e'.tr(widget.currentLang)), backgroundColor: context.tokens.danger));
+      if (mounted) ClarifyToast.show(context, 'Ошибка загрузки: $e'.tr(widget.currentLang), variant: ClarifyToastVariant.danger);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -661,7 +763,7 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
   Future<void> _saveProfile() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Как к вам обращаться?'.tr(widget.currentLang))));
+      ClarifyToast.show(context, 'Как к вам обращаться?'.tr(widget.currentLang), variant: ClarifyToastVariant.warning);
       return;
     }
 
@@ -677,7 +779,7 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
       );
 
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'.tr(widget.currentLang)), backgroundColor: context.tokens.danger));
+      if (mounted) ClarifyToast.show(context, 'Ошибка: $e'.tr(widget.currentLang), variant: ClarifyToastVariant.danger);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -702,21 +804,11 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Аватарка успешно удалена".tr(widget.currentLang)),
-            backgroundColor: context.tokens.success,
-          ),
-        );
+        ClarifyToast.show(context, "Аватарка успешно удалена".tr(widget.currentLang), variant: ClarifyToastVariant.success);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Ошибка при удалении: $e".tr(widget.currentLang)),
-            backgroundColor: context.tokens.danger,
-          ),
-        );
+        ClarifyToast.show(context, "Ошибка при удалении: $e".tr(widget.currentLang), variant: ClarifyToastVariant.danger);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

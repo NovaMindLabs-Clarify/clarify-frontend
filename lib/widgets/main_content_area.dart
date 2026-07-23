@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
+import 'clarify_list_entrance.dart';
+import 'conversations_screen.dart';
+import 'friends_screen.dart';
+import 'user_profile_modal.dart';
 import 'project_kanban_board.dart';
 
 class MainContentArea extends StatelessWidget {
   final String selectedMenu;
   final String currentLang;
-  final List<String> customFolders;
   final List<Map<String, dynamic>> filteredTasks;
   final bool isDark;
   final double scale;
@@ -32,7 +35,6 @@ class MainContentArea extends StatelessWidget {
     Key? key,
     required this.selectedMenu,
     required this.currentLang,
-    required this.customFolders,
     required this.filteredTasks,
     required this.isDark,
     required this.scale,
@@ -71,11 +73,17 @@ class MainContentArea extends StatelessWidget {
     
     final List<String> weekdaysRu = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
 
-    if (customFolders.contains(selectedMenu)) {
-      // Проект — доска (Не начато/В работе/Готово), а не плоский список,
-      // неотличимый от тега. См. REDESIGN_V2_PLAN.md §3.5.
+    const reservedMenuKeys = {'Мой день', 'Следующие 7 дней', 'Все задачи', 'Календарь', 'Входящие', 'Друзья', 'Сообщения', 'Статистика'};
+    final isTagProject = !reservedMenuKeys.contains(selectedMenu) && !selectedMenu.startsWith('ws_');
+
+    if (isTagProject) {
+      // Проект — авто-папка по тегу, доска (Не начато/В работе/Готово), а не
+      // плоский список. См. REDESIGN_V2_PLAN.md §3.5, REDESIGN_V3_PLAN.md §3.17/5.16.
       final projectColor = t.tagPalette[selectedMenu.hashCode.abs() % t.tagPalette.length];
-      final projectTasks = filteredTasks.where((task) => task['folder'] == selectedMenu && task['parent_id'] == null).toList();
+      final projectTasks = filteredTasks.where((task) {
+        final tags = (task['tags']?.toString() ?? '').split(',').map((e) => e.trim());
+        return tags.contains(selectedMenu) && task['parent_id'] == null;
+      }).toList();
       return ProjectKanbanBoard(
         projectName: selectedMenu,
         projectColor: projectColor,
@@ -107,30 +115,34 @@ class MainContentArea extends StatelessWidget {
       if (targetTasks.isEmpty) return Center(child: Text("Пусто. Отдыхаем!".tr(currentLang), style: TextStyle(color: textMuted, fontSize: 18)));
 
       if (selectedMenu == 'Мой день') {
-        return ReorderableListView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          onReorder: (int oldIndex, int newIndex) {
-            onReorderTasks(oldIndex, newIndex, targetTasks);
-          },
-          children: targetTasks.map((task) { 
-            return Container(
-              key: ValueKey(task['id'].toString()), 
-              child: buildListTaskCard(task),
-            ); 
-          }).toList(),
+        return ClarifyListEntrance(
+          child: ReorderableListView(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            onReorder: (int oldIndex, int newIndex) {
+              onReorderTasks(oldIndex, newIndex, targetTasks);
+            },
+            children: targetTasks.map((task) {
+              return Container(
+                key: ValueKey(task['id'].toString()),
+                child: buildListTaskCard(task),
+              );
+            }).toList(),
+          ),
         );
       } else {
-        return ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 24), 
-          children: targetTasks.map((task) { 
-            return LongPressDraggable<Map<String, dynamic>>(
-              data: task, delay: const Duration(milliseconds: 200), 
-              feedback: Material(color: Colors.transparent, child: SizedBox(width: 500, child: buildListTaskCard(task))), 
-              childWhenDragging: Opacity(opacity: 0.3, child: buildListTaskCard(task)), child: buildListTaskCard(task)
-            ); 
-          }).toList()
+        return ClarifyListEntrance(
+          child: ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            children: targetTasks.map((task) {
+              return LongPressDraggable<Map<String, dynamic>>(
+                data: task, delay: const Duration(milliseconds: 200),
+                feedback: Material(color: Colors.transparent, child: SizedBox(width: 500, child: buildListTaskCard(task))),
+                childWhenDragging: Opacity(opacity: 0.3, child: buildListTaskCard(task)), child: buildListTaskCard(task)
+              );
+            }).toList()
+          ),
         );
-      } 
+      }
     }
     else if (selectedMenu == 'Следующие 7 дней') {
       // Содержимое колонки без внешней обёртки (Expanded/SizedBox) — она отличается
@@ -282,6 +294,33 @@ class MainContentArea extends StatelessWidget {
         ],
       );
       });
+    }
+    else if (selectedMenu == 'Друзья') {
+      return FriendsScreen(
+        currentLang: currentLang,
+        scale: scale,
+        buildGlassContainer: buildGlassContainer,
+        onOpenProfile: (userId) => showUserProfileModal(
+          context: context,
+          userId: userId,
+          currentLang: currentLang,
+          onOpenConversation: (partnerId, name) => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => ConversationScreen(currentLang: currentLang, partnerId: partnerId, partnerName: name),
+          )),
+        ),
+      );
+    }
+    else if (selectedMenu == 'Сообщения') {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+            child: Text('Сообщения'.tr(currentLang), style: TextStyle(fontFamily: 'Golos Text', fontSize: 22, fontWeight: FontWeight.w700, color: textColor)),
+          ),
+          Expanded(child: ConversationsListScreen(currentLang: currentLang, scale: scale, buildGlassContainer: buildGlassContainer)),
+        ],
+      );
     }
     else if (selectedMenu == 'Статистика') {
       return buildStatisticsDashboard();

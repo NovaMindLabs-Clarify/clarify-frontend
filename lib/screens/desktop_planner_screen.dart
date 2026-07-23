@@ -20,7 +20,12 @@ import '../services/task_service.dart';
 import '../widgets/clarify_button.dart';
 import '../widgets/clarify_glass.dart';
 import '../widgets/clarify_surface.dart';
+import 'package:animations/animations.dart';
+import '../widgets/ambient_background.dart';
+import '../widgets/clarify_toast.dart';
 import '../widgets/main_content_area.dart';
+import '../widgets/user_profile_modal.dart';
+import '../widgets/conversations_screen.dart';
 import '../widgets/sidebar_menu.dart';
 import '../widgets/window_buttons.dart';
 import 'mobile/mobile_planner_shell.dart';
@@ -66,6 +71,22 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   // 3. КОЛЛЕКЦИЯ ДЛЯ УМНЫХ ТАЙМЕРОВ (БЕЗ НАГРУЗКИ НА CPU)
   final Map<String, Timer> _activeAlarms = {};
 
+  // Guard от гонки при повторном действии до ответа сети — id мутирующего
+  // действия (не самой задачи, одна задача может участвовать в разных
+  // одновременных действиях) добавляется сюда на время запроса и снимается
+  // в finally, второй вызов с тем же id, пока первый не завершился, игнорируется.
+  final Set<String> _pendingActionIds = {};
+
+  Future<void> _guardedAction(String actionId, Future<void> Function() action) async {
+    if (_pendingActionIds.contains(actionId)) return;
+    _pendingActionIds.add(actionId);
+    try {
+      await action();
+    } finally {
+      _pendingActionIds.remove(actionId);
+    }
+  }
+
   List<Map<String, dynamic>> tasks = [];
   Map<String, dynamic>? _taskToDuplicate;
   bool _isDuplicating = false;
@@ -86,7 +107,6 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   String? activeTagFilter;
 
   late Box _settingsBox;
-  List<String> customFolders = [];
 
   List<Map<String, dynamic>> workspaces = [];
   // Канал для живой синхронизации задач
@@ -137,11 +157,10 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
       setState(() => _isMyZenActive = newState);
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(newState ? "Фокусирование включено! Уведомления заглушены" : "Фокусирование выключено!"), 
-            backgroundColor: newState ? Colors.deepPurpleAccent : Colors.blueAccent
-          )
+        ClarifyToast.show(
+          context,
+          newState ? "Фокусирование включено! Уведомления заглушены" : "Фокусирование выключено!",
+          variant: ClarifyToastVariant.info,
         );
       }
     } catch (e) { print("Ошибка активации Zen: $e"); }
@@ -168,7 +187,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   List<Map<String, String>> chatMessages = [
     {'role': 'ai', 'text': 'Привет! Вставь текст, напиши руками или нажми на микрофон и надиктуй задачи голосом! 🔥'}
   ];
-  final List<String> menuItems = ['Мой день', 'Следующие 7 дней', 'Все задачи', 'Календарь', 'Входящие', 'Статистика'];
+  final List<String> menuItems = ['Мой день', 'Следующие 7 дней', 'Все задачи', 'Календарь', 'Входящие', 'Друзья', 'Сообщения', 'Статистика'];
   final List<String> weekdaysRu = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
 
   bool get isDark => widget.isDark;
@@ -282,10 +301,6 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   }
 
   void _loadLocalData() {
-    final savedFolders = _settingsBox.get('custom_folders');
-    if (savedFolders != null) {
-      customFolders = List<String>.from(json.decode(savedFolders));
-    }
     final cachedTasks = _taskService.getCachedTasks();
     if (cachedTasks.isNotEmpty) {
       setState(() {
@@ -309,14 +324,6 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
       onTaskSelected: _showTaskDetailsDialog,
       buildGlassContainer: _buildGlassContainer,
     ));
-  }
-
-  void _deleteFolder(String folderName) {
-    setState(() {
-      if (selectedMenu == folderName) selectedMenu = 'Мой день';
-      customFolders.remove(folderName);
-      _settingsBox.put('custom_folders', json.encode(customFolders));
-    });
   }
 
   // Локальный статус доски проекта (Не начато/В работе) — нет поля в БД под это,
@@ -463,12 +470,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
       print("Ошибка отправки пуша: $e");
       // Если пуш не сработал, показываем внутриигровой снекбар
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: Colors.blueAccent, 
-            content: Text("$title: $body", style: const TextStyle(color: Colors.white))
-          )
-        );
+        ClarifyToast.show(context, "$title: $body", variant: ClarifyToastVariant.info);
       }
     }
   }
@@ -487,7 +489,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   }
 
   void _toggleListening() async {
-    if (!_speechEnabled) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Микрофон недоступен."), backgroundColor: Colors.redAccent)); return; }
+    if (!_speechEnabled) { ClarifyToast.show(context, "Микрофон недоступен.", variant: ClarifyToastVariant.danger); return; }
     if (_speechToText.isListening) { await _speechToText.stop(); setState(() => _isListening = false); } 
     else { setState(() => _isListening = true); final currentText = _aiChatController.text; await _speechToText.listen(localeId: _currentLocaleId, onResult: (result) { setState(() { if (currentText.isEmpty) { _aiChatController.text = result.recognizedWords; } else { _aiChatController.text = "$currentText ${result.recognizedWords}"; } }); }); }
   }
@@ -524,20 +526,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
           _isOffline = true;
           _pendingOpsCount = _taskService.pendingOpsCount;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(LucideIcons.wifiOff, color: Colors.white),
-                const SizedBox(width: 12),
-                Text("Нет сети. Работаем локально!".tr(widget.currentLang)),
-              ],
-            ),
-            backgroundColor: Colors.orangeAccent,
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.all(20),
-          ),
-        );
+        ClarifyToast.show(context, "Нет сети. Работаем локально!".tr(widget.currentLang), variant: ClarifyToastVariant.warning);
       }
     }
   }
@@ -637,12 +626,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
       print("Ошибка обновления задачи: $e".tr(widget.currentLang));
       if (mounted) {
         setState(() => _pendingOpsCount = _taskService.pendingOpsCount);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Нет сети. Изменение отправим, когда сеть восстановится.".tr(widget.currentLang)),
-            backgroundColor: Colors.orangeAccent,
-          ),
-        );
+        ClarifyToast.show(context, "Нет сети. Изменение отправим, когда сеть восстановится.".tr(widget.currentLang), variant: ClarifyToastVariant.warning);
       }
     }
   }
@@ -655,6 +639,9 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   }
 
   Future<void> _toggleTask(Map<String, dynamic> task) async {
+    final actionId = 'toggle_${task['id']}';
+    if (_pendingActionIds.contains(actionId)) return; // Уже в процессе — игнорируем повторный тап
+
     final bool currentStatus = task['is_completed'] == true;
     final bool newStatus = !currentStatus;
 
@@ -663,27 +650,28 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
       _applyFilters();
     });
 
-    try {
-      await _taskService.updateTask(task['id'], {'is_completed': newStatus}); // <--- ИСПОЛЬЗУЕМ СЕРВИС
+    await _guardedAction(actionId, () async {
+      try {
+        await _taskService.updateTask(task['id'], {'is_completed': newStatus}); // <--- ИСПОЛЬЗУЕМ СЕРВИС
 
-      if (newStatus == true && task['recurrence'] != null && task['recurrence'] != 'none') {
-        _spawnNextRecurringTask(task);
+        if (newStatus == true && task['recurrence'] != null && task['recurrence'] != 'none') {
+          _spawnNextRecurringTask(task);
+        }
+
+        _fetchTasks();
+
+        // ВОТ СЮДА ДОБАВЛЯЕМ ПРОВЕРКУ
+        if (newStatus == true) {
+          _checkDailyReviewTrigger();
+        }
+      } catch (e) {
+        setState(() {
+          task['is_completed'] = currentStatus;
+          _applyFilters();
+        });
+        print("Ошибка обновления статуса: $e");
       }
-      
-      _fetchTasks(); 
-      
-      // ВОТ СЮДА ДОБАВЛЯЕМ ПРОВЕРКУ
-      if (newStatus == true) {
-        _checkDailyReviewTrigger();
-      }
-      
-    } catch (e) {
-      setState(() {
-        task['is_completed'] = currentStatus;
-        _applyFilters();
-      });
-      print("Ошибка обновления статуса: $e");
-    }
+    });
   }
 
 void _showDailyReviewOverlay(int taskCount) {
@@ -845,12 +833,7 @@ void _checkBurnoutWarning(String dateStr) {
       print("Ошибка удаления: $e".tr(widget.currentLang));
       if (mounted) {
         setState(() => _pendingOpsCount = _taskService.pendingOpsCount);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Нет сети. Удаление отправим, когда сеть восстановится.".tr(widget.currentLang)),
-            backgroundColor: Colors.orangeAccent,
-          ),
-        );
+        ClarifyToast.show(context, "Нет сети. Удаление отправим, когда сеть восстановится.".tr(widget.currentLang), variant: ClarifyToastVariant.warning);
       }
     }
   }
@@ -873,7 +856,6 @@ void _checkBurnoutWarning(String dateStr) {
       selectedMenu: selectedMenu,
       activeTagFilter: activeTagFilter,
       tasks: tasks,
-      customFolders: customFolders,
       workspaceMembers: workspaceMembers,
       isDuplicating: _isDuplicating,
       onDuplicateHandled: () => setState(() { _isDuplicating = false; _taskToDuplicate = null; }),
@@ -935,7 +917,7 @@ void _checkBurnoutWarning(String dateStr) {
   }
 
   void _handlePlusTap(DateTime date, int currentDayTaskCount) {
-    if (currentDayTaskCount >= AppConfig.dailyTaskLimit) { ScaffoldMessenger.of(context).showSnackBar( SnackBar(content: Text("Лимит задач (100) исчерпан!".tr(widget.currentLang)), backgroundColor: Colors.redAccent)); return; }
+    if (currentDayTaskCount >= AppConfig.dailyTaskLimit) { ClarifyToast.show(context, "Лимит задач (100) исчерпан!".tr(widget.currentLang), variant: ClarifyToastVariant.danger); return; }
     if (_isDuplicating && _taskToDuplicate != null) { _showManualAddDialog(preselectedDate: date, sourceTaskForDuplicate: _taskToDuplicate); } 
     else { _showManualAddDialog(preselectedDate: date); }
   }
@@ -943,19 +925,24 @@ void _checkBurnoutWarning(String dateStr) {
   void _handleTaskTap(Map<String, dynamic> task) { _showTaskDetailsDialog(task); }
 
   void _handleTaskDropped({required Map<String, dynamic> task, required String targetDateStr, required int currentTargetTaskCount}) async {
-    await _fetchTasks();
-    _checkBurnoutWarning(targetDateStr); 
-    if (currentTargetTaskCount >= AppConfig.dailyTaskLimit) { ScaffoldMessenger.of(context).showSnackBar( SnackBar(content: Text("Лимит 100 задач!".tr(widget.currentLang)), backgroundColor: Colors.redAccent)); return; }
-    if (HardwareKeyboard.instance.isControlPressed) {
-      int? newTaskId = await _createTaskManually({"title": task['title'], "due_date": targetDateStr, "due_time": task['due_time'], "note": task['note'], "priority": task['priority'], "tags": task['tags'], "recurrence": task['recurrence'], "parent_id": task['parent_id'], "is_completed": false});
-      if (newTaskId != null && task['parent_id'] == null) {
-        final subtasksToCopy = tasks.where((t) => t['parent_id'] == task['id']).toList();
-        for (var sub in subtasksToCopy) { await _createTaskManually({"title": sub['title'], "parent_id": newTaskId, "is_completed": false}); }
+    final actionId = 'drop_${task['id']}';
+    if (_pendingActionIds.contains(actionId)) return; // Уже переносится — игнорируем повторный дроп
+
+    await _guardedAction(actionId, () async {
+      await _fetchTasks();
+      _checkBurnoutWarning(targetDateStr);
+      if (currentTargetTaskCount >= AppConfig.dailyTaskLimit) { ClarifyToast.show(context, "Лимит 100 задач!".tr(widget.currentLang), variant: ClarifyToastVariant.danger); return; }
+      if (HardwareKeyboard.instance.isControlPressed) {
+        int? newTaskId = await _createTaskManually({"title": task['title'], "due_date": targetDateStr, "due_time": task['due_time'], "note": task['note'], "priority": task['priority'], "tags": task['tags'], "recurrence": task['recurrence'], "parent_id": task['parent_id'], "is_completed": false});
+        if (newTaskId != null && task['parent_id'] == null) {
+          final subtasksToCopy = tasks.where((t) => t['parent_id'] == task['id']).toList();
+          for (var sub in subtasksToCopy) { await _createTaskManually({"title": sub['title'], "parent_id": newTaskId, "is_completed": false}); }
+        }
+        if (mounted) ClarifyToast.show(context, "Скопировано!".tr(widget.currentLang), variant: ClarifyToastVariant.success);
+      } else {
+        if (task['due_date'] != targetDateStr) { _updateTaskData(task['id'], {"title": task['title'], "due_date": targetDateStr, "due_time": task['due_time'], "note": task['note'], "priority": task['priority'], "tags": task['tags'], "recurrence": task['recurrence'], "parent_id": task['parent_id'], "is_completed": task['is_completed'] ?? false}); }
       }
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Скопировано!".tr(widget.currentLang))));
-    } else {
-      if (task['due_date'] != targetDateStr) { _updateTaskData(task['id'], {"title": task['title'], "due_date": targetDateStr, "due_time": task['due_time'], "note": task['note'], "priority": task['priority'], "tags": task['tags'], "recurrence": task['recurrence'], "parent_id": task['parent_id'], "is_completed": task['is_completed'] ?? false}); }
-    }
+    });
   }
 
 Map<String, dynamic> _parseSmartInput(String text) {
@@ -1023,6 +1010,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
           glassBorderColor: glassBorderColor,
           currentLang: widget.currentLang,
         ),
+        onLeaveOrDeleteWorkspace: _showLeaveOrDeleteWorkspace,
         onShowTeamPulse: (wsId) => showTeamPulseDialog(
           context: context,
           wsId: wsId,
@@ -1053,8 +1041,8 @@ Map<String, dynamic> _parseSmartInput(String text) {
       );
     }
 
-    return Container(
-      color: _tokens.bg,
+    return AmbientBackground(
+      isDark: isDark,
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: WindowBorder(
@@ -1085,23 +1073,9 @@ Map<String, dynamic> _parseSmartInput(String text) {
                       currentLang: widget.currentLang,
                       selectedMenu: selectedMenu,
                       menuItems: menuItems,
-                      customFolders: customFolders,
                       workspaces: workspaces,
                       tasks: tasks,
                       onMenuSelected: (menu) => setState(() => selectedMenu = menu),
-                      onAddFolder: () => showAddFolderDialog(
-                        context: context,
-                        isDark: isDark,
-                        textColor: textColor,
-                        textMuted: textMuted,
-                        glassBorderColor: glassBorderColor,
-                        currentLang: widget.currentLang,
-                        onFolderAdded: (folderName) {
-                          setState(() => customFolders.add(folderName));
-                          _settingsBox.put('custom_folders', json.encode(customFolders));
-                        },
-                      ),
-                      onDeleteFolder: _deleteFolder,
                       onAddWorkspace: () => showCreateWorkspaceDialog(
                         context: context,
                         isDark: isDark,
@@ -1169,7 +1143,18 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                               
                                               return Padding(
                                                 padding: EdgeInsets.only(right: 8 * _s),
-                                                child: Tooltip(
+                                                child: GestureDetector(
+                                                  onTap: () => showUserProfileModal(
+                                                    context: context,
+                                                    userId: m['user_id'].toString(),
+                                                    currentLang: widget.currentLang,
+                                                    teamRole: m['role']?.toString(),
+                                                    onOpenOwnSettings: _showAccountSettingsDialog,
+                                                    onOpenConversation: (userId, name) => Navigator.of(context).push(MaterialPageRoute(
+                                                      builder: (_) => ConversationScreen(currentLang: widget.currentLang, partnerId: userId, partnerName: name),
+                                                    )),
+                                                  ),
+                                                  child: Tooltip(
                                                   // Обновляем подсказку при наведении
                                                   message: isZen ? "$name (В глубоком фокусе 🧘‍♂️)" : "$name (${m['role']})\n🔥 Задач на сегодня: $todayTasksCount",
                                                   child: Opacity(
@@ -1207,6 +1192,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                                       ],
                                                     ),
                                                   ),
+                                                  ),
                                                 ),
                                               );
                                             }).toList(),
@@ -1233,6 +1219,15 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                             glassBorderColor: glassBorderColor,
                                             currentLang: widget.currentLang,
                                           ),
+                                        ),
+                                      ),
+                                      Padding(
+                                        padding: EdgeInsets.only(right: 16 * _s),
+                                        child: ClarifyIconButton(
+                                          icon: LucideIcons.logOut,
+                                          scale: _s,
+                                          tooltip: "Покинуть/удалить команду".tr(widget.currentLang),
+                                          onPressed: () => _showLeaveOrDeleteWorkspace(int.parse(selectedMenu.substring(3))),
                                         ),
                                       ),
                                     ],
@@ -1322,9 +1317,21 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                 ],
                               )
                             ),
-                          // Переходим к главному контенту (Через вынесенный виджет)
+                          // Переходим к главному контенту (Через вынесенный виджет).
+                          // SharedAxisTransition при смене пункта сайдбара — сдержанный
+                          // переход вместо мгновенной смены (REDESIGN_V3_PLAN.md §3.6/5.6).
                           Expanded(
-                            child: Builder(builder: (context) {
+                            child: PageTransitionSwitcher(
+                              duration: ClarifyMotion.slow,
+                              transitionBuilder: (child, primaryAnimation, secondaryAnimation) => SharedAxisTransition(
+                                animation: primaryAnimation,
+                                secondaryAnimation: secondaryAnimation,
+                                transitionType: SharedAxisTransitionType.horizontal,
+                                child: child,
+                              ),
+                              child: KeyedSubtree(
+                                key: ValueKey(selectedMenu),
+                                child: Builder(builder: (context) {
                               final taskCardBuilders = TaskCardBuilders(
                                 isDark: widget.isDark,
                                 scale: _s,
@@ -1341,7 +1348,6 @@ Map<String, dynamic> _parseSmartInput(String text) {
                               return MainContentArea(
                               selectedMenu: selectedMenu,
                               currentLang: widget.currentLang,
-                              customFolders: customFolders,
                               filteredTasks: filteredTasks,
                               isDark: widget.isDark,
                               scale: _s, 
@@ -1381,6 +1387,8 @@ Map<String, dynamic> _parseSmartInput(String text) {
                               ),
                               );
                             }),
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -1424,12 +1432,40 @@ Map<String, dynamic> _parseSmartInput(String text) {
         ),
         floatingActionButton: Padding(
           padding: EdgeInsets.only(right: rightPanelState != 'none' ? 360.0 * _s : 0.0, bottom: 24.0 * _s),
-          child: FloatingActionButton.extended(
-            onPressed: () { if (_isDuplicating && _taskToDuplicate != null) { _showManualAddDialog(preselectedDate: DateTime.now(), sourceTaskForDuplicate: _taskToDuplicate); } else { _showManualAddDialog(); } },
-            backgroundColor: Colors.blueAccent, foregroundColor: Colors.white, elevation: 8, icon: Icon(LucideIcons.plus, size: 26 * _s), label: Text("Создать задачу".tr(widget.currentLang), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _s)),
+          // Hero с тем же тегом на корневом контейнере диалога (manual_add_dialog.dart) —
+          // кнопка визуально разворачивается в форму создания задачи и обратно
+          // (REDESIGN_V3_PLAN.md §4/5.6, container transform).
+          child: Hero(
+            tag: 'add-task-fab',
+            child: FloatingActionButton.extended(
+              onPressed: () { if (_isDuplicating && _taskToDuplicate != null) { _showManualAddDialog(preselectedDate: DateTime.now(), sourceTaskForDuplicate: _taskToDuplicate); } else { _showManualAddDialog(); } },
+              backgroundColor: Colors.blueAccent, foregroundColor: Colors.white, elevation: 8, icon: Icon(LucideIcons.plus, size: 26 * _s), label: Text("Создать задачу".tr(widget.currentLang), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _s)),
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  void _showLeaveOrDeleteWorkspace(int wsId) {
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    final ws = workspaces.firstWhere((w) => w['id'] == wsId, orElse: () => {});
+    final isOwner = ws['owner_id'] == currentUserId;
+    final members = workspaceMembers[wsId] ?? [];
+    final myMember = members.firstWhere((m) => m['user_id'] == currentUserId, orElse: () => {});
+    final isAdmin = myMember['role'] == 'admin';
+
+    showLeaveOrDeleteWorkspaceDialog(
+      context: context,
+      workspaceId: wsId,
+      canDelete: isOwner || isAdmin,
+      textColor: textColor,
+      textMuted: textMuted,
+      currentLang: widget.currentLang,
+      onDone: () async {
+        setState(() => selectedMenu = 'Мой день');
+        await _fetchWorkspaces();
+      },
     );
   }
 
@@ -1445,6 +1481,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
       currentLang: widget.currentLang,
       changeLang: widget.changeLang,
       onProfileChanged: () => setState(() {}),
+      isMobileContext: MediaQuery.of(context).size.width < ClarifyBreakpoints.mobile,
       buildGlassContainer: _buildGlassContainer,
     );
   }

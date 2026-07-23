@@ -8,14 +8,12 @@ String _fmt(DateTime d) =>
 Widget _harness({
   required String selectedMenu,
   required List<Map<String, dynamic>> tasks,
-  List<String> customFolders = const [],
 }) {
   return MaterialApp(
     home: Scaffold(
       body: MainContentArea(
         selectedMenu: selectedMenu,
         currentLang: 'ru',
-        customFolders: customFolders,
         filteredTasks: tasks,
         isDark: false,
         scale: 1.0,

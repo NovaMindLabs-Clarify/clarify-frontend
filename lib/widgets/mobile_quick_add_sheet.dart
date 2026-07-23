@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'clarify_bottom_sheet.dart';
+import 'clarify_date_time_picker.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
 
@@ -54,10 +55,16 @@ class _MobileQuickAddForm extends StatefulWidget {
 
 class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
   final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _noteController = TextEditingController();
+  final TextEditingController _tagsController = TextEditingController();
+  final TextEditingController _subtaskController = TextEditingController();
   String _priority = 'none';
+  String _recurrence = 'none';
   DateTime? _date;
   TimeOfDay? _time;
   bool _isSaving = false;
+  bool _expanded = false;
+  final List<String> _subtasks = [];
 
   @override
   void initState() {
@@ -68,6 +75,9 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
   @override
   void dispose() {
     _titleController.dispose();
+    _noteController.dispose();
+    _tagsController.dispose();
+    _subtaskController.dispose();
     super.dispose();
   }
 
@@ -77,16 +87,25 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
     setState(() => _isSaving = true);
 
     final date = _date;
-    await widget.createTaskManually({
+    final newTaskId = await widget.createTaskManually({
       "title": title,
       "due_date": date != null ? widget.formatDate(date) : null,
       "due_time": _time != null
           ? "${_time!.hour.toString().padLeft(2, '0')}:${_time!.minute.toString().padLeft(2, '0')}"
           : null,
       "priority": _priority,
+      "note": _noteController.text.trim().isNotEmpty ? _noteController.text.trim() : null,
+      "tags": _tagsController.text.trim().isNotEmpty ? _tagsController.text.trim() : null,
+      "recurrence": _recurrence == 'none' ? null : _recurrence,
       "is_completed": false,
       "parent_id": null,
     });
+
+    if (newTaskId != null && _subtasks.isNotEmpty) {
+      for (final subTitle in _subtasks) {
+        await widget.createTaskManually({"title": subTitle, "parent_id": newTaskId, "is_completed": false});
+      }
+    }
 
     if (mounted) Navigator.pop(context);
     if (date != null) widget.checkBurnoutWarning(widget.formatDate(date));
@@ -122,7 +141,7 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
           const SizedBox(height: 16),
           Row(
             children: [
-              Text('Приоритет:'.tr(widget.currentLang), style: TextStyle(color: t.text3, fontSize: 14)),
+              Text('Приоритет: '.tr(widget.currentLang), style: TextStyle(color: t.text3, fontSize: 14)),
               const SizedBox(width: 10),
               ...['none', 'red', 'orange', 'blue', 'gray'].map((pVal) {
                 final color = pVal == 'none' ? Colors.transparent : widget.getPriorityColor(pVal);
@@ -153,7 +172,7 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
                   label: Text(_date == null ? 'Без даты'.tr(widget.currentLang) : widget.formatDate(_date!), style: TextStyle(color: t.text)),
                   style: OutlinedButton.styleFrom(side: BorderSide(color: t.border), padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md))),
                   onPressed: () async {
-                    final picked = await showDatePicker(context: context, initialDate: _date ?? DateTime.now(), firstDate: DateTime(2000), lastDate: DateTime(2101));
+                    final picked = await showClarifyDatePicker(context: context, isDark: Theme.of(context).brightness == Brightness.dark, initialDate: _date);
                     if (picked != null) setState(() => _date = picked);
                   },
                 ),
@@ -165,14 +184,137 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
                   label: Text(_time == null ? 'Время'.tr(widget.currentLang) : _time!.format(context), style: TextStyle(color: t.text)),
                   style: OutlinedButton.styleFrom(side: BorderSide(color: t.border), padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md))),
                   onPressed: () async {
-                    final picked = await showTimePicker(context: context, initialTime: TimeOfDay.now());
+                    final picked = await showClarifyTimePicker(context: context, isDark: Theme.of(context).brightness == Brightness.dark, initialTime: _time ?? TimeOfDay.now());
                     if (picked != null) setState(() => _time = picked);
                   },
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 4),
+          InkWell(
+            borderRadius: BorderRadius.circular(ClarifyRadius.sm),
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Ещё'.tr(widget.currentLang), style: TextStyle(color: t.accent, fontWeight: FontWeight.w600, fontSize: 14)),
+                  Icon(_expanded ? LucideIcons.chevronUp : LucideIcons.chevronDown, size: 18, color: t.accent),
+                ],
+              ),
+            ),
+          ),
+          // Внутренний рост шторки при раскрытии — само открытие шторки (container
+          // transform из FAB) этим не затрагивается, растёт только содержимое
+          // (REDESIGN_V3_PLAN.md §3.16/5.15).
+          AnimatedSize(
+            duration: ClarifyMotion.base,
+            curve: ClarifyMotion.standard,
+            alignment: Alignment.topCenter,
+            child: !_expanded
+                ? const SizedBox(width: double.infinity)
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(LucideIcons.repeat, size: 18, color: t.text3),
+                          const SizedBox(width: 8),
+                          DropdownButton<String>(
+                            value: _recurrence,
+                            dropdownColor: t.surface2,
+                            underline: const SizedBox(),
+                            style: TextStyle(fontSize: 14, color: t.text),
+                            items: [
+                              DropdownMenuItem(value: 'none', child: Text('Без повтора'.tr(widget.currentLang), style: TextStyle(color: t.text))),
+                              DropdownMenuItem(value: 'daily', child: Text('Каждый день'.tr(widget.currentLang), style: TextStyle(color: t.text))),
+                              DropdownMenuItem(value: 'weekly', child: Text('Каждую неделю'.tr(widget.currentLang), style: TextStyle(color: t.text))),
+                              DropdownMenuItem(value: 'monthly', child: Text('Каждый месяц'.tr(widget.currentLang), style: TextStyle(color: t.text))),
+                            ],
+                            onChanged: (val) => setState(() => _recurrence = val!),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _tagsController,
+                        style: TextStyle(color: t.text),
+                        decoration: InputDecoration(
+                          labelText: 'Теги (через запятую)'.tr(widget.currentLang),
+                          labelStyle: TextStyle(color: t.text3),
+                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md), borderSide: BorderSide(color: t.border)),
+                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md), borderSide: BorderSide(color: t.accent)),
+                          isDense: true,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _noteController,
+                        style: TextStyle(color: t.text),
+                        maxLines: 2,
+                        decoration: InputDecoration(
+                          labelText: 'Заметка'.tr(widget.currentLang),
+                          labelStyle: TextStyle(color: t.text3),
+                          alignLabelWithHint: true,
+                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md), borderSide: BorderSide(color: t.border)),
+                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md), borderSide: BorderSide(color: t.accent)),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text('Чек-лист (Подзадачи):'.tr(widget.currentLang), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: t.text)),
+                      const SizedBox(height: 8),
+                      if (_subtasks.isNotEmpty)
+                        Column(
+                          children: _subtasks.asMap().entries.map((entry) {
+                            final idx = entry.key;
+                            final subTitle = entry.value;
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 6),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(color: t.surfaceSunken, borderRadius: BorderRadius.circular(ClarifyRadius.sm), border: Border.all(color: t.border)),
+                              child: Row(
+                                children: [
+                                  Icon(LucideIcons.circle, size: 16, color: t.text3),
+                                  const SizedBox(width: 8),
+                                  Expanded(child: Text(subTitle, style: TextStyle(color: t.text))),
+                                  IconButton(icon: Icon(LucideIcons.x, size: 16, color: t.danger), padding: EdgeInsets.zero, constraints: const BoxConstraints(), onPressed: () => setState(() => _subtasks.removeAt(idx))),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _subtaskController,
+                              style: TextStyle(color: t.text),
+                              decoration: InputDecoration(
+                                hintText: 'Добавить пункт...'.tr(widget.currentLang),
+                                hintStyle: TextStyle(color: t.text3),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md), borderSide: BorderSide(color: t.border)),
+                                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md), borderSide: BorderSide(color: t.border)),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                isDense: true,
+                              ),
+                              onSubmitted: (text) { if (text.trim().isNotEmpty) setState(() { _subtasks.add(text.trim()); _subtaskController.clear(); }); },
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          IconButton(
+                            style: IconButton.styleFrom(backgroundColor: t.accentSoft, padding: const EdgeInsets.all(12)),
+                            icon: Icon(LucideIcons.plus, color: t.accent),
+                            onPressed: () { if (_subtaskController.text.trim().isNotEmpty) setState(() { _subtasks.add(_subtaskController.text.trim()); _subtaskController.clear(); }); },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+          ),
+          const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(

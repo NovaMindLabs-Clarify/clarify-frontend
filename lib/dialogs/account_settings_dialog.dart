@@ -1,7 +1,9 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../widgets/clarify_surface.dart';
+import '../widgets/clarify_toast.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -24,6 +26,7 @@ void showAccountSettingsDialog({
   required String currentLang,
   required Function(String lang) changeLang,
   required VoidCallback onProfileChanged,
+  bool isMobileContext = false,
   required Widget Function({
     required Widget child,
     BorderRadius? borderRadius,
@@ -53,6 +56,8 @@ void showAccountSettingsDialog({
   bool isAutostart = false; // Состояние автозапуска
   bool showPlanDetails = false;
   bool showCalendars = false;
+  String? friendCode;
+  bool friendCodeFetchStarted = false;
 
   showClarifySurface(
     context: context,
@@ -66,6 +71,14 @@ void showAccountSettingsDialog({
             setStateDialog(() => isAutostart = value);
           }
         });
+
+        // Код друга (SOCIAL_PLAN.md §4.1) — запрашиваем один раз за открытие диалога.
+        if (!friendCodeFetchStarted) {
+          friendCodeFetchStarted = true;
+          Supabase.instance.client.rpc('ensure_profile').then((row) {
+            if (context.mounted) setStateDialog(() => friendCode = row['friend_code'] as String?);
+          }).catchError((_) {});
+        }
 
         Future<void> pickAndUpload() async {
           FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.image, withData: true);
@@ -83,9 +96,9 @@ void showAccountSettingsDialog({
 
               setStateDialog(() => avatarUrl = newUrl);
               onProfileChanged();
-              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Аватар обновлен!'.tr(currentLang)), backgroundColor: t.success));
+              if (context.mounted) ClarifyToast.show(context, 'Аватар обновлен!'.tr(currentLang), variant: ClarifyToastVariant.success);
             } catch (e) {
-              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'.tr(currentLang)), backgroundColor: t.danger));
+              if (context.mounted) ClarifyToast.show(context, 'Ошибка: $e'.tr(currentLang), variant: ClarifyToastVariant.danger);
             } finally {
               setStateDialog(() => isLoading = false);
             }
@@ -98,9 +111,9 @@ void showAccountSettingsDialog({
             await Supabase.instance.client.auth.updateUser(UserAttributes(data: {'avatar_url': null}));
             setStateDialog(() => avatarUrl = null);
             onProfileChanged();
-            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Аватарка удалена!'.tr(currentLang)), backgroundColor: t.success));
+            if (context.mounted) ClarifyToast.show(context, 'Аватарка удалена!'.tr(currentLang), variant: ClarifyToastVariant.success);
           } catch (e) {
-            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'.tr(currentLang)), backgroundColor: t.danger));
+            if (context.mounted) ClarifyToast.show(context, 'Ошибка: $e'.tr(currentLang), variant: ClarifyToastVariant.danger);
           } finally {
             setStateDialog(() => isLoading = false);
           }
@@ -203,9 +216,9 @@ void showAccountSettingsDialog({
                               try {
                                 await Supabase.instance.client.auth.updateUser(UserAttributes(data: {'full_name': nameController.text.trim()}));
                                 onProfileChanged();
-                                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Имя сохранено!'.tr(currentLang))));
+                                if (context.mounted) ClarifyToast.show(context, 'Имя сохранено!'.tr(currentLang), variant: ClarifyToastVariant.success);
                               } catch (e) {
-                                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'.tr(currentLang)), backgroundColor: t.danger));
+                                if (context.mounted) ClarifyToast.show(context, 'Ошибка: $e'.tr(currentLang), variant: ClarifyToastVariant.danger);
                               } finally {
                                 setStateDialog(() => isLoading = false);
                               }
@@ -216,32 +229,72 @@ void showAccountSettingsDialog({
                       ),
                       const SizedBox(height: 16),
 
-                      // --- ПЕРЕКЛЮЧАТЕЛЬ АВТОЗАПУСКА ---
+                      // --- КОД ДРУГА --- SOCIAL_PLAN.md §4.1: поиск/добавление в друзья по
+                      // короткому публичному коду вместо email.
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Row(
                             children: [
-                              Icon(LucideIcons.rocket, color: textColor, size: 20),
+                              Icon(LucideIcons.userRound, color: textColor, size: 20),
                               const SizedBox(width: 8),
-                              Text("Автозапуск с Windows".tr(currentLang), style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                              Text("Код друга".tr(currentLang), style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
                             ],
                           ),
-                          Switch(
-                            value: isAutostart,
-                            activeColor: t.accent,
-                            onChanged: (val) async {
-                              setStateDialog(() => isAutostart = val);
-                              if (val) {
-                                await launchAtStartup.enable();
-                              } else {
-                                await launchAtStartup.disable();
-                              }
-                            },
-                          )
-                        ]
+                          if (friendCode == null)
+                            SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: textMuted))
+                          else
+                            InkWell(
+                              borderRadius: BorderRadius.circular(8),
+                              onTap: () {
+                                Clipboard.setData(ClipboardData(text: friendCode!));
+                                ClarifyToast.show(context, 'Код скопирован!'.tr(currentLang), variant: ClarifyToastVariant.success);
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(friendCode!, style: TextStyle(color: t.accent, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                                    const SizedBox(width: 6),
+                                    Icon(LucideIcons.copy, size: 14, color: t.accent),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 16),
+
+                      // --- ПЕРЕКЛЮЧАТЕЛЬ АВТОЗАПУСКА --- только на десктопе, на мобильном
+                      // (PWA) автозапуск с Windows бессмысленен (REDESIGN_V3_PLAN.md §3.14/5.14).
+                      if (!isMobileContext) ...[
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(LucideIcons.rocket, color: textColor, size: 20),
+                                const SizedBox(width: 8),
+                                Text("Автозапуск с Windows".tr(currentLang), style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                            Switch(
+                              value: isAutostart,
+                              activeColor: t.accent,
+                              onChanged: (val) async {
+                                setStateDialog(() => isAutostart = val);
+                                if (val) {
+                                  await launchAtStartup.enable();
+                                } else {
+                                  await launchAtStartup.disable();
+                                }
+                              },
+                            )
+                          ]
+                        ),
+                        const SizedBox(height: 16),
+                      ],
 
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -318,13 +371,13 @@ void showAccountSettingsDialog({
                               _PlanRow(label: "AI-запросы в месяц".tr(currentLang), free: "50", pro: "Без лимита".tr(currentLang), textColor: textColor, textMuted: textMuted),
                               _PlanRow(label: "Участников в команде".tr(currentLang), free: "3", pro: "Без лимита".tr(currentLang), textColor: textColor, textMuted: textMuted),
                               _PlanRow(label: "Синхронизация с Яндекс.Календарём".tr(currentLang), freeCheck: false, textColor: textColor, textMuted: textMuted, accent: t.accent, danger: t.danger),
-                              _PlanRow(label: "Расширенная статистика и экспорт".tr(currentLang), freeCheck: false, textColor: textColor, textMuted: textMuted, accent: t.accent, danger: t.danger),
+                              _PlanRow(label: "Расширенная статистика".tr(currentLang), freeCheck: false, textColor: textColor, textMuted: textMuted, accent: t.accent, danger: t.danger),
                               const SizedBox(height: 12),
                               SizedBox(
                                 width: double.infinity,
                                 child: ElevatedButton(
                                   style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Оплата Pro скоро будет доступна".tr(currentLang)))),
+                                  onPressed: () => ClarifyToast.show(context, "Оплата Pro скоро будет доступна".tr(currentLang), variant: ClarifyToastVariant.info),
                                   child: Text("Оформить Pro — 199 ₽/мес".tr(currentLang), style: const TextStyle(fontWeight: FontWeight.bold)),
                                 ),
                               ),
@@ -362,7 +415,7 @@ void showAccountSettingsDialog({
                             subtitle: Text("Требует Pro".tr(currentLang), style: TextStyle(color: textMuted, fontSize: 12.5)),
                             trailing: OutlinedButton(
                               style: OutlinedButton.styleFrom(side: BorderSide(color: glassBorderColor), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999))),
-                              onPressed: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Интеграция скоро будет доступна".tr(currentLang)))),
+                              onPressed: () => ClarifyToast.show(context, "Интеграция скоро будет доступна".tr(currentLang), variant: ClarifyToastVariant.info),
                               child: Text("Подключить".tr(currentLang), style: TextStyle(color: textColor)),
                             ),
                           ),
@@ -386,9 +439,7 @@ void showAccountSettingsDialog({
                               await launchUrl(url, mode: LaunchMode.externalApplication);
                             } else {
                               if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text("Не удалось открыть Telegram".tr(currentLang)), backgroundColor: t.danger)
-                                );
+                                ClarifyToast.show(context, "Не удалось открыть Telegram".tr(currentLang), variant: ClarifyToastVariant.danger);
                               }
                             }
                           }
@@ -439,14 +490,14 @@ void showAccountSettingsDialog({
                                       final newPass = newPasswordController.text;
                                       final confPass = confirmPasswordController.text;
 
-                                      if (newPass != confPass) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Новые пароли не совпадают!'.tr(currentLang)), backgroundColor: t.danger)); return; }
-                                      if (newPass.length < 6) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Минимум 6 символов!'.tr(currentLang)), backgroundColor: t.danger)); return; }
+                                      if (newPass != confPass) { ClarifyToast.show(context, 'Новые пароли не совпадают!'.tr(currentLang), variant: ClarifyToastVariant.danger); return; }
+                                      if (newPass.length < 6) { ClarifyToast.show(context, 'Минимум 6 символов!'.tr(currentLang), variant: ClarifyToastVariant.danger); return; }
 
                                       setStateDialog(() => isLoading = true);
                                       try {
                                         if (hasPasswordAuth) {
-                                          if (oldPass.isEmpty) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Введите текущий пароль!'.tr(currentLang)), backgroundColor: t.danger)); setStateDialog(() => isLoading = false); return; }
-                                          if (oldPass == newPass) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Новый пароль должен отличаться!'.tr(currentLang)), backgroundColor: t.warning)); setStateDialog(() => isLoading = false); return; }
+                                          if (oldPass.isEmpty) { ClarifyToast.show(context, 'Введите текущий пароль!'.tr(currentLang), variant: ClarifyToastVariant.danger); setStateDialog(() => isLoading = false); return; }
+                                          if (oldPass == newPass) { ClarifyToast.show(context, 'Новый пароль должен отличаться!'.tr(currentLang), variant: ClarifyToastVariant.warning); setStateDialog(() => isLoading = false); return; }
 
                                           await Supabase.instance.client.auth.signInWithPassword(email: email, password: oldPass);
                                         }
@@ -456,19 +507,19 @@ void showAccountSettingsDialog({
                                         setStateDialog(() { isChangingPassword = false; oldPasswordController.clear(); newPasswordController.clear(); confirmPasswordController.clear(); });
 
                                         if (context.mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(hasPasswordAuth ? 'Пароль успешно изменен!'.tr(currentLang) : 'Пароль установлен! Теперь вы можете входить по Email.'.tr(currentLang)), backgroundColor: t.success));
+                                          ClarifyToast.show(context, hasPasswordAuth ? 'Пароль успешно изменен!'.tr(currentLang) : 'Пароль установлен! Теперь вы можете входить по Email.'.tr(currentLang), variant: ClarifyToastVariant.success);
                                           if (!hasPasswordAuth) Navigator.of(context).pop();
                                         }
                                       } on AuthException catch (e) {
                                         if (context.mounted) {
                                           if (e.message.contains('Invalid login credentials')) {
-                                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Неверный текущий пароль!'.tr(currentLang)), backgroundColor: t.danger));
+                                            ClarifyToast.show(context, 'Неверный текущий пароль!'.tr(currentLang), variant: ClarifyToastVariant.danger);
                                           } else {
-                                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: ${e.message}'.tr(currentLang)), backgroundColor: t.danger));
+                                            ClarifyToast.show(context, 'Ошибка: ${e.message}'.tr(currentLang), variant: ClarifyToastVariant.danger);
                                           }
                                         }
                                       } catch (e) {
-                                        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка: $e'.tr(currentLang)), backgroundColor: t.danger));
+                                        if (context.mounted) ClarifyToast.show(context, 'Ошибка: $e'.tr(currentLang), variant: ClarifyToastVariant.danger);
                                       } finally {
                                         setStateDialog(() => isLoading = false);
                                       }

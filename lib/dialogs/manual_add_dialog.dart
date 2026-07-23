@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../widgets/clarify_surface.dart';
+import '../widgets/clarify_toast.dart';
+import '../widgets/clarify_date_time_picker.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
 
@@ -32,7 +34,6 @@ void showManualAddDialog({
   required String selectedMenu,
   required String? activeTagFilter,
   required List<Map<String, dynamic>> tasks,
-  required List<String> customFolders,
   required Map<int, List<Map<String, dynamic>>> workspaceMembers,
   required bool isDuplicating,
   required VoidCallback onDuplicateHandled,
@@ -85,7 +86,12 @@ void showManualAddDialog({
     builder: (context) {
       return StatefulBuilder(builder: (context, setStateDialog) {
         return Center(
-          child: Material(
+          // Тот же Hero-тег, что у FAB "Создать задачу" (desktop_planner_screen.dart) —
+          // при отсутствии совпадения (открытие с "+" на ячейке календаря и т.п.)
+          // Hero просто не находит пару и работает как обычный переход, без ошибок.
+          child: Hero(
+            tag: 'add-task-fab',
+            child: Material(
             color: Colors.transparent,
             child: buildGlassContainer(
               padding: const EdgeInsets.all(24),
@@ -144,9 +150,9 @@ void showManualAddDialog({
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          Expanded(child: OutlinedButton.icon(icon: Icon(LucideIcons.calendar, size: 18, color: textColor), label: Text(selectedDate == null ? "Без даты".tr(currentLang) : formatDate(selectedDate!), style: TextStyle(color: textColor)), style: OutlinedButton.styleFrom(side: BorderSide(color: glassBorderColor), padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), onPressed: () async { final picked = await showDatePicker(context: context, initialDate: selectedDate ?? DateTime.now(), firstDate: DateTime(2000), lastDate: DateTime(2101)); if (picked != null) setStateDialog(() => selectedDate = picked); })),
+                          Expanded(child: OutlinedButton.icon(icon: Icon(LucideIcons.calendar, size: 18, color: textColor), label: Text(selectedDate == null ? "Без даты".tr(currentLang) : formatDate(selectedDate!), style: TextStyle(color: textColor)), style: OutlinedButton.styleFrom(side: BorderSide(color: glassBorderColor), padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), onPressed: () async { final picked = await showClarifyDatePicker(context: context, isDark: isDark, initialDate: selectedDate); if (picked != null) setStateDialog(() => selectedDate = picked); })),
                           const SizedBox(width: 12),
-                          Expanded(child: OutlinedButton.icon(icon: Icon(LucideIcons.clock, size: 18, color: textColor), label: Text(selectedTime == null ? "Время".tr(currentLang) : selectedTime!.format(context), style: TextStyle(color: textColor)), style: OutlinedButton.styleFrom(side: BorderSide(color: glassBorderColor), padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), onPressed: () async { final picked = await showTimePicker(context: context, initialTime: TimeOfDay.now()); if (picked != null) setStateDialog(() => selectedTime = picked); })),
+                          Expanded(child: OutlinedButton.icon(icon: Icon(LucideIcons.clock, size: 18, color: textColor), label: Text(selectedTime == null ? "Время".tr(currentLang) : selectedTime!.format(context), style: TextStyle(color: textColor)), style: OutlinedButton.styleFrom(side: BorderSide(color: glassBorderColor), padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), onPressed: () async { final picked = await showClarifyTimePicker(context: context, isDark: isDark, initialTime: selectedTime ?? TimeOfDay.now()); if (picked != null) setStateDialog(() => selectedTime = picked); })),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -264,7 +270,6 @@ void showManualAddDialog({
                                   "recurrence": selectedRecurrence == 'none' ? null : selectedRecurrence,
                                   "is_completed": false,
                                   "parent_id": null,
-                                  "folder": customFolders.contains(selectedMenu) ? selectedMenu : null,
                                   "workspace_id": currentWorkspaceId,
                                   "assigned_to": selectedAssigneeId,
                                 });
@@ -284,7 +289,7 @@ void showManualAddDialog({
 
                               if (isDuplicating) {
                                 onDuplicateHandled();
-                                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Задача скопирована!".tr(currentLang)), backgroundColor: t.accent));
+                                if (context.mounted) ClarifyToast.show(context, "Задача скопирована!".tr(currentLang), variant: ClarifyToastVariant.success);
                               }
 
                               if (context.mounted) setStateDialog(() => isSaving = false);
@@ -299,6 +304,7 @@ void showManualAddDialog({
                   ),
                 ),
               )
+            ),
             ),
           ),
         );

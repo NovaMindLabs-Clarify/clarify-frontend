@@ -1,7 +1,11 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../../core/config.dart';
 import '../../core/localization.dart';
 import '../../core/theme/design_tokens.dart';
+import '../../services/push_registration.dart';
+import '../../widgets/clarify_toast.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// "Настройки" — по образцу Structured: сгруппированный список, а не
@@ -14,6 +18,8 @@ class MobileSettingsScreen extends StatelessWidget {
   final bool isDark;
   final VoidCallback onOpenAccountSettings;
   final VoidCallback onOpenStatistics;
+  final VoidCallback onOpenFriends;
+  final VoidCallback onOpenMessages;
   final VoidCallback toggleTheme;
   final Function(String lang) changeLang;
 
@@ -25,6 +31,8 @@ class MobileSettingsScreen extends StatelessWidget {
     required this.isDark,
     required this.onOpenAccountSettings,
     required this.onOpenStatistics,
+    required this.onOpenFriends,
+    required this.onOpenMessages,
     required this.toggleTheme,
     required this.changeLang,
   });
@@ -73,7 +81,28 @@ class MobileSettingsScreen extends StatelessWidget {
         const SizedBox(height: 20),
 
         _SectionLabel(text: 'Обзор'.tr(currentLang)),
+        _SettingsTile(icon: LucideIcons.userRound, label: 'Друзья'.tr(currentLang), onTap: onOpenFriends),
+        _SettingsTile(icon: LucideIcons.messageCircle, label: 'Сообщения'.tr(currentLang), onTap: onOpenMessages),
         _SettingsTile(icon: LucideIcons.chartBar, label: 'Статистика'.tr(currentLang), onTap: onOpenStatistics),
+
+        if (kIsWeb) ...[
+          const SizedBox(height: 20),
+          _SectionLabel(text: 'Уведомления'.tr(currentLang)),
+          _SettingsTile(
+            icon: LucideIcons.bellRing,
+            label: 'Включить push-уведомления'.tr(currentLang),
+            onTap: () async {
+              final error = await PushRegistrationWeb.register(AppConfig.vapidPublicKey);
+              if (context.mounted) {
+                ClarifyToast.show(
+                  context,
+                  error ?? 'Уведомления включены!'.tr(currentLang),
+                  variant: error == null ? ClarifyToastVariant.success : ClarifyToastVariant.warning,
+                );
+              }
+            },
+          ),
+        ],
 
         const SizedBox(height: 20),
         _SectionLabel(text: 'Тариф'.tr(currentLang)),
@@ -149,7 +178,7 @@ class _PlanPage extends StatelessWidget {
             width: double.infinity,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md))),
-              onPressed: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Оплата Pro скоро будет доступна'.tr(currentLang)))),
+              onPressed: () => ClarifyToast.show(context, 'Оплата Pro скоро будет доступна'.tr(currentLang), variant: ClarifyToastVariant.info),
               child: Text('Оформить Pro — 199 ₽/мес'.tr(currentLang), style: const TextStyle(fontWeight: FontWeight.bold)),
             ),
           ),
@@ -209,7 +238,7 @@ class _CalendarsPage extends StatelessWidget {
                 ),
                 OutlinedButton(
                   style: OutlinedButton.styleFrom(side: BorderSide(color: t.border), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999))),
-                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Интеграция скоро будет доступна'.tr(currentLang)))),
+                  onPressed: () => ClarifyToast.show(context, 'Интеграция скоро будет доступна'.tr(currentLang), variant: ClarifyToastVariant.info),
                   child: Text('Подключить'.tr(currentLang), style: TextStyle(color: t.text)),
                 ),
               ]),

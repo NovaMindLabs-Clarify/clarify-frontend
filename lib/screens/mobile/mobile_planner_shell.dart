@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:animations/animations.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/localization.dart';
 import '../../core/theme/design_tokens.dart';
 import '../../widgets/clarify_glass.dart';
+import '../../widgets/clarify_pressable.dart';
+import '../../widgets/friends_screen.dart';
+import '../../widgets/user_profile_modal.dart';
+import '../../widgets/conversations_screen.dart';
 import '../../widgets/mobile_quick_add_sheet.dart';
 import 'mobile_today_screen.dart';
 import 'mobile_tasks_screen.dart';
@@ -36,6 +41,7 @@ class MobilePlannerShell extends StatefulWidget {
   final void Function(int workspaceId) onOpenWorkspaceMembers;
   final void Function(int workspaceId) onInviteToWorkspace;
   final void Function(int workspaceId) onShowTeamPulse;
+  final void Function(int workspaceId) onLeaveOrDeleteWorkspace;
   final VoidCallback onAddWorkspace;
   final VoidCallback onOpenAccountSettings;
   final Widget Function() buildStatisticsDashboard;
@@ -64,6 +70,7 @@ class MobilePlannerShell extends StatefulWidget {
     required this.onOpenWorkspaceMembers,
     required this.onInviteToWorkspace,
     required this.onShowTeamPulse,
+    required this.onLeaveOrDeleteWorkspace,
     required this.onAddWorkspace,
     required this.onOpenAccountSettings,
     required this.buildStatisticsDashboard,
@@ -78,6 +85,10 @@ class MobilePlannerShell extends StatefulWidget {
 
 class _MobilePlannerShellState extends State<MobilePlannerShell> {
   MobileTab _tab = MobileTab.today;
+  // Заданная через мини-календарь «Мой день» дата, на которую нужно открыть
+  // «Задачи» — одноразовый «билет», сбрасывается сразу после применения,
+  // чтобы повторный визит на вкладку не запирал фильтр на старой дате.
+  DateTime? _pendingCalendarDate;
 
   List<Map<String, dynamic>> get _todayTasks {
     final todayStr = widget.formatDate(DateTime.now());
@@ -88,6 +99,80 @@ class _MobilePlannerShellState extends State<MobilePlannerShell> {
 
   int get _inboxCount => widget.tasks.where((t) => (t['due_date'] == null || t['due_date'] == '') && t['parent_id'] == null).length;
 
+  Widget _buildTab(MobileTab tab) {
+    switch (tab) {
+      case MobileTab.today:
+        return MobileTodayScreen(
+          currentLang: widget.currentLang,
+          userInitial: widget.userInitial,
+          todayTasks: _todayTasks,
+          inboxCount: _inboxCount,
+          getPriorityColor: widget.getPriorityColor,
+          getSubtaskStats: widget.getSubtaskStats,
+          isOverdue: widget.isOverdue,
+          onToggle: widget.onToggleTask,
+          onDelete: widget.onDeleteTask,
+          onTap: widget.onTaskTap,
+          onOpenInbox: () => setState(() => _tab = MobileTab.tasks),
+          onOpenDate: (date) => setState(() {
+            _pendingCalendarDate = date;
+            _tab = MobileTab.tasks;
+          }),
+        );
+      case MobileTab.tasks:
+        final initialDate = _pendingCalendarDate;
+        _pendingCalendarDate = null;
+        return MobileTasksScreen(
+          currentLang: widget.currentLang,
+          tasks: widget.tasks,
+          initialDate: initialDate,
+          getPriorityColor: widget.getPriorityColor,
+          getSubtaskStats: widget.getSubtaskStats,
+          isOverdue: widget.isOverdue,
+          onToggle: widget.onToggleTask,
+          onDelete: widget.onDeleteTask,
+          onTap: widget.onTaskTap,
+        );
+      case MobileTab.teams:
+        return MobileTeamsScreen(
+          currentLang: widget.currentLang,
+          workspaces: widget.workspaces,
+          workspaceMembers: widget.workspaceMembers,
+          tasks: widget.tasks,
+          onAddWorkspace: widget.onAddWorkspace,
+          onOpenMembers: widget.onOpenWorkspaceMembers,
+          onInvite: widget.onInviteToWorkspace,
+          onShowPulse: widget.onShowTeamPulse,
+          onLeaveOrDeleteWorkspace: widget.onLeaveOrDeleteWorkspace,
+          getPriorityColor: widget.getPriorityColor,
+          getSubtaskStats: widget.getSubtaskStats,
+          isOverdue: widget.isOverdue,
+          onToggleTask: widget.onToggleTask,
+          onDeleteTask: widget.onDeleteTask,
+          onTaskTap: widget.onTaskTap,
+        );
+      case MobileTab.settings:
+        return MobileSettingsScreen(
+          currentLang: widget.currentLang,
+          userInitial: widget.userInitial,
+          userFullName: widget.userFullName,
+          isDark: widget.isDark,
+          onOpenAccountSettings: widget.onOpenAccountSettings,
+          onOpenStatistics: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => _StatisticsPage(currentLang: widget.currentLang, builder: widget.buildStatisticsDashboard),
+          )),
+          onOpenFriends: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => _FriendsPage(currentLang: widget.currentLang),
+          )),
+          onOpenMessages: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => _MessagesPage(currentLang: widget.currentLang),
+          )),
+          toggleTheme: widget.toggleTheme,
+          changeLang: widget.changeLang,
+        );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
@@ -96,61 +181,20 @@ class _MobilePlannerShellState extends State<MobilePlannerShell> {
       backgroundColor: t.bg,
       body: SafeArea(
         bottom: false,
-        child: IndexedStack(
-          index: MobileTab.values.indexOf(_tab),
-          children: [
-            MobileTodayScreen(
-              currentLang: widget.currentLang,
-              userInitial: widget.userInitial,
-              todayTasks: _todayTasks,
-              inboxCount: _inboxCount,
-              getPriorityColor: widget.getPriorityColor,
-              getSubtaskStats: widget.getSubtaskStats,
-              isOverdue: widget.isOverdue,
-              onToggle: widget.onToggleTask,
-              onDelete: widget.onDeleteTask,
-              onTap: widget.onTaskTap,
-              onOpenInbox: () => setState(() => _tab = MobileTab.tasks),
-            ),
-            MobileTasksScreen(
-              currentLang: widget.currentLang,
-              tasks: widget.tasks,
-              getPriorityColor: widget.getPriorityColor,
-              getSubtaskStats: widget.getSubtaskStats,
-              isOverdue: widget.isOverdue,
-              onToggle: widget.onToggleTask,
-              onDelete: widget.onDeleteTask,
-              onTap: widget.onTaskTap,
-            ),
-            MobileTeamsScreen(
-              currentLang: widget.currentLang,
-              workspaces: widget.workspaces,
-              workspaceMembers: widget.workspaceMembers,
-              tasks: widget.tasks,
-              onAddWorkspace: widget.onAddWorkspace,
-              onOpenMembers: widget.onOpenWorkspaceMembers,
-              onInvite: widget.onInviteToWorkspace,
-              onShowPulse: widget.onShowTeamPulse,
-              getPriorityColor: widget.getPriorityColor,
-              getSubtaskStats: widget.getSubtaskStats,
-              isOverdue: widget.isOverdue,
-              onToggleTask: widget.onToggleTask,
-              onDeleteTask: widget.onDeleteTask,
-              onTaskTap: widget.onTaskTap,
-            ),
-            MobileSettingsScreen(
-              currentLang: widget.currentLang,
-              userInitial: widget.userInitial,
-              userFullName: widget.userFullName,
-              isDark: widget.isDark,
-              onOpenAccountSettings: widget.onOpenAccountSettings,
-              onOpenStatistics: () => Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => _StatisticsPage(currentLang: widget.currentLang, builder: widget.buildStatisticsDashboard),
-              )),
-              toggleTheme: widget.toggleTheme,
-              changeLang: widget.changeLang,
-            ),
-          ],
+        // FadeThroughTransition вместо мгновенного IndexedStack-переключения —
+        // сдержанный переход между вкладками нижней навигации (REDESIGN_V3_PLAN.md
+        // §3.6/5.6, эталон движения — Structured).
+        child: PageTransitionSwitcher(
+          duration: ClarifyMotion.slow,
+          transitionBuilder: (child, primaryAnimation, secondaryAnimation) => FadeThroughTransition(
+            animation: primaryAnimation,
+            secondaryAnimation: secondaryAnimation,
+            child: child,
+          ),
+          child: KeyedSubtree(
+            key: ValueKey(_tab),
+            child: _buildTab(_tab),
+          ),
         ),
       ),
       bottomNavigationBar: _MobileBottomNav(
@@ -238,7 +282,7 @@ class _FabItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    return GestureDetector(
+    return ClarifyPressable(
       onTap: onTap,
       child: Container(
         width: 44,
@@ -246,6 +290,60 @@ class _FabItem extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 18),
         decoration: BoxDecoration(color: t.accent, shape: BoxShape.circle, boxShadow: [BoxShadow(color: t.accent.withValues(alpha: 0.35), blurRadius: 16, offset: const Offset(0, 6))]),
         child: Icon(LucideIcons.plus, color: t.onAccent, size: 24),
+      ),
+    );
+  }
+}
+
+class _FriendsPage extends StatelessWidget {
+  final String currentLang;
+  const _FriendsPage({required this.currentLang});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Scaffold(
+      backgroundColor: t.bg,
+      appBar: AppBar(
+        backgroundColor: t.bg,
+        elevation: 0,
+        foregroundColor: t.text,
+        title: Text('Друзья'.tr(currentLang), style: TextStyle(fontFamily: 'Golos Text', fontWeight: FontWeight.w700)),
+      ),
+      body: FriendsScreen(
+        currentLang: currentLang,
+        buildGlassContainer: ({required child, margin, padding, customColor}) => ClarifyGlass(margin: margin, padding: padding, customColor: customColor, child: child),
+        onOpenProfile: (userId) => showUserProfileModal(
+          context: context,
+          userId: userId,
+          currentLang: currentLang,
+          onOpenConversation: (partnerId, name) => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => ConversationScreen(currentLang: currentLang, partnerId: partnerId, partnerName: name),
+          )),
+        ),
+      ),
+    );
+  }
+}
+
+class _MessagesPage extends StatelessWidget {
+  final String currentLang;
+  const _MessagesPage({required this.currentLang});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Scaffold(
+      backgroundColor: t.bg,
+      appBar: AppBar(
+        backgroundColor: t.bg,
+        elevation: 0,
+        foregroundColor: t.text,
+        title: Text('Сообщения'.tr(currentLang), style: TextStyle(fontFamily: 'Golos Text', fontWeight: FontWeight.w700)),
+      ),
+      body: ConversationsListScreen(
+        currentLang: currentLang,
+        buildGlassContainer: ({required child, margin, padding, customColor}) => ClarifyGlass(margin: margin, padding: padding, customColor: customColor, child: child),
       ),
     );
   }

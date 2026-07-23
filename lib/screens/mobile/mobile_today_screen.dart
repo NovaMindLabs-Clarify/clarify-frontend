@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/localization.dart';
 import '../../core/theme/design_tokens.dart';
-import 'widgets/mobile_task_row.dart';
+import 'widgets/mobile_mini_calendar.dart';
+import 'widgets/swipe_to_delete_task_row.dart';
 
 /// "Сегодня" — мобильный таймлайн дня вместо десктопной сетки/досок.
 /// Задачи группируются по часу (без времени — отдельной группой сверху),
@@ -20,6 +21,7 @@ class MobileTodayScreen extends StatelessWidget {
   final void Function(dynamic taskId) onDelete;
   final void Function(Map<String, dynamic> task) onTap;
   final VoidCallback onOpenInbox;
+  final void Function(DateTime date) onOpenDate;
 
   const MobileTodayScreen({
     super.key,
@@ -34,6 +36,7 @@ class MobileTodayScreen extends StatelessWidget {
     required this.onDelete,
     required this.onTap,
     required this.onOpenInbox,
+    required this.onOpenDate,
   });
 
   static const _weekdaysRu = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
@@ -79,6 +82,14 @@ class MobileTodayScreen extends StatelessWidget {
           ),
         ),
 
+        MobileMiniCalendar(
+          currentLang: currentLang,
+          selectedDate: now,
+          onDaySelected: (day) {
+            if (!(day.year == now.year && day.month == now.month && day.day == now.day)) onOpenDate(day);
+          },
+        ),
+
         if (inboxCount > 0)
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
@@ -108,26 +119,28 @@ class MobileTodayScreen extends StatelessWidget {
                   children: [
                     if (allDay.isNotEmpty) ...[
                       _HourLabel(label: 'Весь день'.tr(currentLang)),
-                      ...allDay.map((task) => MobileTaskRow(
+                      ...allDay.map((task) => SwipeToDeleteTaskRow(
                             task: task,
+                            currentLang: currentLang,
                             priorityColor: getPriorityColor(task['priority']),
                             subtaskStats: getSubtaskStats(task['id']),
                             overdue: isOverdue(task),
                             onToggle: () => onToggle(task),
-                            onDelete: () => onDelete(task['id']),
+                            onConfirmedDelete: () => onDelete(task['id']),
                             onTap: () => onTap(task),
                           )),
                       const SizedBox(height: 12),
                     ],
                     for (final hour in hours) ...[
                       _HourLabel(label: '$hour:00'),
-                      ...byHour[hour]!.map((task) => MobileTaskRow(
+                      ...byHour[hour]!.map((task) => SwipeToDeleteTaskRow(
                             task: task,
+                            currentLang: currentLang,
                             priorityColor: getPriorityColor(task['priority']),
                             subtaskStats: getSubtaskStats(task['id']),
                             overdue: isOverdue(task),
                             onToggle: () => onToggle(task),
-                            onDelete: () => onDelete(task['id']),
+                            onConfirmedDelete: () => onDelete(task['id']),
                             onTap: () => onTap(task),
                           )),
                     ],

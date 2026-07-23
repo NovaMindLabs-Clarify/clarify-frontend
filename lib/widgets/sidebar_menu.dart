@@ -9,18 +9,28 @@ class SidebarMenu extends StatelessWidget {
   final String currentLang;
   final String selectedMenu;
   final List<String> menuItems;
-  final List<String> customFolders;
   final List<dynamic> workspaces;
   final List<Map<String, dynamic>> tasks;
-  
+
   final Function(String) onMenuSelected;
-  final VoidCallback onAddFolder;
-  final Function(String) onDeleteFolder;
   final VoidCallback onAddWorkspace;
   final Function(int, String) onWorkspaceSelected;
   
   final Widget userAccountBlock;
   final Widget Function({required Widget child, BorderRadius? borderRadius, EdgeInsetsGeometry? margin, Color? customColor}) buildGlassContainer;
+
+  // Те же соответствия, что и в мобильном нижнем меню (REDESIGN_V3_PLAN.md §3.18/5.17) —
+  // не изобретаем новый набор для десктопа.
+  static const Map<String, IconData> _menuIcons = {
+    'Мой день': LucideIcons.sun,
+    'Следующие 7 дней': LucideIcons.calendarDays,
+    'Все задачи': LucideIcons.listChecks,
+    'Календарь': LucideIcons.calendar,
+    'Входящие': LucideIcons.inbox,
+    'Друзья': LucideIcons.userRound,
+    'Сообщения': LucideIcons.messageCircle,
+    'Статистика': LucideIcons.chartNoAxesColumn,
+  };
 
   const SidebarMenu({
     Key? key,
@@ -29,17 +39,29 @@ class SidebarMenu extends StatelessWidget {
     required this.currentLang,
     required this.selectedMenu,
     required this.menuItems,
-    required this.customFolders,
     required this.workspaces,
     required this.tasks,
     required this.onMenuSelected,
-    required this.onAddFolder,
-    required this.onDeleteFolder,
     required this.onAddWorkspace,
     required this.onWorkspaceSelected,
     required this.userAccountBlock,
     required this.buildGlassContainer,
   }) : super(key: key);
+
+  List<String> _taskTags(Map<String, dynamic> task) {
+    final raw = task['tags'];
+    if (raw == null || raw.toString().trim().isEmpty) return const [];
+    return raw.toString().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+  }
+
+  List<String> get _projectTags {
+    final tags = <String>{};
+    for (final task in tasks) {
+      tags.addAll(_taskTags(task));
+    }
+    final sorted = tags.toList()..sort();
+    return sorted;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,49 +92,41 @@ class SidebarMenu extends StatelessWidget {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12 * scale)),
                       selected: item == selectedMenu,
                       selectedTileColor: highlightColor,
+                      leading: Icon(_menuIcons[item] ?? LucideIcons.circle, size: 20 * scale, color: item == selectedMenu ? t.accent : textMuted),
                       title: Text(item.tr(currentLang), style: TextStyle(fontSize: 16 * scale, fontWeight: item == selectedMenu ? FontWeight.bold : FontWeight.w600, color: item == selectedMenu ? t.accent : textColor)),
-                      onTap: () => onMenuSelected(item), 
+                      onTap: () => onMenuSelected(item),
                     ),
                   )),
-                  
+
                   SizedBox(height: 16 * scale),
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 8 * scale),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text("ПРОЕКТЫ".tr(currentLang), style: TextStyle(fontSize: 12 * scale, fontWeight: FontWeight.bold, color: textMuted, letterSpacing: 1.2)),
-                        InkWell(
-                          onTap: onAddFolder,
-                          child: Icon(LucideIcons.plus, size: 20 * scale, color: textMuted)
-                        ),
-                      ],
-                    ),
+                    child: Text("ПРОЕКТЫ".tr(currentLang), style: TextStyle(fontSize: 12 * scale, fontWeight: FontWeight.bold, color: textMuted, letterSpacing: 1.2)),
                   ),
-                  
-                  ...customFolders.map((folder) {
-                    // Проект — больше не просто имя: свой цвет (детерминированно по имени,
-                    // как у команд) и прогресс задач, а не голый список папок без содержания.
-                    final folderColor = t.tagPalette[folder.hashCode.abs() % t.tagPalette.length];
-                    final folderTasks = tasks.where((task) => task['folder'] == folder && task['parent_id'] == null).toList();
-                    final total = folderTasks.length;
-                    final done = folderTasks.where((task) => task['is_completed'] == true).length;
-                    final active = folder == selectedMenu;
+
+                  // Авто-папки по тегам — не отдельная сущность, которую заводят руками
+                  // (REDESIGN_V3_PLAN.md §3.17/5.16): папка появляется сама, как только
+                  // существует хотя бы одна задача с этим тегом.
+                  ..._projectTags.map((tag) {
+                    final tagColor = t.tagPalette[tag.hashCode.abs() % t.tagPalette.length];
+                    final tagTasks = tasks.where((task) => _taskTags(task).contains(tag) && task['parent_id'] == null).toList();
+                    final total = tagTasks.length;
+                    final done = tagTasks.where((task) => task['is_completed'] == true).length;
+                    final active = tag == selectedMenu;
 
                     return Padding(
                       padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 2 * scale),
                       child: ListTile(
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12 * scale)),
                         selected: active,
-                        selectedTileColor: folderColor.withValues(alpha: 0.15),
+                        selectedTileColor: tagColor.withValues(alpha: 0.15),
                         contentPadding: EdgeInsets.symmetric(horizontal: 16 * scale),
-                        leading: Icon(LucideIcons.folder, size: 20 * scale, color: active ? folderColor : textMuted),
-                        title: Text(folder, style: TextStyle(fontSize: 15 * scale, fontWeight: active ? FontWeight.bold : FontWeight.w600, color: active ? folderColor : textColor), overflow: TextOverflow.ellipsis),
+                        leading: Icon(LucideIcons.folder, size: 20 * scale, color: active ? tagColor : textMuted),
+                        title: Text(tag, style: TextStyle(fontSize: 15 * scale, fontWeight: active ? FontWeight.bold : FontWeight.w600, color: active ? tagColor : textColor), overflow: TextOverflow.ellipsis),
                         trailing: total == 0
                             ? null
-                            : Text('$done/$total', style: TextStyle(fontSize: 11.5 * scale, fontWeight: FontWeight.w700, color: active ? folderColor : textMuted)),
-                        onTap: () => onMenuSelected(folder),
-                        onLongPress: () => onDeleteFolder(folder),
+                            : Text('$done/$total', style: TextStyle(fontSize: 11.5 * scale, fontWeight: FontWeight.w700, color: active ? tagColor : textMuted)),
+                        onTap: () => onMenuSelected(tag),
                       ),
                     );
                   }),

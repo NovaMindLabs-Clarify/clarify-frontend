@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../core/theme/design_tokens.dart';
+import 'clarify_pressable.dart';
 
 /// Строит карточки задачи для трёх представлений (список, доска "7 дней",
 /// календарь). Вынесено из DesktopPlannerScreen (P3.1, docs/IMPROVEMENT_PLAN.md) —
@@ -46,20 +47,22 @@ class TaskCardBuilders {
   Color get glassBorderColor => _t.border;
   Color get doneCardColor => _t.surfaceSunken.withValues(alpha: isDark ? 0.7 : 0.85);
 
+  // Компактная строка для узких колонок (Календарь/7 дней) — только чекбокс,
+  // заголовок и (если есть) время второй строкой под ним. Тег/подзадачи/повтор
+  // сюда намеренно не помещаются (см. REDESIGN_V3_PLAN.md §3.2/5.3) — в узкой
+  // колонке они забирали место у заголовка раньше, чем он успевал показаться;
+  // та же информация доступна по тапу в деталях задачи.
   Widget buildCalendarTaskRow(Map<String, dynamic> task) {
     final bool isDone = task['is_completed'] == true;
     Color priorityColor = getPriorityColor(task['priority']);
     bool hasPriority = task['priority'] != null && task['priority'] != 'none';
-    bool hasRecurrence = task['recurrence'] != null && task['recurrence'] != 'none';
-    final stats = getSubtaskStats(task['id']);
-    final bool hasSubtasks = stats['total']! > 0;
-    final bool allDone = hasSubtasks && stats['done'] == stats['total'];
 
     final bool overdue = isOverdue(task);
 
     String displayTitle = task['title'] ?? '';
+    final String? dueTime = task['due_time'];
 
-    return GestureDetector(
+    return ClarifyPressable(
       onTap: () => onTap(task),
       child: Container(
         margin: EdgeInsets.only(bottom: 4 * _s, left: 4 * _s, right: 4 * _s),
@@ -67,55 +70,62 @@ class TaskCardBuilders {
           color: isDone ? Colors.transparent : (overdue ? _t.dangerSoft : Colors.transparent),
           borderRadius: BorderRadius.circular(6 * _s),
         ),
-        padding: EdgeInsets.symmetric(vertical: 2 * _s),
+        padding: EdgeInsets.symmetric(vertical: 2 * _s, horizontal: 2 * _s),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ПРИНУДИТЕЛЬНОЕ масштабирование кругляшка
-            SizedBox(
-              width: 16 * _s,
-              height: 16 * _s,
-              child: Transform.scale(
-                scale: 0.7 * _s, // Уменьшаем сам рисунок чекбокса
-                child: Checkbox(
-                  shape: const CircleBorder(),
-                  side: BorderSide(color: isDone ? glassBorderColor : (hasPriority ? priorityColor : (overdue ? _t.danger : glassBorderColor)), width: hasPriority || overdue ? 2.0 : 1.5),
-                  value: isDone,
-                  activeColor: _t.accent,
-                  onChanged: (val) => onToggle(task),
+            Padding(
+              padding: EdgeInsets.only(top: 1 * _s),
+              child: SizedBox(
+                width: 16 * _s,
+                height: 16 * _s,
+                child: Transform.scale(
+                  scale: 0.7 * _s, // Уменьшаем сам рисунок чекбокса
+                  child: Checkbox(
+                    shape: const CircleBorder(),
+                    side: BorderSide(color: isDone ? glassBorderColor : (hasPriority ? priorityColor : (overdue ? _t.danger : glassBorderColor)), width: hasPriority || overdue ? 2.0 : 1.5),
+                    value: isDone,
+                    activeColor: _t.accent,
+                    onChanged: (val) => onToggle(task),
+                  ),
                 ),
               ),
             ),
             SizedBox(width: 4 * _s),
 
             Expanded(
-              child: Text(
-                displayTitle,
-                style: TextStyle(
-                  fontSize: 11 * _s,
-                  fontWeight: FontWeight.w600,
-                  decoration: isDone ? TextDecoration.lineThrough : TextDecoration.none,
-                  color: isDone ? textMuted : textColor,
-                ),
-                maxLines: 1, // Запрет переноса строк
-                overflow: TextOverflow.ellipsis, // Многоточие, если не влезает
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    displayTitle,
+                    style: TextStyle(
+                      fontSize: 11 * _s,
+                      fontWeight: FontWeight.w600,
+                      decoration: isDone ? TextDecoration.lineThrough : TextDecoration.none,
+                      color: isDone ? textMuted : textColor,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (dueTime != null)
+                    Padding(
+                      padding: EdgeInsets.only(top: 1 * _s),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (overdue) Padding(padding: EdgeInsets.only(right: 3 * _s), child: Icon(LucideIcons.alertCircle, size: 9 * _s, color: _t.danger)),
+                          Text(dueTime, style: TextStyle(fontSize: 9.5 * _s, fontWeight: overdue ? FontWeight.bold : FontWeight.normal, color: overdue ? _t.danger : textMuted)),
+                        ],
+                      ),
+                    ),
+                ],
               ),
             ),
 
-            SizedBox(width: 4 * _s),
-
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (overdue) Icon(LucideIcons.alertCircle, size: 10 * _s, color: _t.danger),
-                if (task['due_time'] != null) Text(task['due_time'], style: TextStyle(fontSize: 10 * _s, fontWeight: overdue ? FontWeight.bold : FontWeight.normal, color: overdue ? _t.danger : textMuted)),
-                if (hasRecurrence) Padding(padding: EdgeInsets.only(left: 4 * _s), child: Icon(LucideIcons.repeat, size: 10 * _s, color: isDone ? textMuted : _t.text3)),
-                if (hasSubtasks) Padding(padding: EdgeInsets.only(left: 4 * _s), child: Text("[${stats['done']}/${stats['total']}]", style: TextStyle(fontSize: 10 * _s, fontWeight: FontWeight.bold, color: allDone ? _t.success : textMuted))),
-                if (task['tags'] != null && task['tags'].toString().trim().isNotEmpty) Padding(padding: EdgeInsets.only(left: 4 * _s), child: Text("[${task['tags'].toString().split(',')[0].trim()}]", style: TextStyle(fontSize: 10 * _s, fontWeight: FontWeight.bold, color: _t.accent))),
-              ],
-            ),
-
-            GestureDetector(onTap: () => onDelete(task['id']), child: Padding(padding: EdgeInsets.only(left: 4 * _s), child: Icon(LucideIcons.x, size: 12 * _s, color: textMuted))),
+            GestureDetector(onTap: () => onDelete(task['id']), child: Padding(padding: EdgeInsets.only(left: 4 * _s, top: 1 * _s), child: Icon(LucideIcons.x, size: 12 * _s, color: textMuted))),
           ],
         ),
       ),
@@ -145,7 +155,7 @@ class TaskCardBuilders {
 
     String displayTitle = task['title'] ?? '';
 
-    return GestureDetector(
+    return ClarifyPressable(
       onTap: () => onTap(task),
       child: Container(
         margin: EdgeInsets.only(bottom: 12 * _s), color: Colors.transparent,
@@ -303,7 +313,9 @@ class TaskCardBuilders {
                 );
               }),
             IconButton(
-              icon: Icon(LucideIcons.x, color: _t.danger, size: 26),
+              icon: Icon(LucideIcons.x, color: _t.danger, size: 22),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
               onPressed: () => onDelete(task['id']),
             ),
           ],
