@@ -207,6 +207,26 @@ class ClarifyRadius {
   static const double pill = 999;
 }
 
+/// Брейкпоинты — дискретные состояния раскладки, а не равномерный масштаб.
+/// `_s` (scale-множитель в DesktopPlannerScreen) остаётся только для плавной
+/// подгонки шрифта ВНУТРИ одного брейкпоинта, не через весь диапазон 800–3000px.
+/// См. docs/REDESIGN_V2_PLAN.md §5.1.
+enum ClarifyBreakpoint { mobile, compact, standard, wide }
+
+class ClarifyBreakpoints {
+  ClarifyBreakpoints._();
+  static const double mobile = 700;
+  static const double compact = 1100;
+  static const double wide = 1600;
+
+  static ClarifyBreakpoint of(double width) {
+    if (width < mobile) return ClarifyBreakpoint.mobile;
+    if (width < compact) return ClarifyBreakpoint.compact;
+    if (width < wide) return ClarifyBreakpoint.standard;
+    return ClarifyBreakpoint.wide;
+  }
+}
+
 /// Длительности и кривые движения. [spring] — только для одного жеста
 /// (отметка задачи выполненной), не для переходов по умолчанию.
 class ClarifyMotion {

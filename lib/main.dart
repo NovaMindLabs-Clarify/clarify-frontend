@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
-import 'dart:ui';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:app_links/app_links.dart';
@@ -19,6 +18,7 @@ import 'package:launch_at_startup/launch_at_startup.dart';
 import 'core/config.dart';
 import 'core/localization.dart';
 import 'core/theme/design_tokens.dart';
+import 'widgets/clarify_glass.dart';
 import 'screens/desktop_planner_screen.dart';
 // Вставь это где-то среди других импортов
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -76,7 +76,9 @@ Future<void> main(List<String> args) async {
 
   doWhenWindowReady(() {
     const initialSize = Size(1000, 700);
-    appWindow.minSize = const Size(800, 600);
+    // Ниже 700 по ширине включается мобильная раскладка (см. DesktopPlannerScreen.build) —
+    // минимум снижен, чтобы её можно было реально достичь сужением окна, а не только на вебе/телефоне.
+    appWindow.minSize = const Size(360, 600);
     appWindow.size = initialSize;
     appWindow.alignment = Alignment.center;
     appWindow.title = "Clarify";
@@ -324,20 +326,12 @@ class _AuthScreenState extends State<AuthScreen> {
         width: double.infinity,
         decoration: BoxDecoration(image: DecorationImage(image: AssetImage(bgImagePath), fit: BoxFit.cover)),
         child: Center(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(24),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
-              child: Container(
-                width: 420,
-                padding: const EdgeInsets.all(40),
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.black.withOpacity(0.2) : Colors.white.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: isDark ? Colors.white.withOpacity(0.15) : Colors.white.withOpacity(0.6), width: 1.5),
-                ),
-                child: _isOtpMode ? _buildOtpForm(textColor, textMuted) : _buildAuthForm(textColor, textMuted),
-              ),
+          child: SizedBox(
+            width: 420,
+            child: ClarifyGlass(
+              borderRadius: BorderRadius.circular(24),
+              padding: const EdgeInsets.all(40),
+              child: _isOtpMode ? _buildOtpForm(textColor, textMuted) : _buildAuthForm(textColor, textMuted),
             ),
           ),
         ),
@@ -786,19 +780,12 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
         width: double.infinity,
         decoration: BoxDecoration(image: DecorationImage(image: AssetImage(bgImagePath), fit: BoxFit.cover)),
         child: Center(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(24),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
-              child: Container(
-                width: 450,
-                padding: const EdgeInsets.all(40),
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.black.withOpacity(0.2) : Colors.white.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: isDark ? Colors.white.withOpacity(0.15) : Colors.white.withOpacity(0.6), width: 1.5),
-                ),
-                child: Column(
+          child: SizedBox(
+            width: 450,
+            child: ClarifyGlass(
+              borderRadius: BorderRadius.circular(24),
+              padding: const EdgeInsets.all(40),
+              child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text("Добро пожаловать в".tr(widget.currentLang), style: TextStyle(fontSize: 16, color: textMuted, fontWeight: FontWeight.bold)),
@@ -857,7 +844,8 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
             ),
           ),
         ),
-      ),
     );
   }
 }
+
+

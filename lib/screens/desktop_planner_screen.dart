@@ -17,6 +17,7 @@ import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
 import '../services/task_service.dart';
 import '../widgets/clarify_button.dart';
+import '../widgets/clarify_glass.dart';
 import '../widgets/main_content_area.dart';
 import '../widgets/sidebar_menu.dart';
 import '../widgets/window_buttons.dart';
@@ -199,7 +200,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
       );
 
   Widget _buildGlassContainer({required Widget child, BorderRadius? borderRadius, EdgeInsetsGeometry? padding, EdgeInsetsGeometry? margin, Color? customColor}) {
-    return Container(margin: margin, child: ClipRRect(borderRadius: borderRadius ?? BorderRadius.circular(16), child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 18.0, sigmaY: 18.0), child: Container(padding: padding, decoration: BoxDecoration(color: customColor ?? glassColor, borderRadius: borderRadius ?? BorderRadius.circular(16), border: Border.all(color: glassBorderColor, width: 1.0)), child: child))));
+    return ClarifyGlass(borderRadius: borderRadius, padding: padding, margin: margin, customColor: customColor, child: child);
   }
 
   Widget _buildUserAccountBlock() {
