@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -346,7 +347,7 @@ class _AuthScreenState extends State<AuthScreen> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Icon(Icons.mark_email_read_outlined, size: 48, color: t.accent),
+        Icon(LucideIcons.mailOpen, size: 48, color: t.accent),
         const SizedBox(height: 16),
         Text("Подтверждение".tr(widget.currentLang), textAlign: TextAlign.center, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: textColor)),
         const SizedBox(height: 8),
@@ -517,7 +518,7 @@ class _AuthScreenState extends State<AuthScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text("Clarify", style: TextStyle(fontFamily: 'Unbounded', fontSize: 26, fontWeight: FontWeight.w700, color: textColor, letterSpacing: -0.01)),
-            IconButton(icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode, color: textMuted), onPressed: widget.toggleTheme),
+            IconButton(icon: Icon(isDark ? LucideIcons.sun : LucideIcons.moon, color: textMuted), onPressed: widget.toggleTheme),
           ],
         ),
         const SizedBox(height: 8),
@@ -530,7 +531,7 @@ class _AuthScreenState extends State<AuthScreen> {
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: _loginWithYandex,
-                  icon: const Icon(Icons.login, size: 18), 
+                  icon: const Icon(LucideIcons.logIn, size: 18), 
                   label: const Text('Яндекс', overflow: TextOverflow.ellipsis),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.redAccent,
@@ -559,7 +560,7 @@ class _AuthScreenState extends State<AuthScreen> {
             labelStyle: TextStyle(color: textMuted), 
             filled: true, fillColor: isDark ? Colors.black.withOpacity(0.2) : Colors.white.withOpacity(0.4), 
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-            prefixIcon: Icon(Icons.email_outlined, color: textMuted),
+            prefixIcon: Icon(LucideIcons.mail, color: textMuted),
           ),
         ),
         const SizedBox(height: 24),
@@ -741,7 +742,7 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: Icon(Icons.upload, color: t.accent),
+                leading: Icon(LucideIcons.upload, color: t.accent),
                 title: Text("Загрузить новое".tr(widget.currentLang), style: TextStyle(color: textColor)),
                 onTap: () {
                   Navigator.pop(context);
@@ -752,7 +753,7 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
               if (hasAvatar) ...[
                 const Divider(),
                 ListTile(
-                  leading: Icon(Icons.delete_outline, color: t.danger),
+                  leading: Icon(LucideIcons.trash2, color: t.danger),
                   title: Text(
                     "Удалить текущее".tr(widget.currentLang),
                     style: TextStyle(color: t.danger, fontWeight: FontWeight.bold),
@@ -803,13 +804,13 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
                             backgroundColor: t.surfaceSunken,
                             backgroundImage: _avatarBytes != null ? MemoryImage(_avatarBytes!) : null,
                             child: _avatarBytes == null
-                                ? Icon(Icons.person, size: 50, color: textMuted.withOpacity(0.5))
+                                ? Icon(LucideIcons.user, size: 50, color: textMuted.withOpacity(0.5))
                                 : null,
                           ),
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(color: t.accent, shape: BoxShape.circle, border: Border.all(color: isDark ? Colors.black87 : Colors.white, width: 2)),
-                            child: Icon(Icons.camera_alt, size: 16, color: t.onAccent),
+                            child: Icon(LucideIcons.camera, size: 16, color: t.onAccent),
                           ),
                         ],
                       ),

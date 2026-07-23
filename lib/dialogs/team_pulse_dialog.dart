@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../widgets/clarify_surface.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
@@ -79,12 +80,12 @@ void showTeamPulseDialog({
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.monitor_heart, color: t.accent, size: 28 * s),
+                          Icon(LucideIcons.heartPulse, color: t.accent, size: 28 * s),
                           SizedBox(width: 12 * s),
                           Text("Пульс команды".tr(currentLang), style: TextStyle(fontSize: 20 * s, fontWeight: FontWeight.w900, color: textColor)),
                         ],
                       ),
-                      IconButton(icon: Icon(Icons.close, color: textMuted), onPressed: () => Navigator.pop(context)),
+                      IconButton(icon: Icon(LucideIcons.x, color: textMuted), onPressed: () => Navigator.pop(context)),
                     ],
                   ),
                   SizedBox(height: 24 * s),

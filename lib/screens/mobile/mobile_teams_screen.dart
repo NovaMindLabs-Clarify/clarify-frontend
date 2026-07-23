@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/localization.dart';
 import '../../core/theme/design_tokens.dart';
 import '../../widgets/clarify_button.dart';
@@ -54,7 +55,7 @@ class MobileTeamsScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('Команды'.tr(currentLang), style: TextStyle(fontFamily: 'Golos Text', fontSize: 22, fontWeight: FontWeight.w700, color: t.text)),
-              ClarifyIconButton(icon: Icons.add_business_outlined, onPressed: onAddWorkspace, tooltip: 'Новая команда'.tr(currentLang)),
+              ClarifyIconButton(icon: LucideIcons.building2, onPressed: onAddWorkspace, tooltip: 'Новая команда'.tr(currentLang)),
             ],
           ),
         ),
@@ -103,7 +104,7 @@ class MobileTeamsScreen extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                             child: Row(
                               children: [
-                                Icon(Icons.group_work_outlined, color: wsColor, size: 22),
+                                Icon(LucideIcons.usersRound, color: wsColor, size: 22),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
@@ -115,7 +116,7 @@ class MobileTeamsScreen extends StatelessWidget {
                                     ],
                                   ),
                                 ),
-                                Icon(Icons.chevron_right, color: t.text3),
+                                Icon(LucideIcons.chevronRight, color: t.text3),
                               ],
                             ),
                           ),
@@ -174,7 +175,7 @@ class _WorkspaceDetailPage extends StatelessWidget {
         foregroundColor: t.text,
         title: Text(workspace['name']?.toString() ?? '', style: TextStyle(fontFamily: 'Golos Text', fontWeight: FontWeight.w700)),
         actions: [
-          ClarifyIconButton(icon: Icons.monitor_heart_outlined, onPressed: onShowPulse, tooltip: 'Пульс команды'.tr(currentLang)),
+          ClarifyIconButton(icon: LucideIcons.heartPulse, onPressed: onShowPulse, tooltip: 'Пульс команды'.tr(currentLang)),
           const SizedBox(width: 4),
         ],
       ),
@@ -206,7 +207,7 @@ class _WorkspaceDetailPage extends StatelessWidget {
                           ),
                         ),
                 ),
-                ClarifyButton(variant: ClarifyButtonVariant.outline, icon: Icons.person_add_alt_1, label: 'Пригласить'.tr(currentLang), onPressed: onInvite),
+                ClarifyButton(variant: ClarifyButtonVariant.outline, icon: LucideIcons.userPlus, label: 'Пригласить'.tr(currentLang), onPressed: onInvite),
               ],
             ),
           ),
@@ -251,11 +252,11 @@ class _EmptyTeams extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.groups_outlined, size: 40, color: t.text3),
+            Icon(LucideIcons.usersRound, size: 40, color: t.text3),
             const SizedBox(height: 16),
             Text('Пока нет ни одной команды'.tr(currentLang), textAlign: TextAlign.center, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: t.text2)),
             const SizedBox(height: 16),
-            ClarifyButton(variant: ClarifyButtonVariant.filled, icon: Icons.add, label: 'Создать команду'.tr(currentLang), onPressed: onAddWorkspace),
+            ClarifyButton(variant: ClarifyButtonVariant.filled, icon: LucideIcons.plus, label: 'Создать команду'.tr(currentLang), onPressed: onAddWorkspace),
           ],
         ),
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../core/theme/design_tokens.dart';
 
 /// Строит карточки задачи для трёх представлений (список, доска "7 дней",
@@ -106,15 +107,15 @@ class TaskCardBuilders {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (overdue) Icon(Icons.error_outline, size: 10 * _s, color: _t.danger),
+                if (overdue) Icon(LucideIcons.alertCircle, size: 10 * _s, color: _t.danger),
                 if (task['due_time'] != null) Text(task['due_time'], style: TextStyle(fontSize: 10 * _s, fontWeight: overdue ? FontWeight.bold : FontWeight.normal, color: overdue ? _t.danger : textMuted)),
-                if (hasRecurrence) Padding(padding: EdgeInsets.only(left: 4 * _s), child: Icon(Icons.repeat, size: 10 * _s, color: isDone ? textMuted : _t.text3)),
+                if (hasRecurrence) Padding(padding: EdgeInsets.only(left: 4 * _s), child: Icon(LucideIcons.repeat, size: 10 * _s, color: isDone ? textMuted : _t.text3)),
                 if (hasSubtasks) Padding(padding: EdgeInsets.only(left: 4 * _s), child: Text("[${stats['done']}/${stats['total']}]", style: TextStyle(fontSize: 10 * _s, fontWeight: FontWeight.bold, color: allDone ? _t.success : textMuted))),
                 if (task['tags'] != null && task['tags'].toString().trim().isNotEmpty) Padding(padding: EdgeInsets.only(left: 4 * _s), child: Text("[${task['tags'].toString().split(',')[0].trim()}]", style: TextStyle(fontSize: 10 * _s, fontWeight: FontWeight.bold, color: _t.accent))),
               ],
             ),
 
-            GestureDetector(onTap: () => onDelete(task['id']), child: Padding(padding: EdgeInsets.only(left: 4 * _s), child: Icon(Icons.close, size: 12 * _s, color: textMuted))),
+            GestureDetector(onTap: () => onDelete(task['id']), child: Padding(padding: EdgeInsets.only(left: 4 * _s), child: Icon(LucideIcons.x, size: 12 * _s, color: textMuted))),
           ],
         ),
       ),
@@ -157,7 +158,7 @@ class TaskCardBuilders {
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center, // <-- Центрируем иконку и время
                 children: [
-                  if (overdue) Padding(padding: EdgeInsets.only(bottom: 2 * _s), child: Icon(Icons.error_outline, size: 16 * _s, color: _t.danger)),
+                  if (overdue) Padding(padding: EdgeInsets.only(bottom: 2 * _s), child: Icon(LucideIcons.alertCircle, size: 16 * _s, color: _t.danger)),
                   Text(task['due_time'] ?? '--:--', style: TextStyle(fontSize: 13 * _s, fontWeight: FontWeight.bold, color: overdue ? _t.danger : textMuted)),
                 ],
               ),
@@ -201,7 +202,7 @@ class TaskCardBuilders {
                                 runSpacing: 4 * _s,
                                 crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
-                                  if (hasRecurrence) Icon(Icons.repeat, size: 14 * _s, color: isDone ? textMuted : _t.text3),
+                                  if (hasRecurrence) Icon(LucideIcons.repeat, size: 14 * _s, color: isDone ? textMuted : _t.text3),
                                   if (hasSubtasks) Text("[${stats['done']}/${stats['total']}]", style: TextStyle(fontSize: 12 * _s, fontWeight: FontWeight.bold, color: allDone ? _t.success : textMuted)),
                                   if (task['tags'] != null && task['tags'].toString().trim().isNotEmpty)
                                     GestureDetector(onTap: () => onTagTap(task['tags'].toString().split(',')[0].trim()), child: Text("[${task['tags'].toString().split(',')[0].trim()}]", style: TextStyle(fontSize: 12 * _s, fontWeight: FontWeight.bold, color: _t.accent))),
@@ -211,7 +212,7 @@ class TaskCardBuilders {
                         ],
                       ),
                     ),
-                    IconButton(padding: EdgeInsets.zero, constraints: const BoxConstraints(), icon: Icon(Icons.close, size: 18 * _s, color: textMuted), onPressed: () => onDelete(task['id'])),
+                    IconButton(padding: EdgeInsets.zero, constraints: const BoxConstraints(), icon: Icon(LucideIcons.x, size: 18 * _s, color: textMuted), onPressed: () => onDelete(task['id'])),
                   ],
                 ),
               ),
@@ -249,7 +250,7 @@ class TaskCardBuilders {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            if (hasRecurrence) Padding(padding: const EdgeInsets.only(left: 8), child: Icon(Icons.repeat, size: 16, color: isDone ? textMuted : _t.text3)),
+            if (hasRecurrence) Padding(padding: const EdgeInsets.only(left: 8), child: Icon(LucideIcons.repeat, size: 16, color: isDone ? textMuted : _t.text3)),
             if (hasSubtasks) Padding(padding: const EdgeInsets.only(left: 12), child: Text("[${stats['done']}/${stats['total']}]", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: allDone ? _t.success : textMuted))),
           ],
         ),
@@ -259,7 +260,7 @@ class TaskCardBuilders {
                 child: Row(
                   children: [
                     if (task['due_date'] != null || task['due_time'] != null) ...[
-                      if (overdue) Padding(padding: const EdgeInsets.only(right: 4), child: Icon(Icons.error_outline, size: 16, color: _t.danger)),
+                      if (overdue) Padding(padding: const EdgeInsets.only(right: 4), child: Icon(LucideIcons.alertCircle, size: 16, color: _t.danger)),
                       Text("${task['due_date'] != null ? '${task['due_date']} ' : ''}${task['due_time'] ?? ''}  ", style: TextStyle(fontSize: 14, color: overdue ? _t.danger : textMuted, fontWeight: overdue ? FontWeight.bold : FontWeight.normal)),
                     ],
                     if (task['tags'] != null && task['tags'].toString().trim().isNotEmpty) GestureDetector(onTap: () => onTagTap(task['tags'].toString().split(',')[0].trim()), child: Padding(padding: const EdgeInsets.only(right: 12), child: Text("[${task['tags'].toString().split(',')[0].trim()}]", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _t.accent)))),
@@ -302,7 +303,7 @@ class TaskCardBuilders {
                 );
               }),
             IconButton(
-              icon: Icon(Icons.close, color: _t.danger, size: 26),
+              icon: Icon(LucideIcons.x, color: _t.danger, size: 26),
               onPressed: () => onDelete(task['id']),
             ),
           ],

@@ -55,7 +55,7 @@ dependencies:
   local_notifier: ^0.1.6
   auto_size_text: ^3.0.0
   confetti: ^0.7.0
-  phosphor_flutter: ^2.1.0
+  lucide_icons_flutter: ^3.1.15
 
 dev_dependencies:
   flutter_test:

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
 
@@ -41,7 +42,7 @@ class AiChatPanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(padding: const EdgeInsets.fromLTRB(24, 32, 24, 24), decoration: BoxDecoration(border: Border(bottom: BorderSide(color: glassBorderColor))), child: Row(children: [Icon(Icons.auto_awesome, color: t.accent, size: 28), const SizedBox(width: 12), Text("AI Ассистент".tr(currentLang), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor))])),
+        Container(padding: const EdgeInsets.fromLTRB(24, 32, 24, 24), decoration: BoxDecoration(border: Border(bottom: BorderSide(color: glassBorderColor))), child: Row(children: [Icon(LucideIcons.sparkles, color: t.accent, size: 28), const SizedBox(width: 12), Text("AI Ассистент".tr(currentLang), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor))])),
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.all(20), itemCount: chatMessages.length,
@@ -62,8 +63,8 @@ class AiChatPanel extends StatelessWidget {
               suffixIcon: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(margin: const EdgeInsets.symmetric(horizontal: 4), decoration: BoxDecoration(color: isListening ? t.dangerSoft : Colors.transparent, shape: BoxShape.circle), child: IconButton(icon: Icon(isListening ? Icons.mic : Icons.mic_none, color: isListening ? t.danger : t.accent, size: 24), onPressed: onToggleListening)),
-                  IconButton(icon: Icon(Icons.send_rounded, color: t.accent, size: 24), onPressed: () => onSend(controller.text)),
+                  Container(margin: const EdgeInsets.symmetric(horizontal: 4), decoration: BoxDecoration(color: isListening ? t.dangerSoft : Colors.transparent, shape: BoxShape.circle), child: IconButton(icon: Icon(isListening ? LucideIcons.mic : LucideIcons.micOff, color: isListening ? t.danger : t.accent, size: 24), onPressed: onToggleListening)),
+                  IconButton(icon: Icon(LucideIcons.send, color: t.accent, size: 24), onPressed: () => onSend(controller.text)),
                 ],
               ),
             ),

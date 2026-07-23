@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../widgets/clarify_surface.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
@@ -50,7 +51,7 @@ void showSearchDialog({
                         hintText: "Поиск задач...".tr(currentLang),
                         hintStyle: TextStyle(color: textMuted),
                         border: InputBorder.none,
-                        icon: Icon(Icons.search, color: t.accent, size: 28),
+                        icon: Icon(LucideIcons.search, color: t.accent, size: 28),
                       ),
                       onChanged: (val) => setStateDialog(() => query = val),
                     ),
@@ -71,7 +72,7 @@ void showSearchDialog({
                                 return ListTile(
                                   title: Text(task['title'] ?? '', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
                                   subtitle: task['note'] != null ? Text(task['note'], maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: textMuted)) : null,
-                                  trailing: Icon(Icons.arrow_forward_ios, size: 14, color: t.accent),
+                                  trailing: Icon(LucideIcons.chevronRight, size: 14, color: t.accent),
                                   onTap: () {
                                     Navigator.pop(context);
                                     onTaskSelected(task);

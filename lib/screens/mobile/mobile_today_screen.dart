@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/localization.dart';
 import '../../core/theme/design_tokens.dart';
 import 'widgets/mobile_task_row.dart';
@@ -89,10 +90,10 @@ class MobileTodayScreen extends StatelessWidget {
                 decoration: BoxDecoration(color: t.surface2, borderRadius: BorderRadius.circular(ClarifyRadius.md), border: Border.all(color: t.border)),
                 child: Row(
                   children: [
-                    Icon(Icons.inbox_outlined, size: 18, color: t.text2),
+                    Icon(LucideIcons.inbox, size: 18, color: t.text2),
                     const SizedBox(width: 10),
                     Expanded(child: Text('Входящие: $inboxCount без даты'.tr(currentLang), style: TextStyle(fontSize: 13, color: t.text2, fontWeight: FontWeight.w500))),
-                    Icon(Icons.chevron_right, size: 18, color: t.text3),
+                    Icon(LucideIcons.chevronRight, size: 18, color: t.text3),
                   ],
                 ),
               ),
@@ -165,7 +166,7 @@ class _EmptyToday extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.wb_sunny_outlined, size: 40, color: t.text3),
+            Icon(LucideIcons.sun, size: 40, color: t.text3),
             const SizedBox(height: 16),
             Text('На сегодня ничего не запланировано'.tr(currentLang), textAlign: TextAlign.center, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: t.text2)),
             const SizedBox(height: 6),

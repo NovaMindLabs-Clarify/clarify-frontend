@@ -1,5 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../widgets/clarify_surface.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -121,7 +122,7 @@ void showAccountSettingsDialog({
                           if (isLoading)
                             const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                           else
-                            IconButton(icon: Icon(Icons.close, color: textMuted), onPressed: () => Navigator.pop(context))
+                            IconButton(icon: Icon(LucideIcons.x, color: textMuted), onPressed: () => Navigator.pop(context))
                         ]
                       ),
                       const SizedBox(height: 24),
@@ -139,7 +140,7 @@ void showAccountSettingsDialog({
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   ListTile(
-                                    leading: Icon(Icons.upload, color: t.accent),
+                                    leading: Icon(LucideIcons.upload, color: t.accent),
                                     title: Text("Загрузить новое".tr(currentLang), style: TextStyle(color: textColor)),
                                     onTap: () {
                                       Navigator.pop(dialogCtx);
@@ -149,7 +150,7 @@ void showAccountSettingsDialog({
                                   if (hasAvatar) ...[
                                     const Divider(),
                                     ListTile(
-                                      leading: Icon(Icons.delete_outline, color: t.danger),
+                                      leading: Icon(LucideIcons.trash2, color: t.danger),
                                       title: Text("Удалить текущее".tr(currentLang), style: TextStyle(color: t.danger, fontWeight: FontWeight.bold)),
                                       onTap: () {
                                         Navigator.pop(dialogCtx);
@@ -176,7 +177,7 @@ void showAccountSettingsDialog({
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(color: t.accent, shape: BoxShape.circle, border: Border.all(color: glassBorderColor, width: 2)),
-                              child: Icon(Icons.camera_alt, size: 16, color: t.onAccent),
+                              child: Icon(LucideIcons.camera, size: 16, color: t.onAccent),
                             ),
                           ],
                         ),
@@ -219,7 +220,7 @@ void showAccountSettingsDialog({
                         children: [
                           Row(
                             children: [
-                              Icon(Icons.rocket_launch, color: textColor, size: 20),
+                              Icon(LucideIcons.rocket, color: textColor, size: 20),
                               const SizedBox(width: 8),
                               Text("Автозапуск с Windows".tr(currentLang), style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
                             ],
@@ -245,7 +246,7 @@ void showAccountSettingsDialog({
                         children: [
                           Row(
                             children: [
-                              Icon(Icons.language, color: textColor, size: 20),
+                              Icon(LucideIcons.globe, color: textColor, size: 20),
                               const SizedBox(width: 8),
                               Text("Язык".tr(currentLang), style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
                             ],
@@ -286,7 +287,7 @@ void showAccountSettingsDialog({
                             side: BorderSide(color: t.accent.withValues(alpha: 0.5)),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
                           ),
-                          icon: Icon(Icons.telegram, color: t.accent, size: 20),
+                          icon: Icon(LucideIcons.send, color: t.accent, size: 20),
                           label: Text("Поддержка".tr(currentLang), style: TextStyle(color: t.accent, fontWeight: FontWeight.bold)),
                           onPressed: () async {
                             final Uri url = Uri.parse(AppConfig.telegramSupportUrl);
@@ -318,7 +319,7 @@ void showAccountSettingsDialog({
                           width: double.infinity,
                           child: OutlinedButton.icon(
                             style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16), side: BorderSide(color: glassBorderColor), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                            icon: Icon(hasPasswordAuth ? Icons.lock_outline : Icons.vpn_key_outlined, color: textColor, size: 20),
+                            icon: Icon(hasPasswordAuth ? LucideIcons.lock : LucideIcons.key, color: textColor, size: 20),
                             label: Text(hasPasswordAuth ? "Изменить пароль".tr(currentLang) : "Установить пароль".tr(currentLang), style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
                             onPressed: () => setStateDialog(() => isChangingPassword = true)
                           ),
@@ -395,7 +396,7 @@ void showAccountSettingsDialog({
                         width: double.infinity,
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(backgroundColor: t.dangerSoft, foregroundColor: t.danger, padding: const EdgeInsets.symmetric(vertical: 16), elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: t.danger))),
-                          icon: const Icon(Icons.exit_to_app, size: 20),
+                          icon: const Icon(LucideIcons.logOut, size: 20),
                           label: Text("Выйти из аккаунта".tr(currentLang), style: TextStyle(fontWeight: FontWeight.bold)),
                           onPressed: () async {
                             if (context.mounted) Navigator.of(context).pop();

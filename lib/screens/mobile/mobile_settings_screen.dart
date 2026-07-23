@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/localization.dart';
 import '../../core/theme/design_tokens.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -63,7 +64,7 @@ class MobileSettingsScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                  Icon(Icons.chevron_right, color: t.text3),
+                  Icon(LucideIcons.chevronRight, color: t.text3),
                 ],
               ),
             ),
@@ -72,12 +73,12 @@ class MobileSettingsScreen extends StatelessWidget {
         const SizedBox(height: 20),
 
         _SectionLabel(text: 'Обзор'.tr(currentLang)),
-        _SettingsTile(icon: Icons.bar_chart_outlined, label: 'Статистика'.tr(currentLang), onTap: onOpenStatistics),
+        _SettingsTile(icon: LucideIcons.chartBar, label: 'Статистика'.tr(currentLang), onTap: onOpenStatistics),
 
         const SizedBox(height: 20),
         _SectionLabel(text: 'Оформление'.tr(currentLang)),
         _SettingsSwitchTile(
-          icon: isDark ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
+          icon: isDark ? LucideIcons.moon : LucideIcons.sun,
           label: 'Тёмная тема'.tr(currentLang),
           value: isDark,
           onChanged: (_) => toggleTheme(),
@@ -126,7 +127,7 @@ class _SettingsTile extends StatelessWidget {
                 Icon(icon, size: 20, color: t.text2),
                 const SizedBox(width: 12),
                 Expanded(child: Text(label, style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600, color: t.text))),
-                Icon(Icons.chevron_right, size: 18, color: t.text3),
+                Icon(LucideIcons.chevronRight, size: 18, color: t.text3),
               ],
             ),
           ),
@@ -177,7 +178,7 @@ class _LanguageTile extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: Row(
         children: [
-          Icon(Icons.language, size: 20, color: t.text2),
+          Icon(LucideIcons.globe, size: 20, color: t.text2),
           const SizedBox(width: 12),
           Expanded(child: Text('Язык'.tr(currentLang), style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600, color: t.text))),
           _LangButton(label: 'RU', active: currentLang == 'ru', onTap: () => changeLang('ru')),

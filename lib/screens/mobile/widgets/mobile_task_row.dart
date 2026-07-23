@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../core/theme/design_tokens.dart';
 
 /// Строка задачи, общая для "Сегодня", "Задачи" и "Команды" на мобильной
@@ -57,7 +58,7 @@ class MobileTaskRow extends StatelessWidget {
                     child: Padding(
                       padding: const EdgeInsets.only(top: 2, right: 10),
                       child: Icon(
-                        isDone ? Icons.check_circle : Icons.circle_outlined,
+                        isDone ? LucideIcons.checkCircle : LucideIcons.circle,
                         size: 22,
                         color: isDone ? t.success : (overdue ? t.danger : t.text3),
                       ),
@@ -97,7 +98,7 @@ class MobileTaskRow extends StatelessWidget {
                     ),
                   ),
                   IconButton(
-                    icon: Icon(Icons.close, size: 16, color: t.text3),
+                    icon: Icon(LucideIcons.x, size: 16, color: t.text3),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                     onPressed: onDelete,

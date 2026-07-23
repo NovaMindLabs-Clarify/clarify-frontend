@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
 
@@ -134,7 +135,7 @@ class MainContentArea extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Padding(padding: EdgeInsets.fromLTRB(16 * scale, 20 * scale, 16 * scale, 12 * scale), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title.tr(currentLang), style: TextStyle(fontSize: 16 * scale, fontWeight: FontWeight.bold, color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis), SizedBox(height: 4 * scale), Text(subtitle.tr(currentLang), style: TextStyle(fontSize: 13 * scale, color: textMuted, fontWeight: FontWeight.w600))])),
-                  Padding(padding: EdgeInsets.fromLTRB(12 * scale, 0, 12 * scale, 16 * scale), child: InkWell(borderRadius: BorderRadius.circular(12 * scale), onTap: () => onPlusTap(targetDate, dayTasks.length), child: Container(width: double.infinity, padding: EdgeInsets.symmetric(vertical: 6 * scale), decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(12 * scale), border: Border.all(color: glassBorderColor, width: 1.0)), child: Icon(Icons.add, size: 16 * scale, color: textMuted)), ), ),
+                  Padding(padding: EdgeInsets.fromLTRB(12 * scale, 0, 12 * scale, 16 * scale), child: InkWell(borderRadius: BorderRadius.circular(12 * scale), onTap: () => onPlusTap(targetDate, dayTasks.length), child: Container(width: double.infinity, padding: EdgeInsets.symmetric(vertical: 6 * scale), decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(12 * scale), border: Border.all(color: glassBorderColor, width: 1.0)), child: Icon(LucideIcons.plus, size: 16 * scale, color: textMuted)), ), ),
                   Expanded(child: ListView.builder(padding: EdgeInsets.symmetric(horizontal: 12 * scale), itemCount: dayTasks.length, itemBuilder: (context, taskIndex) { final task = dayTasks[taskIndex]; return LongPressDraggable<Map<String, dynamic>>(data: task, delay: const Duration(milliseconds: 200), feedback: Material(color: Colors.transparent, child: SizedBox(width: 250 * scale, child: buildBoardTaskCardExpanded(task))), childWhenDragging: Opacity(opacity: 0.3, child: buildBoardTaskCardExpanded(task)), child: buildBoardTaskCardExpanded(task)); }), ),
                 ],
               ),
@@ -188,7 +189,7 @@ class MainContentArea extends StatelessWidget {
 
         return Column(
         children: [
-          Padding(padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 12 * scale), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text("${monthsRu[month].tr(currentLang)} $year", style: TextStyle(fontSize: 24 * scale, fontWeight: FontWeight.bold, color: textColor)), Row(children: [IconButton(icon: Icon(Icons.chevron_left, color: textColor, size: 28 * scale), onPressed: () => onCalendarDateChanged(DateTime(year, month - 1))), IconButton(icon: Icon(Icons.chevron_right, color: textColor, size: 28 * scale), onPressed: () => onCalendarDateChanged(DateTime(year, month + 1))), ], )], ), ),
+          Padding(padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 12 * scale), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text("${monthsRu[month].tr(currentLang)} $year", style: TextStyle(fontSize: 24 * scale, fontWeight: FontWeight.bold, color: textColor)), Row(children: [IconButton(icon: Icon(LucideIcons.chevronLeft, color: textColor, size: 28 * scale), onPressed: () => onCalendarDateChanged(DateTime(year, month - 1))), IconButton(icon: Icon(LucideIcons.chevronRight, color: textColor, size: 28 * scale), onPressed: () => onCalendarDateChanged(DateTime(year, month + 1))), ], )], ), ),
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 24 * scale),
             child: isCompactHeader
@@ -239,7 +240,7 @@ class MainContentArea extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Padding(padding: EdgeInsets.only(bottom: 8 * scale, left: 8 * scale, top: 4 * scale), child: Text("$dayNumber", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18 * scale, color: cellDateStr == _formatDate(DateTime.now()) ? t.accent : textColor)),),
-                              Expanded(child: Column(mainAxisAlignment: MainAxisAlignment.spaceBetween, crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(child: ScrollConfiguration(behavior: const ScrollBehavior().copyWith(scrollbars: false), child: ListView.builder(padding: EdgeInsets.zero, itemCount: dayTasks.length, itemBuilder: (context, taskIndex) => buildCalendarTaskCard(dayTasks[taskIndex])), ), ), Align(alignment: Alignment.bottomCenter, child: InkWell(onTap: () => onPlusTap(cellDate, taskCount), child: Padding(padding: EdgeInsets.only(bottom: 4 * scale), child: Icon(Icons.add, color: textMuted, size: 20 * scale), ), ), )], ), ),
+                              Expanded(child: Column(mainAxisAlignment: MainAxisAlignment.spaceBetween, crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(child: ScrollConfiguration(behavior: const ScrollBehavior().copyWith(scrollbars: false), child: ListView.builder(padding: EdgeInsets.zero, itemCount: dayTasks.length, itemBuilder: (context, taskIndex) => buildCalendarTaskCard(dayTasks[taskIndex])), ), ), Align(alignment: Alignment.bottomCenter, child: InkWell(onTap: () => onPlusTap(cellDate, taskCount), child: Padding(padding: EdgeInsets.only(bottom: 4 * scale), child: Icon(LucideIcons.plus, color: textMuted, size: 20 * scale), ), ), )], ), ),
                             ],
                           ),
                         );

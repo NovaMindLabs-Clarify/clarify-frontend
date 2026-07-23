@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:speech_to_text/speech_to_text.dart' as stt;
@@ -509,7 +510,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.wifi_off, color: Colors.white),
+                const Icon(LucideIcons.wifiOff, color: Colors.white),
                 const SizedBox(width: 12),
                 Text("Нет сети. Работаем локально!".tr(widget.currentLang)),
               ],
@@ -779,7 +780,7 @@ void _checkBurnoutWarning(String dateStr) {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.self_improvement, size: 60 * _s, color: _tokens.accent),
+                    Icon(LucideIcons.flower, size: 60 * _s, color: _tokens.accent),
                     SizedBox(height: 20 * _s),
                     Text("Эй, притормози! 🛑", style: TextStyle(color: textColor, fontSize: 24 * _s, fontWeight: FontWeight.w900)),
                     SizedBox(height: 12 * _s),
@@ -1167,7 +1168,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                                           child: Text(initial, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14 * _s)),
                                                         ),
                                                         if (isZen)
-                                                          Icon(Icons.self_improvement, color: Colors.white.withOpacity(0.9), size: 20 * _s),
+                                                          Icon(LucideIcons.flower, color: Colors.white.withOpacity(0.9), size: 20 * _s),
                                                           
                                                         // 🚀 РИСУЕМ БЕЙДЖИК НАГРУЗКИ
                                                         if (!isZen && todayTasksCount > 0)
@@ -1204,7 +1205,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                         child: ClarifyButton(
                                           variant: ClarifyButtonVariant.outline,
                                           scale: _s,
-                                          icon: Icons.person_add_alt_1,
+                                          icon: LucideIcons.userPlus,
                                           label: "Пригласить".tr(widget.currentLang),
                                           onPressed: () => showInviteMemberDialog(
                                             context: context,
@@ -1223,7 +1224,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                     if (_isOffline)
                                       Padding(
                                         padding: EdgeInsets.only(right: 12 * _s),
-                                        child: Icon(Icons.cloud_off, color: _tokens.warning, size: 24 * _s),
+                                        child: Icon(LucideIcons.cloudOff, color: _tokens.warning, size: 24 * _s),
                                       ),
 
                                     if (_pendingOpsCount > 0)
@@ -1231,7 +1232,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                         padding: EdgeInsets.only(right: 12 * _s),
                                         child: Tooltip(
                                           message: "Несинхронизированных изменений: $_pendingOpsCount".tr(widget.currentLang),
-                                          child: Icon(Icons.sync_problem, color: _tokens.warning, size: 24 * _s),
+                                          child: Icon(LucideIcons.cloudAlert, color: _tokens.warning, size: 24 * _s),
                                         ),
                                       ),
 
@@ -1240,7 +1241,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                     ClarifyButton(
                                       variant: _isMyZenActive ? ClarifyButtonVariant.filled : ClarifyButtonVariant.outline,
                                       scale: _s,
-                                      icon: Icons.self_improvement,
+                                      icon: LucideIcons.flower,
                                       label: _isMyZenActive ? "В фокусе".tr(widget.currentLang) : "Фокусирование".tr(widget.currentLang),
                                       onPressed: _toggleZenMode,
                                     ),
@@ -1248,7 +1249,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                     // Пульс команды (только внутри воркспейса) — нейтральная иконка, не тревожный красный
                                     if (selectedMenu.startsWith('ws_')) ...[
                                       ClarifyIconButton(
-                                        icon: Icons.monitor_heart_outlined,
+                                        icon: LucideIcons.heartPulse,
                                         scale: _s,
                                         tooltip: "Пульс команды".tr(widget.currentLang),
                                         onPressed: () => showTeamPulseDialog(
@@ -1266,10 +1267,10 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                       ),
                                       SizedBox(width: 4 * _s),
                                     ],
-                                    ClarifyIconButton(icon: Icons.refresh, scale: _s, onPressed: _fetchTasks),
+                                    ClarifyIconButton(icon: LucideIcons.refreshCw, scale: _s, onPressed: _fetchTasks),
                                     SizedBox(width: 4 * _s),
                                     ClarifyIconButton(
-                                      icon: isDark ? Icons.light_mode : Icons.dark_mode,
+                                      icon: isDark ? LucideIcons.sun : LucideIcons.moon,
                                       scale: _s,
                                       onPressed: widget.toggleTheme,
                                     ),
@@ -1277,7 +1278,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                     ClarifyButton(
                                       variant: rightPanelState == 'ai' ? ClarifyButtonVariant.outline : ClarifyButtonVariant.filled,
                                       scale: _s,
-                                      icon: rightPanelState == 'ai' ? Icons.close : Icons.auto_awesome,
+                                      icon: rightPanelState == 'ai' ? LucideIcons.x : LucideIcons.sparkles,
                                       label: rightPanelState == 'ai' ? "Закрыть чат".tr(widget.currentLang) : "AI Ассистент".tr(widget.currentLang),
                                       onPressed: () => setState(() => rightPanelState = rightPanelState == 'ai' ? 'none' : 'ai'),
                                     ),
@@ -1296,9 +1297,9 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Icon(Icons.filter_alt, size: 18 * _s, color: _tokens.accent), SizedBox(width: 8 * _s),
+                                        Icon(LucideIcons.funnel, size: 18 * _s, color: _tokens.accent), SizedBox(width: 8 * _s),
                                         Text("Тег: #$activeTagFilter".tr(widget.currentLang), style: TextStyle(color: _tokens.accent, fontWeight: FontWeight.bold, fontSize: 15 * _s)), SizedBox(width: 12 * _s),
-                                        InkWell(onTap: () => setState(() => activeTagFilter = null), child: Container(padding: EdgeInsets.all(4 * _s), decoration: BoxDecoration(shape: BoxShape.circle, color: _tokens.accent.withValues(alpha: 0.6)), child: Icon(Icons.close, size: 14 * _s, color: _tokens.onAccent),))
+                                        InkWell(onTap: () => setState(() => activeTagFilter = null), child: Container(padding: EdgeInsets.all(4 * _s), decoration: BoxDecoration(shape: BoxShape.circle, color: _tokens.accent.withValues(alpha: 0.6)), child: Icon(LucideIcons.x, size: 14 * _s, color: _tokens.onAccent),))
                                       ],
                                     )
                                   ),
@@ -1407,7 +1408,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
           padding: EdgeInsets.only(right: rightPanelState != 'none' ? 360.0 * _s : 0.0, bottom: 24.0 * _s),
           child: FloatingActionButton.extended(
             onPressed: () { if (_isDuplicating && _taskToDuplicate != null) { _showManualAddDialog(preselectedDate: DateTime.now(), sourceTaskForDuplicate: _taskToDuplicate); } else { _showManualAddDialog(); } },
-            backgroundColor: Colors.blueAccent, foregroundColor: Colors.white, elevation: 8, icon: Icon(Icons.add, size: 26 * _s), label: Text("Создать задачу".tr(widget.currentLang), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _s)),
+            backgroundColor: Colors.blueAccent, foregroundColor: Colors.white, elevation: 8, icon: Icon(LucideIcons.plus, size: 26 * _s), label: Text("Создать задачу".tr(widget.currentLang), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _s)),
           ),
         ),
       ),

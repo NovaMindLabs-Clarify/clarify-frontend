@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../widgets/clarify_surface.dart';
 import '../core/config.dart';
 import '../core/localization.dart';
@@ -70,7 +71,7 @@ void showEditTaskDialog({
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text("Редактировать".tr(currentLang), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: textColor)),
-                          IconButton(icon: Icon(Icons.close, color: textMuted), onPressed: () => Navigator.pop(context))
+                          IconButton(icon: Icon(LucideIcons.x, color: textMuted), onPressed: () => Navigator.pop(context))
                         ]
                       ),
                       const SizedBox(height: 16),
@@ -88,7 +89,7 @@ void showEditTaskDialog({
                               child: Container(
                                 margin: const EdgeInsets.only(right: 8), width: 26, height: 26,
                                 decoration: BoxDecoration(color: btnColor, shape: BoxShape.circle, border: isSelected ? Border.all(color: textColor, width: 2) : Border.all(color: glassBorderColor, width: 1)),
-                                child: isSelected && pVal == 'none' ? Icon(Icons.close, size: 14, color: textMuted) : null,
+                                child: isSelected && pVal == 'none' ? Icon(LucideIcons.x, size: 14, color: textMuted) : null,
                               ),
                             );
                           }),
@@ -97,9 +98,9 @@ void showEditTaskDialog({
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          Expanded(child: OutlinedButton.icon(icon: Icon(Icons.calendar_today, size: 18, color: textColor), label: Text(selectedDate == null ? "Без даты".tr(currentLang) : formatDate(selectedDate!), style: TextStyle(color: textColor)), style: OutlinedButton.styleFrom(side: BorderSide(color: glassBorderColor), padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), onPressed: () async { final picked = await showDatePicker(context: context, initialDate: selectedDate ?? DateTime.now(), firstDate: DateTime(2000), lastDate: DateTime(2101)); if (picked != null) setStateDialog(() => selectedDate = picked); })),
+                          Expanded(child: OutlinedButton.icon(icon: Icon(LucideIcons.calendar, size: 18, color: textColor), label: Text(selectedDate == null ? "Без даты".tr(currentLang) : formatDate(selectedDate!), style: TextStyle(color: textColor)), style: OutlinedButton.styleFrom(side: BorderSide(color: glassBorderColor), padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), onPressed: () async { final picked = await showDatePicker(context: context, initialDate: selectedDate ?? DateTime.now(), firstDate: DateTime(2000), lastDate: DateTime(2101)); if (picked != null) setStateDialog(() => selectedDate = picked); })),
                           const SizedBox(width: 12),
-                          Expanded(child: OutlinedButton.icon(icon: Icon(Icons.access_time, size: 18, color: textColor), label: Text(selectedTime == null ? "Время".tr(currentLang) : selectedTime!.format(context), style: TextStyle(color: textColor)), style: OutlinedButton.styleFrom(side: BorderSide(color: glassBorderColor), padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), onPressed: () async { final picked = await showTimePicker(context: context, initialTime: selectedTime ?? TimeOfDay.now()); if (picked != null) setStateDialog(() => selectedTime = picked); })),
+                          Expanded(child: OutlinedButton.icon(icon: Icon(LucideIcons.clock, size: 18, color: textColor), label: Text(selectedTime == null ? "Время".tr(currentLang) : selectedTime!.format(context), style: TextStyle(color: textColor)), style: OutlinedButton.styleFrom(side: BorderSide(color: glassBorderColor), padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), onPressed: () async { final picked = await showTimePicker(context: context, initialTime: selectedTime ?? TimeOfDay.now()); if (picked != null) setStateDialog(() => selectedTime = picked); })),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -114,7 +115,7 @@ void showEditTaskDialog({
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          Icon(Icons.repeat, size: 18, color: textMuted),
+                          Icon(LucideIcons.repeat, size: 18, color: textMuted),
                           const SizedBox(width: 8),
                           DropdownButton<String>(
                             value: selectedRecurrence, dropdownColor: t.surface2, underline: const SizedBox(), style: TextStyle(fontSize: 14, color: textColor),
@@ -140,7 +141,7 @@ void showEditTaskDialog({
                           decoration: InputDecoration(
                             labelText: "Назначить на...".tr(currentLang),
                             labelStyle: TextStyle(color: textMuted),
-                            prefixIcon: Icon(Icons.person_outline, color: t.accent, size: 20),
+                            prefixIcon: Icon(LucideIcons.user, color: t.accent, size: 20),
                             enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: glassBorderColor)),
                           ),
                           value: selectedAssigneeId,

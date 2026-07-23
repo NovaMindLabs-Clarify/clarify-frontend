@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
 
@@ -81,7 +82,7 @@ class SidebarMenu extends StatelessWidget {
                         Text("ПРОЕКТЫ".tr(currentLang), style: TextStyle(fontSize: 12 * scale, fontWeight: FontWeight.bold, color: textMuted, letterSpacing: 1.2)),
                         InkWell(
                           onTap: onAddFolder,
-                          child: Icon(Icons.add, size: 20 * scale, color: textMuted)
+                          child: Icon(LucideIcons.plus, size: 20 * scale, color: textMuted)
                         ),
                       ],
                     ),
@@ -94,7 +95,7 @@ class SidebarMenu extends StatelessWidget {
                       selected: folder == selectedMenu,
                       selectedTileColor: highlightColor,
                       contentPadding: EdgeInsets.symmetric(horizontal: 16 * scale),
-                      leading: Icon(Icons.folder_outlined, size: 20 * scale, color: folder == selectedMenu ? t.accent : textMuted),
+                      leading: Icon(LucideIcons.folder, size: 20 * scale, color: folder == selectedMenu ? t.accent : textMuted),
                       title: Text(folder, style: TextStyle(fontSize: 15 * scale, fontWeight: folder == selectedMenu ? FontWeight.bold : FontWeight.w600, color: folder == selectedMenu ? t.accent : textColor), overflow: TextOverflow.ellipsis),
                       onTap: () => onMenuSelected(folder),
                       onLongPress: () => onDeleteFolder(folder), 
@@ -110,7 +111,7 @@ class SidebarMenu extends StatelessWidget {
                         Text("КОМАНДЫ".tr(currentLang), style: TextStyle(fontSize: 12 * scale, fontWeight: FontWeight.bold, color: textMuted, letterSpacing: 1.2)),
                         InkWell(
                           onTap: onAddWorkspace,
-                          child: Icon(Icons.add_business, size: 20 * scale, color: textMuted)
+                          child: Icon(LucideIcons.building2, size: 20 * scale, color: textMuted)
                         ),
                       ],
                     ),
@@ -129,7 +130,7 @@ class SidebarMenu extends StatelessWidget {
                         selected: selectedMenu == wsMenuKey,
                         selectedTileColor: wsColor.withValues(alpha: 0.15),
                         contentPadding: EdgeInsets.symmetric(horizontal: 16 * scale),
-                        leading: Icon(Icons.group_work_outlined, size: 20 * scale, color: selectedMenu == wsMenuKey ? wsColor : textMuted),
+                        leading: Icon(LucideIcons.usersRound, size: 20 * scale, color: selectedMenu == wsMenuKey ? wsColor : textMuted),
                         title: Text(wsName, style: TextStyle(fontSize: 15 * scale, fontWeight: selectedMenu == wsMenuKey ? FontWeight.bold : FontWeight.w600, color: selectedMenu == wsMenuKey ? wsColor : textColor), overflow: TextOverflow.ellipsis),
                         onTap: () => onWorkspaceSelected(ws['id'] as int, wsMenuKey),
                       ),

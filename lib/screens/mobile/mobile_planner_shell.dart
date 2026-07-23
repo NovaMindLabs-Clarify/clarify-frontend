@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/localization.dart';
 import '../../core/theme/design_tokens.dart';
 import 'mobile_today_screen.dart';
@@ -178,11 +179,11 @@ class _MobileBottomNav extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _NavItem(icon: Icons.wb_sunny_outlined, activeIcon: Icons.wb_sunny, label: 'День'.tr(currentLang), active: current == MobileTab.today, onTap: () => onSelect(MobileTab.today)),
-            _NavItem(icon: Icons.checklist_outlined, activeIcon: Icons.checklist, label: 'Задачи'.tr(currentLang), active: current == MobileTab.tasks, onTap: () => onSelect(MobileTab.tasks)),
+            _NavItem(icon: LucideIcons.sun, label: 'День'.tr(currentLang), active: current == MobileTab.today, onTap: () => onSelect(MobileTab.today)),
+            _NavItem(icon: LucideIcons.listChecks, label: 'Задачи'.tr(currentLang), active: current == MobileTab.tasks, onTap: () => onSelect(MobileTab.tasks)),
             _FabItem(onTap: onAdd),
-            _NavItem(icon: Icons.groups_outlined, activeIcon: Icons.groups, label: 'Команды'.tr(currentLang), active: current == MobileTab.teams, onTap: () => onSelect(MobileTab.teams)),
-            _NavItem(icon: Icons.settings_outlined, activeIcon: Icons.settings, label: 'Настройки'.tr(currentLang), active: current == MobileTab.settings, onTap: () => onSelect(MobileTab.settings)),
+            _NavItem(icon: LucideIcons.usersRound, label: 'Команды'.tr(currentLang), active: current == MobileTab.teams, onTap: () => onSelect(MobileTab.teams)),
+            _NavItem(icon: LucideIcons.settings, label: 'Настройки'.tr(currentLang), active: current == MobileTab.settings, onTap: () => onSelect(MobileTab.settings)),
           ],
         ),
       ),
@@ -192,12 +193,11 @@ class _MobileBottomNav extends StatelessWidget {
 
 class _NavItem extends StatelessWidget {
   final IconData icon;
-  final IconData activeIcon;
   final String label;
   final bool active;
   final VoidCallback onTap;
 
-  const _NavItem({required this.icon, required this.activeIcon, required this.label, required this.active, required this.onTap});
+  const _NavItem({required this.icon, required this.label, required this.active, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -211,7 +211,7 @@ class _NavItem extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(active ? activeIcon : icon, size: 22, color: color),
+            Icon(icon, size: 22, color: color),
             const SizedBox(height: 2),
             Text(label, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: color)),
           ],
@@ -235,7 +235,7 @@ class _FabItem extends StatelessWidget {
         height: 44,
         margin: const EdgeInsets.only(bottom: 18),
         decoration: BoxDecoration(color: t.accent, shape: BoxShape.circle, boxShadow: [BoxShadow(color: t.accent.withValues(alpha: 0.35), blurRadius: 16, offset: const Offset(0, 6))]),
-        child: Icon(Icons.add, color: t.onAccent, size: 24),
+        child: Icon(LucideIcons.plus, color: t.onAccent, size: 24),
       ),
     );
   }
