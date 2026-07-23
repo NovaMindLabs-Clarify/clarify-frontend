@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/clarify_surface.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
@@ -19,7 +20,7 @@ void showAddFolderDialog({
 }) {
   final t = context.tokens;
   final ctrl = TextEditingController();
-  showDialog(
+  showClarifySurface(
     context: context,
     builder: (context) => AlertDialog(
       backgroundColor: t.surface2,
@@ -57,7 +58,7 @@ void showCreateWorkspaceDialog({
   bool isCreating = false;
   final s = scale;
 
-  showDialog(
+  showClarifySurface(
     context: context,
     barrierColor: Colors.black.withOpacity(0.4),
     builder: (context) => StatefulBuilder(builder: (context, setStateDialog) {
@@ -139,7 +140,7 @@ void showInviteMemberDialog({
   bool isSending = false;
   final s = scale;
 
-  showDialog(
+  showClarifySurface(
     context: context,
     barrierColor: Colors.black.withOpacity(0.4),
     builder: (context) => StatefulBuilder(builder: (context, setStateDialog) {

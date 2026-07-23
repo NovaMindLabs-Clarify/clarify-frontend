@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/clarify_surface.dart';
 import '../core/config.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
@@ -49,7 +50,7 @@ void showEditTaskDialog({
 
   bool isSaving = false;
 
-  showDialog(
+  showClarifySurface(
     context: context,
     barrierColor: Colors.black.withOpacity(0.4),
     builder: (context) {

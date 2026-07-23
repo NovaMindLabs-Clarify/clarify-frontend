@@ -19,6 +19,7 @@ import 'core/config.dart';
 import 'core/localization.dart';
 import 'core/theme/design_tokens.dart';
 import 'widgets/clarify_glass.dart';
+import 'widgets/clarify_surface.dart';
 import 'screens/desktop_planner_screen.dart';
 // Вставь это где-то среди других импортов
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -726,7 +727,7 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
     final t = context.tokens;
     final textColor = t.text;
 
-    showDialog(
+    showClarifySurface(
       context: context,
       builder: (context) {
         return AlertDialog(

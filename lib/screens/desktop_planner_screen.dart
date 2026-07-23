@@ -18,6 +18,7 @@ import '../core/theme/design_tokens.dart';
 import '../services/task_service.dart';
 import '../widgets/clarify_button.dart';
 import '../widgets/clarify_glass.dart';
+import '../widgets/clarify_surface.dart';
 import '../widgets/main_content_area.dart';
 import '../widgets/sidebar_menu.dart';
 import '../widgets/window_buttons.dart';
@@ -673,7 +674,7 @@ void _showDailyReviewOverlay(int taskCount) {
       context: context,
       barrierDismissible: false, // Запрещаем закрывать кликом мимо (юзер должен насладиться)
       barrierLabel: 'DailyReview',
-      transitionDuration: const Duration(milliseconds: 600),
+      transitionDuration: ClarifyMotion.deliberate,
       pageBuilder: (context, animation, secondaryAnimation) {
         return Stack(
           children: [
@@ -691,11 +692,11 @@ void _showDailyReviewOverlay(int taskCount) {
                   width: 450 * _s,
                   padding: EdgeInsets.all(40 * _s),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E1E1E).withOpacity(0.8) : Colors.white.withOpacity(0.8),
+                    color: _tokens.surface2.withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(32 * _s),
-                    border: Border.all(color: Colors.white.withOpacity(0.2), width: 2),
+                    border: Border.all(color: _tokens.accent.withValues(alpha: 0.25), width: 2),
                     boxShadow: [
-                      BoxShadow(color: Colors.blueAccent.withOpacity(0.2), blurRadius: 40, spreadRadius: 10)
+                      BoxShadow(color: _tokens.accent.withValues(alpha: 0.2), blurRadius: 40, spreadRadius: 10)
                     ]
                   ),
                   child: Column(
@@ -713,8 +714,8 @@ void _showDailyReviewOverlay(int taskCount) {
                       SizedBox(height: 40 * _s),
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blueAccent,
-                          foregroundColor: Colors.white,
+                          backgroundColor: _tokens.accent,
+                          foregroundColor: _tokens.onAccent,
                           padding: EdgeInsets.symmetric(horizontal: 40 * _s, vertical: 20 * _s),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16 * _s)),
                           elevation: 0,
@@ -742,7 +743,7 @@ void _showDailyReviewOverlay(int taskCount) {
                 maxBlastForce: 100,
                 minBlastForce: 80,
                 gravity: 0.1, // Сделали падение чуть более плавным (затяжным)
-                colors: const [Colors.blueAccent, Colors.greenAccent, Colors.white, Colors.orangeAccent, Colors.purpleAccent],
+                colors: [_tokens.accent, _tokens.success, Colors.white, _tokens.warning, _tokens.tagPalette[1]],
               ),
             ),
           ],
@@ -758,12 +759,9 @@ void _checkBurnoutWarning(String dateStr) {
 
     if (dayTasks.length >= AppConfig.burnoutTaskThreshold) {
       _burnoutWarnedDates.add(dateStr);
-      showGeneralDialog(
+      showClarifySurface(
         context: context,
-        barrierDismissible: true,
-        barrierLabel: 'BurnoutWarning',
-        transitionDuration: const Duration(milliseconds: 300),
-        pageBuilder: (context, animation, secondaryAnimation) {
+        builder: (context) {
           return Center(
             child: Material(
               color: Colors.transparent,
@@ -771,30 +769,30 @@ void _checkBurnoutWarning(String dateStr) {
                 width: 380 * _s,
                 padding: EdgeInsets.all(32 * _s),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E1E1E).withOpacity(0.95) : Colors.white.withOpacity(0.95),
+                  color: _tokens.surface2,
                   borderRadius: BorderRadius.circular(24 * _s),
-                  border: Border.all(color: Colors.blueAccent.withOpacity(0.3), width: 2),
+                  border: Border.all(color: _tokens.accent.withValues(alpha: 0.3), width: 2),
                   boxShadow: [
-                    BoxShadow(color: Colors.blueAccent.withOpacity(0.1), blurRadius: 20, spreadRadius: 5)
+                    BoxShadow(color: _tokens.accent.withValues(alpha: 0.1), blurRadius: 20, spreadRadius: 5)
                   ]
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.self_improvement, size: 60 * _s, color: Colors.blueAccent),
+                    Icon(Icons.self_improvement, size: 60 * _s, color: _tokens.accent),
                     SizedBox(height: 20 * _s),
                     Text("Эй, притормози! 🛑", style: TextStyle(color: textColor, fontSize: 24 * _s, fontWeight: FontWeight.w900)),
                     SizedBox(height: 12 * _s),
                     Text(
                       "Это уже 10-я задача на этот день.\n\nПродуктивность — это прекрасно, но выгорание нам ни к чему. Постарайся не перегружать расписание и обязательно оставляй окна для отдыха.\nТы не робот! 🤖", // <-- Текст тоже обновили
-                      textAlign: TextAlign.center, 
+                      textAlign: TextAlign.center,
                       style: TextStyle(color: textMuted, fontSize: 14 * _s, height: 1.5)
                     ),
                     SizedBox(height: 28 * _s),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueAccent,
-                        foregroundColor: Colors.white,
+                        backgroundColor: _tokens.accent,
+                        foregroundColor: _tokens.onAccent,
                         padding: EdgeInsets.symmetric(horizontal: 32 * _s, vertical: 16 * _s),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12 * _s)),
                         elevation: 0,
@@ -1368,25 +1366,35 @@ Map<String, dynamic> _parseSmartInput(String text) {
                         ],
                       ),
                     ),
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 300), curve: Curves.easeInOut, width: rightPanelState != 'none' ? 360 * _s : 0, 
-                      child: rightPanelState == 'none' ? const SizedBox.shrink() : _buildGlassContainer(
-                        borderRadius: const BorderRadius.only(topLeft: Radius.circular(24), bottomLeft: Radius.circular(24)),
-                        margin: EdgeInsets.zero,
-                        child: rightPanelState == 'ai' ? AiChatPanel(
-                          currentLang: widget.currentLang,
-                          textColor: textColor,
-                          textMuted: textMuted,
-                          glassBorderColor: glassBorderColor,
-                          chatBubbleAi: chatBubbleAi,
-                          chatInput: chatInput,
-                          chatMessages: chatMessages,
-                          isAiTyping: isAiTyping,
-                          isListening: _isListening,
-                          controller: _aiChatController,
-                          onToggleListening: _toggleListening,
-                          onSend: _sendTaskToAI,
-                        ) : const SizedBox.shrink()
+                    ClipRect(
+                      child: AnimatedContainer(
+                        duration: ClarifyMotion.slow, curve: ClarifyMotion.standard, width: rightPanelState != 'none' ? 360 * _s : 0,
+                        child: OverflowBox(
+                          alignment: Alignment.centerRight,
+                          minWidth: 360 * _s, maxWidth: 360 * _s,
+                          child: AnimatedOpacity(
+                            duration: ClarifyMotion.base, curve: ClarifyMotion.standard,
+                            opacity: rightPanelState != 'none' ? 1 : 0,
+                            child: _buildGlassContainer(
+                              borderRadius: const BorderRadius.only(topLeft: Radius.circular(24), bottomLeft: Radius.circular(24)),
+                              margin: EdgeInsets.zero,
+                              child: rightPanelState == 'ai' ? AiChatPanel(
+                                currentLang: widget.currentLang,
+                                textColor: textColor,
+                                textMuted: textMuted,
+                                glassBorderColor: glassBorderColor,
+                                chatBubbleAi: chatBubbleAi,
+                                chatInput: chatInput,
+                                chatMessages: chatMessages,
+                                isAiTyping: isAiTyping,
+                                isListening: _isListening,
+                                controller: _aiChatController,
+                                onToggleListening: _toggleListening,
+                                onSend: _sendTaskToAI,
+                              ) : const SizedBox.shrink()
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ],

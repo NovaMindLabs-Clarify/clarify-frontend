@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/clarify_surface.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/localization.dart';
@@ -44,7 +45,7 @@ void showTaskDetailsDialog({
   List<Map<String, dynamic>> comments = [];
   bool isCommentsLoaded = false;
 
-  showDialog(
+  showClarifySurface(
     context: context,
     barrierColor: Colors.black.withOpacity(0.4),
     builder: (context) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/clarify_surface.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
 
@@ -59,7 +60,7 @@ void showTeamPulseDialog({
   // Сортируем героев по количеству закрытых задач (по убыванию)
   var sortedHeroes = heroStats.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
 
-  showDialog(
+  showClarifySurface(
     context: context,
     barrierColor: Colors.black.withOpacity(0.4),
     builder: (context) {

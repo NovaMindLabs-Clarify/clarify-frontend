@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/clarify_surface.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
 
@@ -22,7 +23,7 @@ void showSearchDialog({
 }) {
   final t = context.tokens;
   String query = '';
-  showDialog(
+  showClarifySurface(
     context: context,
     barrierColor: Colors.black.withOpacity(0.6),
     builder: (context) {

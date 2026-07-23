@@ -1,5 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import '../widgets/clarify_surface.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -50,7 +51,7 @@ void showAccountSettingsDialog({
   bool isChangingPassword = false;
   bool isAutostart = false; // Состояние автозапуска
 
-  showDialog(
+  showClarifySurface(
     context: context,
     barrierColor: Colors.black.withOpacity(0.4),
     builder: (context) {
@@ -128,7 +129,7 @@ void showAccountSettingsDialog({
                       GestureDetector(
                         onTap: isLoading ? null : () {
                           bool hasAvatar = avatarUrl != null && avatarUrl!.isNotEmpty;
-                          showDialog(
+                          showClarifySurface(
                             context: context,
                             builder: (dialogCtx) => AlertDialog(
                               backgroundColor: t.surface2,
