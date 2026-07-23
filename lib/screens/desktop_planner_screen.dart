@@ -173,7 +173,6 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
 
   bool get isDark => widget.isDark;
   Color get bgColor => Colors.transparent;
-  String get bgImagePath => isDark ? 'assets/images/bg_dark.jpg' : 'assets/images/bg_light.jpg';
   ClarifyTokens get _tokens => isDark ? ClarifyTokens.dark : ClarifyTokens.light;
   Color get glassColor => _tokens.surface.withValues(alpha: isDark ? 0.55 : 0.7);
   Color get glassBorderColor => _tokens.border;
@@ -317,6 +316,25 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
       if (selectedMenu == folderName) selectedMenu = 'Мой день';
       customFolders.remove(folderName);
       _settingsBox.put('custom_folders', json.encode(customFolders));
+    });
+  }
+
+  // Локальный статус доски проекта (Не начато/В работе) — нет поля в БД под это,
+  // поэтому не синхронизируется между устройствами; "Готово" считается отдельно
+  // по реальному is_completed. См. lib/widgets/project_kanban_board.dart.
+  Map<String, String> _readKanbanStatusMap() {
+    final raw = _settingsBox.get('kanban_status');
+    if (raw == null) return {};
+    return Map<String, String>.from(json.decode(raw));
+  }
+
+  String _getLocalKanbanStatus(dynamic taskId) => _readKanbanStatusMap()[taskId.toString()] ?? 'todo';
+
+  void _setLocalKanbanStatus(dynamic taskId, String status) {
+    setState(() {
+      final map = _readKanbanStatusMap();
+      map[taskId.toString()] = status;
+      _settingsBox.put('kanban_status', json.encode(map));
     });
   }
 
@@ -992,6 +1010,8 @@ Map<String, dynamic> _parseSmartInput(String text) {
         onDeleteTask: _deleteTask,
         onTaskTap: _handleTaskTap,
         onAddTask: ({DateTime? preselectedDate}) => _showManualAddDialog(preselectedDate: preselectedDate),
+        createTaskManually: _createTaskManually,
+        checkBurnoutWarning: _checkBurnoutWarning,
         onOpenWorkspaceMembers: _fetchWorkspaceMembers,
         onInviteToWorkspace: (wsId) => showInviteMemberDialog(
           context: context,
@@ -1034,12 +1054,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
     }
 
     return Container(
-      decoration: BoxDecoration(
-        image: DecorationImage(
-          image: AssetImage(bgImagePath),
-          fit: BoxFit.cover,
-        ),
-      ),
+      color: _tokens.bg,
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: WindowBorder(
@@ -1072,6 +1087,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
                       menuItems: menuItems,
                       customFolders: customFolders,
                       workspaces: workspaces,
+                      tasks: tasks,
                       onMenuSelected: (menu) => setState(() => selectedMenu = menu),
                       onAddFolder: () => showAddFolderDialog(
                         context: context,
@@ -1352,6 +1368,8 @@ Map<String, dynamic> _parseSmartInput(String text) {
                               buildBoardTaskCardExpanded: taskCardBuilders.buildBoardTaskCardExpanded,
                               buildCalendarTaskCard: taskCardBuilders.buildCalendarTaskCard,
                               buildGlassContainer: _buildGlassContainer,
+                              getLocalKanbanStatus: _getLocalKanbanStatus,
+                              onSetLocalKanbanStatus: _setLocalKanbanStatus,
                               buildStatisticsDashboard: () => StatisticsDashboard(
                                 tasks: tasks,
                                 currentLang: widget.currentLang,

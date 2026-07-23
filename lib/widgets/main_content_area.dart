@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
+import 'project_kanban_board.dart';
 
 class MainContentArea extends StatelessWidget {
   final String selectedMenu;
@@ -20,7 +21,9 @@ class MainContentArea extends StatelessWidget {
   final Widget Function(Map<String, dynamic>) buildCalendarTaskCard;
   final Widget Function({required Widget child, EdgeInsetsGeometry? margin, EdgeInsetsGeometry? padding, Color? customColor}) buildGlassContainer;
   final Widget Function() buildStatisticsDashboard;
-  
+  final String Function(dynamic taskId) getLocalKanbanStatus;
+  final void Function(dynamic taskId, String status) onSetLocalKanbanStatus;
+
   // Дата календаря передается как состояние
   final DateTime currentCalendarDate;
   final Function(DateTime) onCalendarDateChanged;
@@ -41,6 +44,8 @@ class MainContentArea extends StatelessWidget {
     required this.buildCalendarTaskCard,
     required this.buildGlassContainer,
     required this.buildStatisticsDashboard,
+    required this.getLocalKanbanStatus,
+    required this.onSetLocalKanbanStatus,
     required this.currentCalendarDate,
     required this.onCalendarDateChanged,
   }) : super(key: key);
@@ -66,27 +71,42 @@ class MainContentArea extends StatelessWidget {
     
     final List<String> weekdaysRu = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
 
-    if (selectedMenu == 'Все задачи' || selectedMenu == 'Мой день' || selectedMenu == 'Входящие' || customFolders.contains(selectedMenu) || selectedMenu.startsWith('ws_')) {
+    if (customFolders.contains(selectedMenu)) {
+      // Проект — доска (Не начато/В работе/Готово), а не плоский список,
+      // неотличимый от тега. См. REDESIGN_V2_PLAN.md §3.5.
+      final projectColor = t.tagPalette[selectedMenu.hashCode.abs() % t.tagPalette.length];
+      final projectTasks = filteredTasks.where((task) => task['folder'] == selectedMenu && task['parent_id'] == null).toList();
+      return ProjectKanbanBoard(
+        projectName: selectedMenu,
+        projectColor: projectColor,
+        currentLang: currentLang,
+        scale: scale,
+        tasks: projectTasks,
+        getLocalStatus: getLocalKanbanStatus,
+        onSetLocalStatus: onSetLocalKanbanStatus,
+        buildBoardTaskCardExpanded: buildBoardTaskCardExpanded,
+        buildGlassContainer: buildGlassContainer,
+      );
+    }
+    else if (selectedMenu == 'Все задачи' || selectedMenu == 'Мой день' || selectedMenu == 'Входящие' || selectedMenu.startsWith('ws_')) {
       List<Map<String, dynamic>> targetTasks = filteredTasks;
-      
+
       if (selectedMenu == 'Мой день') {
-        final todayStr = _formatDate(DateTime.now()); 
+        final todayStr = _formatDate(DateTime.now());
         targetTasks = filteredTasks.where((t) => t['due_date'] == todayStr && t['parent_id'] == null).toList();
       } else if (selectedMenu == 'Входящие') {
         targetTasks = filteredTasks.where((t) => (t['due_date'] == null || t['due_date'] == '') && t['parent_id'] == null).toList();
-      } else if (customFolders.contains(selectedMenu)) {
-        targetTasks = filteredTasks.where((t) => t['folder'] == selectedMenu && t['parent_id'] == null).toList();
       } else if (selectedMenu.startsWith('ws_')) {
         int wsId = int.parse(selectedMenu.substring(3));
         targetTasks = filteredTasks.where((t) => t['workspace_id'] == wsId && t['parent_id'] == null).toList();
-      } else { 
-        targetTasks = filteredTasks.where((t) => t['parent_id'] == null).toList(); 
+      } else {
+        targetTasks = filteredTasks.where((t) => t['parent_id'] == null).toList();
       }
-      
+
       targetTasks.sort((a, b) => (a['due_time'] ?? '23:59').compareTo(b['due_time'] ?? '23:59'));
       if (targetTasks.isEmpty) return Center(child: Text("Пусто. Отдыхаем!".tr(currentLang), style: TextStyle(color: textMuted, fontSize: 18)));
-      
-      if (selectedMenu == 'Мой день' || customFolders.contains(selectedMenu)) {
+
+      if (selectedMenu == 'Мой день') {
         return ReorderableListView(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           onReorder: (int oldIndex, int newIndex) {

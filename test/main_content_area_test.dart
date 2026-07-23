@@ -29,6 +29,8 @@ Widget _harness({
         buildStatisticsDashboard: () => const SizedBox.shrink(),
         currentCalendarDate: DateTime.now(),
         onCalendarDateChanged: (_) {},
+        getLocalKanbanStatus: (_) => 'todo',
+        onSetLocalKanbanStatus: (_, _) {},
       ),
     ),
   );

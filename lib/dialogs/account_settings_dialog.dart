@@ -51,6 +51,8 @@ void showAccountSettingsDialog({
   bool isLoading = false;
   bool isChangingPassword = false;
   bool isAutostart = false; // Состояние автозапуска
+  bool showPlanDetails = false;
+  bool showCalendars = false;
 
   showClarifySurface(
     context: context,
@@ -278,6 +280,95 @@ void showAccountSettingsDialog({
                         ]
                       ),
                       const SizedBox(height: 16),
+                      Divider(color: glassBorderColor),
+                      const SizedBox(height: 16),
+
+                      // --- ПЛАН: текущий тариф + сравнение Free/Pro ---
+                      // Только каркас — реальной оплаты нет, см. REDESIGN_V2_PLAN.md §4.
+                      InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () => setStateDialog(() => showPlanDetails = !showPlanDetails),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(children: [
+                              Icon(LucideIcons.crown, color: textColor, size: 20),
+                              const SizedBox(width: 8),
+                              Text("План".tr(currentLang), style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                            ]),
+                            Row(children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                                decoration: BoxDecoration(color: t.accentSoft, borderRadius: BorderRadius.circular(999)),
+                                child: Text("Free", style: TextStyle(color: t.accent, fontSize: 12, fontWeight: FontWeight.bold)),
+                              ),
+                              const SizedBox(width: 6),
+                              Icon(showPlanDetails ? LucideIcons.chevronUp : LucideIcons.chevronDown, color: textMuted, size: 18),
+                            ]),
+                          ],
+                        ),
+                      ),
+                      if (showPlanDetails) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(color: t.surfaceSunken, borderRadius: BorderRadius.circular(12)),
+                          child: Column(
+                            children: [
+                              _PlanRow(label: "AI-запросы в месяц".tr(currentLang), free: "50", pro: "Без лимита".tr(currentLang), textColor: textColor, textMuted: textMuted),
+                              _PlanRow(label: "Участников в команде".tr(currentLang), free: "3", pro: "Без лимита".tr(currentLang), textColor: textColor, textMuted: textMuted),
+                              _PlanRow(label: "Синхронизация с Яндекс.Календарём".tr(currentLang), freeCheck: false, textColor: textColor, textMuted: textMuted, accent: t.accent, danger: t.danger),
+                              _PlanRow(label: "Расширенная статистика и экспорт".tr(currentLang), freeCheck: false, textColor: textColor, textMuted: textMuted, accent: t.accent, danger: t.danger),
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Оплата Pro скоро будет доступна".tr(currentLang)))),
+                                  child: Text("Оформить Pro — 199 ₽/мес".tr(currentLang), style: const TextStyle(fontWeight: FontWeight.bold)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 16),
+
+                      // --- КАЛЕНДАРИ: внешние интеграции (P2.4 IMPROVEMENT_PLAN.md) ---
+                      InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () => setStateDialog(() => showCalendars = !showCalendars),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(children: [
+                              Icon(LucideIcons.calendarSync, color: textColor, size: 20),
+                              const SizedBox(width: 8),
+                              Text("Календари".tr(currentLang), style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                            ]),
+                            Icon(showCalendars ? LucideIcons.chevronUp : LucideIcons.chevronDown, color: textMuted, size: 18),
+                          ],
+                        ),
+                      ),
+                      if (showCalendars) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                          decoration: BoxDecoration(color: t.surfaceSunken, borderRadius: BorderRadius.circular(12)),
+                          child: ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(LucideIcons.calendarDays, color: textColor, size: 22),
+                            title: Text("Яндекс.Календарь".tr(currentLang), style: TextStyle(color: textColor, fontWeight: FontWeight.w600)),
+                            subtitle: Text("Требует Pro".tr(currentLang), style: TextStyle(color: textMuted, fontSize: 12.5)),
+                            trailing: OutlinedButton(
+                              style: OutlinedButton.styleFrom(side: BorderSide(color: glassBorderColor), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999))),
+                              onPressed: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Интеграция скоро будет доступна".tr(currentLang)))),
+                              child: Text("Подключить".tr(currentLang), style: TextStyle(color: textColor)),
+                            ),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 16),
 
                       SizedBox(
                         width: double.infinity,
@@ -414,4 +505,62 @@ void showAccountSettingsDialog({
       });
     }
   );
+}
+
+/// Строка сравнения тарифов Free/Pro. Либо текстовые значения (free/pro),
+/// либо галочка/крестик через [freeCheck] — Pro в этом режиме всегда даёт то,
+/// чего нет на Free (иначе строка не имела бы смысла в таблице сравнения).
+class _PlanRow extends StatelessWidget {
+  final String label;
+  final String? free;
+  final String? pro;
+  final bool freeCheck;
+  final Color textColor;
+  final Color textMuted;
+  final Color? accent;
+  final Color? danger;
+
+  const _PlanRow({
+    required this.label,
+    this.free,
+    this.pro,
+    this.freeCheck = true,
+    required this.textColor,
+    required this.textMuted,
+    this.accent,
+    this.danger,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final accentColor = accent ?? t.accent;
+    final dangerColor = danger ?? t.danger;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Expanded(flex: 3, child: Text(label, style: TextStyle(color: textColor, fontSize: 13))),
+          Expanded(
+            flex: 2,
+            child: Align(
+              alignment: Alignment.center,
+              child: free != null
+                  ? Text(free!, style: TextStyle(color: textMuted, fontSize: 13, fontWeight: FontWeight.w600))
+                  : Icon(freeCheck ? LucideIcons.check : LucideIcons.x, size: 16, color: freeCheck ? accentColor : dangerColor),
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Align(
+              alignment: Alignment.center,
+              child: pro != null
+                  ? Text(pro!, style: TextStyle(color: accentColor, fontSize: 13, fontWeight: FontWeight.w700))
+                  : Icon(LucideIcons.check, size: 16, color: accentColor),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

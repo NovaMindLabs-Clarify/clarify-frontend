@@ -76,6 +76,22 @@ class MobileSettingsScreen extends StatelessWidget {
         _SettingsTile(icon: LucideIcons.chartBar, label: 'Статистика'.tr(currentLang), onTap: onOpenStatistics),
 
         const SizedBox(height: 20),
+        _SectionLabel(text: 'Тариф'.tr(currentLang)),
+        _SettingsTile(
+          icon: LucideIcons.crown,
+          label: 'Управление подпиской'.tr(currentLang),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _PlanPage(currentLang: currentLang))),
+        ),
+
+        const SizedBox(height: 20),
+        _SectionLabel(text: 'Интеграции'.tr(currentLang)),
+        _SettingsTile(
+          icon: LucideIcons.calendarSync,
+          label: 'Календари'.tr(currentLang),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _CalendarsPage(currentLang: currentLang))),
+        ),
+
+        const SizedBox(height: 20),
         _SectionLabel(text: 'Оформление'.tr(currentLang)),
         _SettingsSwitchTile(
           icon: isDark ? LucideIcons.moon : LucideIcons.sun,
@@ -85,6 +101,122 @@ class MobileSettingsScreen extends StatelessWidget {
         ),
         _LanguageTile(currentLang: currentLang, changeLang: changeLang),
       ],
+    );
+  }
+}
+
+class _PlanPage extends StatelessWidget {
+  final String currentLang;
+  const _PlanPage({required this.currentLang});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Scaffold(
+      backgroundColor: t.bg,
+      appBar: AppBar(backgroundColor: t.bg, elevation: 0, foregroundColor: t.text, title: Text('Тариф'.tr(currentLang), style: const TextStyle(fontFamily: 'Golos Text', fontWeight: FontWeight.w700))),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(color: t.accentSoft, borderRadius: BorderRadius.circular(999)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(LucideIcons.crown, size: 14, color: t.accent),
+              const SizedBox(width: 6),
+              Text('Текущий тариф: Free'.tr(currentLang), style: TextStyle(color: t.accent, fontSize: 12.5, fontWeight: FontWeight.w700)),
+            ]),
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(color: t.surface, borderRadius: BorderRadius.circular(ClarifyRadius.md)),
+            child: Column(children: [
+              Row(children: [
+                const Expanded(flex: 3, child: SizedBox()),
+                Expanded(flex: 2, child: Center(child: Text('Free', style: TextStyle(color: t.text3, fontWeight: FontWeight.w700, fontSize: 12.5)))),
+                Expanded(flex: 2, child: Center(child: Text('Pro', style: TextStyle(color: t.accent, fontWeight: FontWeight.w700, fontSize: 12.5)))),
+              ]),
+              const Divider(height: 20),
+              _PlanCompareRow(t: t, label: 'AI-запросы в месяц'.tr(currentLang), free: '50', pro: '∞'),
+              _PlanCompareRow(t: t, label: 'Участников в команде'.tr(currentLang), free: '3', pro: '∞'),
+              _PlanCompareRow(t: t, label: 'Яндекс.Календарь'.tr(currentLang), free: null, pro: null),
+              _PlanCompareRow(t: t, label: 'Расширенная статистика'.tr(currentLang), free: null, pro: null),
+            ]),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md))),
+              onPressed: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Оплата Pro скоро будет доступна'.tr(currentLang)))),
+              child: Text('Оформить Pro — 199 ₽/мес'.tr(currentLang), style: const TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlanCompareRow extends StatelessWidget {
+  final ClarifyTokens t;
+  final String label;
+  final String? free;
+  final String? pro;
+  const _PlanCompareRow({required this.t, required this.label, this.free, this.pro});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(children: [
+        Expanded(flex: 3, child: Text(label, style: TextStyle(color: t.text, fontSize: 13))),
+        Expanded(flex: 2, child: Center(child: free != null ? Text(free!, style: TextStyle(color: t.text3, fontWeight: FontWeight.w600, fontSize: 13)) : Icon(LucideIcons.x, size: 15, color: t.danger))),
+        Expanded(flex: 2, child: Center(child: pro != null ? Text(pro!, style: TextStyle(color: t.accent, fontWeight: FontWeight.w700, fontSize: 13)) : Icon(LucideIcons.check, size: 15, color: t.accent))),
+      ]),
+    );
+  }
+}
+
+class _CalendarsPage extends StatelessWidget {
+  final String currentLang;
+  const _CalendarsPage({required this.currentLang});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Scaffold(
+      backgroundColor: t.bg,
+      appBar: AppBar(backgroundColor: t.bg, elevation: 0, foregroundColor: t.text, title: Text('Календари'.tr(currentLang), style: const TextStyle(fontFamily: 'Golos Text', fontWeight: FontWeight.w700))),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Material(
+            color: t.surface,
+            borderRadius: BorderRadius.circular(ClarifyRadius.md),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(children: [
+                Icon(LucideIcons.calendarDays, color: t.text2, size: 22),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Яндекс.Календарь'.tr(currentLang), style: TextStyle(color: t.text, fontWeight: FontWeight.w600, fontSize: 14.5)),
+                    const SizedBox(height: 2),
+                    Text('Требует Pro'.tr(currentLang), style: TextStyle(color: t.text3, fontSize: 12)),
+                  ]),
+                ),
+                OutlinedButton(
+                  style: OutlinedButton.styleFrom(side: BorderSide(color: t.border), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999))),
+                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Интеграция скоро будет доступна'.tr(currentLang)))),
+                  child: Text('Подключить'.tr(currentLang), style: TextStyle(color: t.text)),
+                ),
+              ]),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

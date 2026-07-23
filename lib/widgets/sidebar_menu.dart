@@ -11,6 +11,7 @@ class SidebarMenu extends StatelessWidget {
   final List<String> menuItems;
   final List<String> customFolders;
   final List<dynamic> workspaces;
+  final List<Map<String, dynamic>> tasks;
   
   final Function(String) onMenuSelected;
   final VoidCallback onAddFolder;
@@ -30,6 +31,7 @@ class SidebarMenu extends StatelessWidget {
     required this.menuItems,
     required this.customFolders,
     required this.workspaces,
+    required this.tasks,
     required this.onMenuSelected,
     required this.onAddFolder,
     required this.onDeleteFolder,
@@ -88,19 +90,32 @@ class SidebarMenu extends StatelessWidget {
                     ),
                   ),
                   
-                  ...customFolders.map((folder) => Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 2 * scale),
-                    child: ListTile(
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12 * scale)),
-                      selected: folder == selectedMenu,
-                      selectedTileColor: highlightColor,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 16 * scale),
-                      leading: Icon(LucideIcons.folder, size: 20 * scale, color: folder == selectedMenu ? t.accent : textMuted),
-                      title: Text(folder, style: TextStyle(fontSize: 15 * scale, fontWeight: folder == selectedMenu ? FontWeight.bold : FontWeight.w600, color: folder == selectedMenu ? t.accent : textColor), overflow: TextOverflow.ellipsis),
-                      onTap: () => onMenuSelected(folder),
-                      onLongPress: () => onDeleteFolder(folder), 
-                    ),
-                  )),
+                  ...customFolders.map((folder) {
+                    // Проект — больше не просто имя: свой цвет (детерминированно по имени,
+                    // как у команд) и прогресс задач, а не голый список папок без содержания.
+                    final folderColor = t.tagPalette[folder.hashCode.abs() % t.tagPalette.length];
+                    final folderTasks = tasks.where((task) => task['folder'] == folder && task['parent_id'] == null).toList();
+                    final total = folderTasks.length;
+                    final done = folderTasks.where((task) => task['is_completed'] == true).length;
+                    final active = folder == selectedMenu;
+
+                    return Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 2 * scale),
+                      child: ListTile(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12 * scale)),
+                        selected: active,
+                        selectedTileColor: folderColor.withValues(alpha: 0.15),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 16 * scale),
+                        leading: Icon(LucideIcons.folder, size: 20 * scale, color: active ? folderColor : textMuted),
+                        title: Text(folder, style: TextStyle(fontSize: 15 * scale, fontWeight: active ? FontWeight.bold : FontWeight.w600, color: active ? folderColor : textColor), overflow: TextOverflow.ellipsis),
+                        trailing: total == 0
+                            ? null
+                            : Text('$done/$total', style: TextStyle(fontSize: 11.5 * scale, fontWeight: FontWeight.w700, color: active ? folderColor : textMuted)),
+                        onTap: () => onMenuSelected(folder),
+                        onLongPress: () => onDeleteFolder(folder),
+                      ),
+                    );
+                  }),
 
                   SizedBox(height: 16 * scale),
                   Padding(

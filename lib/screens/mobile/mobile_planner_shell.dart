@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/localization.dart';
 import '../../core/theme/design_tokens.dart';
+import '../../widgets/clarify_glass.dart';
+import '../../widgets/mobile_quick_add_sheet.dart';
 import 'mobile_today_screen.dart';
 import 'mobile_tasks_screen.dart';
 import 'mobile_teams_screen.dart';
@@ -29,6 +31,8 @@ class MobilePlannerShell extends StatefulWidget {
   final void Function(dynamic taskId) onDeleteTask;
   final void Function(Map<String, dynamic> task) onTaskTap;
   final void Function({DateTime? preselectedDate}) onAddTask;
+  final Future<int?> Function(Map<String, dynamic> taskData) createTaskManually;
+  final void Function(String dateStr) checkBurnoutWarning;
   final void Function(int workspaceId) onOpenWorkspaceMembers;
   final void Function(int workspaceId) onInviteToWorkspace;
   final void Function(int workspaceId) onShowTeamPulse;
@@ -55,6 +59,8 @@ class MobilePlannerShell extends StatefulWidget {
     required this.onDeleteTask,
     required this.onTaskTap,
     required this.onAddTask,
+    required this.createTaskManually,
+    required this.checkBurnoutWarning,
     required this.onOpenWorkspaceMembers,
     required this.onInviteToWorkspace,
     required this.onShowTeamPulse,
@@ -151,7 +157,14 @@ class _MobilePlannerShellState extends State<MobilePlannerShell> {
         current: _tab,
         currentLang: widget.currentLang,
         onSelect: (tab) => setState(() => _tab = tab),
-        onAdd: () => widget.onAddTask(),
+        onAdd: () => showMobileQuickAddSheet(
+          context: context,
+          currentLang: widget.currentLang,
+          createTaskManually: widget.createTaskManually,
+          checkBurnoutWarning: widget.checkBurnoutWarning,
+          getPriorityColor: widget.getPriorityColor,
+          formatDate: widget.formatDate,
+        ),
       ),
     );
   }
@@ -167,13 +180,10 @@ class _MobileBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
-    return Container(
+    return ClarifyGlass(
+      borderRadius: BorderRadius.zero,
+      showHighlight: false,
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-      decoration: BoxDecoration(
-        color: t.surface,
-        border: Border(top: BorderSide(color: t.border)),
-      ),
       child: SafeArea(
         top: false,
         child: Row(
