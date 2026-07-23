@@ -112,42 +112,60 @@ class MainContentArea extends StatelessWidget {
       } 
     }
     else if (selectedMenu == 'Следующие 7 дней') {
-      return Padding(
-        padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 8 * scale),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: List.generate(7, (index) {
-            final targetDate = DateTime.now().add(Duration(days: index)); 
-            final dateStr = _formatDate(targetDate);
-            final dayTasks = filteredTasks.where((t) => t['due_date'] == dateStr && t['parent_id'] == null).toList();
-            dayTasks.sort((a, b) => (a['due_time'] ?? '23:59').compareTo(b['due_time'] ?? '23:59'));
-            
-            final weekdayName = _capitalize(weekdaysRu[targetDate.weekday - 1]);
-            String title = index == 0 ? 'Сегодня'.tr(currentLang) : (index == 1 ? 'Завтра'.tr(currentLang) : weekdayName);
-            String subtitle = index < 2 ? weekdayName : "${targetDate.day.toString().padLeft(2, '0')}.${targetDate.month.toString().padLeft(2, '0')}";
-            
-            return Expanded(
-              child: DragTarget<Map<String, dynamic>>(
-                onAccept: (Map<String, dynamic> task) => onTaskDropped(task, dateStr, dayTasks.length),
-                builder: (context, candidateData, rejectedData) {
-                  return buildGlassContainer(
-                    margin: EdgeInsets.only(right: index == 6 ? 0 : 12 * scale),
-                    customColor: candidateData.isNotEmpty ? highlightColor : null,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(padding: EdgeInsets.fromLTRB(16 * scale, 20 * scale, 16 * scale, 12 * scale), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title.tr(currentLang), style: TextStyle(fontSize: 16 * scale, fontWeight: FontWeight.bold, color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis), SizedBox(height: 4 * scale), Text(subtitle.tr(currentLang), style: TextStyle(fontSize: 13 * scale, color: textMuted, fontWeight: FontWeight.w600))])),
-                        Padding(padding: EdgeInsets.fromLTRB(12 * scale, 0, 12 * scale, 16 * scale), child: InkWell(borderRadius: BorderRadius.circular(12 * scale), onTap: () => onPlusTap(targetDate, dayTasks.length), child: Container(width: double.infinity, padding: EdgeInsets.symmetric(vertical: 6 * scale), decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(12 * scale), border: Border.all(color: glassBorderColor, width: 1.0)), child: Icon(Icons.add, size: 16 * scale, color: textMuted)), ), ),
-                        Expanded(child: ListView.builder(padding: EdgeInsets.symmetric(horizontal: 12 * scale), itemCount: dayTasks.length, itemBuilder: (context, taskIndex) { final task = dayTasks[taskIndex]; return LongPressDraggable<Map<String, dynamic>>(data: task, delay: const Duration(milliseconds: 200), feedback: Material(color: Colors.transparent, child: SizedBox(width: 250 * scale, child: buildBoardTaskCardExpanded(task))), childWhenDragging: Opacity(opacity: 0.3, child: buildBoardTaskCardExpanded(task)), child: buildBoardTaskCardExpanded(task)); }), ),
-                      ],
-                    ),
-                  );
-                },
+      // Содержимое колонки без внешней обёртки (Expanded/SizedBox) — она отличается
+      // между брейкпоинтами, сама колонка — нет.
+      Widget dayColumn(int index) {
+        final targetDate = DateTime.now().add(Duration(days: index));
+        final dateStr = _formatDate(targetDate);
+        final dayTasks = filteredTasks.where((t) => t['due_date'] == dateStr && t['parent_id'] == null).toList();
+        dayTasks.sort((a, b) => (a['due_time'] ?? '23:59').compareTo(b['due_time'] ?? '23:59'));
+
+        final weekdayName = _capitalize(weekdaysRu[targetDate.weekday - 1]);
+        String title = index == 0 ? 'Сегодня'.tr(currentLang) : (index == 1 ? 'Завтра'.tr(currentLang) : weekdayName);
+        String subtitle = index < 2 ? weekdayName : "${targetDate.day.toString().padLeft(2, '0')}.${targetDate.month.toString().padLeft(2, '0')}";
+
+        return DragTarget<Map<String, dynamic>>(
+          onAccept: (Map<String, dynamic> task) => onTaskDropped(task, dateStr, dayTasks.length),
+          builder: (context, candidateData, rejectedData) {
+            return buildGlassContainer(
+              margin: EdgeInsets.only(right: index == 6 ? 0 : 12 * scale),
+              customColor: candidateData.isNotEmpty ? highlightColor : null,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(padding: EdgeInsets.fromLTRB(16 * scale, 20 * scale, 16 * scale, 12 * scale), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title.tr(currentLang), style: TextStyle(fontSize: 16 * scale, fontWeight: FontWeight.bold, color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis), SizedBox(height: 4 * scale), Text(subtitle.tr(currentLang), style: TextStyle(fontSize: 13 * scale, color: textMuted, fontWeight: FontWeight.w600))])),
+                  Padding(padding: EdgeInsets.fromLTRB(12 * scale, 0, 12 * scale, 16 * scale), child: InkWell(borderRadius: BorderRadius.circular(12 * scale), onTap: () => onPlusTap(targetDate, dayTasks.length), child: Container(width: double.infinity, padding: EdgeInsets.symmetric(vertical: 6 * scale), decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(12 * scale), border: Border.all(color: glassBorderColor, width: 1.0)), child: Icon(Icons.add, size: 16 * scale, color: textMuted)), ), ),
+                  Expanded(child: ListView.builder(padding: EdgeInsets.symmetric(horizontal: 12 * scale), itemCount: dayTasks.length, itemBuilder: (context, taskIndex) { final task = dayTasks[taskIndex]; return LongPressDraggable<Map<String, dynamic>>(data: task, delay: const Duration(milliseconds: 200), feedback: Material(color: Colors.transparent, child: SizedBox(width: 250 * scale, child: buildBoardTaskCardExpanded(task))), childWhenDragging: Opacity(opacity: 0.3, child: buildBoardTaskCardExpanded(task)), child: buildBoardTaskCardExpanded(task)); }), ),
+                ],
               ),
             );
-          }),
-        ),
-      );
+          },
+        );
+      }
+
+      return LayoutBuilder(builder: (context, constraints) {
+        // Компакт: колонки не сжимаются ниже читаемой ширины — вместо этого
+        // весь ряд скроллится горизонтально. Раньше все 7 колонок делили
+        // ширину поровну и на узких окнах превращались в нечитаемые полоски.
+        if (ClarifyBreakpoints.of(constraints.maxWidth) == ClarifyBreakpoint.compact) {
+          return Padding(
+            padding: EdgeInsets.symmetric(vertical: 8 * scale),
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+              itemCount: 7,
+              itemBuilder: (context, index) => SizedBox(width: 240 * scale, child: dayColumn(index)),
+            ),
+          );
+        }
+        return Padding(
+          padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 8 * scale),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: List.generate(7, (index) => Expanded(child: dayColumn(index))),
+          ),
+        );
+      });
     }
     else if (selectedMenu == 'Календарь') {
       final year = currentCalendarDate.year; final month = currentCalendarDate.month;
@@ -155,28 +173,53 @@ class MainContentArea extends StatelessWidget {
       final int startOffset = firstDayOfMonth.weekday - 1; final int totalDaysInMonth = lastDayOfMonth.day; final int totalCells = startOffset + totalDaysInMonth;
       final List<String> monthsRu = ['', 'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
 
-      return Column(
+      return LayoutBuilder(builder: (context, outerConstraints) {
+        final bool isCompactHeader = ClarifyBreakpoints.of(outerConstraints.maxWidth) == ClarifyBreakpoint.compact;
+        final double headerCellWidth = isCompactHeader
+            ? 150 * scale
+            : (outerConstraints.maxWidth - (48 * scale) - (16 * scale * 6)) / 7;
+
+        // Только для компакт-режима (ListView.horizontal ниже) — Expanded здесь был бы
+        // ошибкой: он валиден лишь прямым потомком Flex, а не SizedBox внутри ListView.
+        final weekdayLabels = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map((day) => SizedBox(
+              width: headerCellWidth,
+              child: Center(child: Text(day.tr(currentLang), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * scale, color: textMuted))),
+            )).toList();
+
+        return Column(
         children: [
           Padding(padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 12 * scale), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text("${monthsRu[month].tr(currentLang)} $year", style: TextStyle(fontSize: 24 * scale, fontWeight: FontWeight.bold, color: textColor)), Row(children: [IconButton(icon: Icon(Icons.chevron_left, color: textColor, size: 28 * scale), onPressed: () => onCalendarDateChanged(DateTime(year, month - 1))), IconButton(icon: Icon(Icons.chevron_right, color: textColor, size: 28 * scale), onPressed: () => onCalendarDateChanged(DateTime(year, month + 1))), ], )], ), ),
-          Padding(padding: EdgeInsets.symmetric(horizontal: 24 * scale), child: Row(children: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map((day) => Expanded(child: Center(child: Text(day.tr(currentLang), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * scale, color: textMuted))))).toList(),),),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+            child: isCompactHeader
+                ? SizedBox(height: 24 * scale, child: ListView(scrollDirection: Axis.horizontal, physics: const NeverScrollableScrollPhysics(), children: weekdayLabels))
+                : Row(children: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map((day) => Expanded(child: Center(child: Text(day.tr(currentLang), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * scale, color: textMuted))))).toList()),
+          ),
           SizedBox(height: 12 * scale),
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final int rows = (totalCells / 7).ceil(); 
-                final double cellWidth = (constraints.maxWidth - (48 * scale) - (16 * scale * 6)) / 7; 
-                final double cellHeight = (constraints.maxHeight - (48 * scale) - (16 * scale * (rows - 1))) / rows; 
+                final int rows = (totalCells / 7).ceil();
+                final bool isCompact = ClarifyBreakpoints.of(constraints.maxWidth) == ClarifyBreakpoint.compact;
+                // Компакт: ячейка не сжимается ниже читаемой ширины — сетка целиком
+                // скроллится по горизонтали, а не расплющивает 7 колонок в полоски
+                // (как было раньше — childAspectRatio считался от всей доступной
+                // ширины без нижней границы).
+                final double cellWidth = isCompact
+                    ? 150 * scale
+                    : (constraints.maxWidth - (48 * scale) - (16 * scale * 6)) / 7;
+                final double cellHeight = (constraints.maxHeight - (48 * scale) - (16 * scale * (rows - 1))) / rows;
                 final double childAspectRatio = (cellWidth > 0 && cellHeight > 0) ? (cellWidth / cellHeight) : 1.0;
-                
-                return GridView.builder(
-                  physics: const NeverScrollableScrollPhysics(), 
-                  padding: EdgeInsets.all(24 * scale), 
+
+                final grid = GridView.builder(
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding: EdgeInsets.all(24 * scale),
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 7, 
-                    crossAxisSpacing: 16 * scale, 
-                    mainAxisSpacing: 16 * scale, 
+                    crossAxisCount: 7,
+                    crossAxisSpacing: 16 * scale,
+                    mainAxisSpacing: 16 * scale,
                     childAspectRatio: childAspectRatio
-                  ), 
+                  ),
                   itemCount: totalCells,
                   itemBuilder: (context, index) {
                     if (index < startOffset) return const SizedBox.shrink(); 
@@ -204,11 +247,20 @@ class MainContentArea extends StatelessWidget {
                     );
                   },
                 );
+
+                if (!isCompact) return grid;
+
+                final totalGridWidth = (48 * scale) + (7 * cellWidth) + (6 * 16 * scale);
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(width: totalGridWidth, height: constraints.maxHeight, child: grid),
+                );
               }
             ),
           ),
         ],
       );
+      });
     }
     else if (selectedMenu == 'Статистика') {
       return buildStatisticsDashboard();
