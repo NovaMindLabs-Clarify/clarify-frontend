@@ -20,6 +20,7 @@ import '../widgets/clarify_button.dart';
 import '../widgets/main_content_area.dart';
 import '../widgets/sidebar_menu.dart';
 import '../widgets/window_buttons.dart';
+import 'mobile/mobile_planner_shell.dart';
 import '../widgets/task_cards.dart';
 import '../widgets/statistics_dashboard.dart';
 import '../widgets/ai_chat_panel.dart';
@@ -183,6 +184,19 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   Color get highlightColor => _tokens.accentSoft;
   Color get chatBubbleAi => _tokens.surface2.withValues(alpha: isDark ? 0.6 : 0.8);
   Color get chatInput => _tokens.surfaceSunken.withValues(alpha: isDark ? 0.7 : 0.85);
+
+  String get _userFullName => Supabase.instance.client.auth.currentUser?.userMetadata?['full_name']?.toString() ?? '';
+  String get _userInitial => _userFullName.isNotEmpty ? _userFullName[0].toUpperCase() : '?';
+
+  Widget _buildStatisticsDashboardWidget() => StatisticsDashboard(
+        tasks: tasks,
+        currentLang: widget.currentLang,
+        textColor: textColor,
+        textMuted: textMuted,
+        isOverdue: _isOverdue,
+        parseDate: _parseDate,
+        buildGlassContainer: _buildGlassContainer,
+      );
 
   Widget _buildGlassContainer({required Widget child, BorderRadius? borderRadius, EdgeInsetsGeometry? padding, EdgeInsetsGeometry? margin, Color? customColor}) {
     return Container(margin: margin, child: ClipRRect(borderRadius: borderRadius ?? BorderRadius.circular(16), child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 18.0, sigmaY: 18.0), child: Container(padding: padding, decoration: BoxDecoration(color: customColor ?? glassColor, borderRadius: borderRadius ?? BorderRadius.circular(16), border: Border.all(color: glassBorderColor, width: 1.0)), child: child))));
@@ -959,6 +973,65 @@ Map<String, dynamic> _parseSmartInput(String text) {
     // 🚀 ВОТ ОНА - МАТЕМАТИКА АДАПТИВНОСТИ
     final double screenWidth = MediaQuery.of(context).size.width;
     _s = (screenWidth / 1920).clamp(0.4, 1.5); // Защищаем от сжатия в пыль и гигантизма
+
+    // Мобильная/PWA-раскладка — отдельно спроектированная навигация, не десктопный
+    // сайдбар, сжатый в узкий экран (см. docs/DESIGN_SYSTEM.md, "один проход стройки").
+    if (screenWidth < 700) {
+      return MobilePlannerShell(
+        currentLang: widget.currentLang,
+        userInitial: _userInitial,
+        userFullName: _userFullName,
+        tasks: tasks,
+        workspaces: workspaces,
+        workspaceMembers: workspaceMembers,
+        formatDate: _formatDate,
+        getPriorityColor: _getPriorityColor,
+        getSubtaskStats: _getSubtaskStats,
+        isOverdue: _isOverdue,
+        onToggleTask: _toggleTask,
+        onDeleteTask: _deleteTask,
+        onTaskTap: _handleTaskTap,
+        onAddTask: ({DateTime? preselectedDate}) => _showManualAddDialog(preselectedDate: preselectedDate),
+        onOpenWorkspaceMembers: _fetchWorkspaceMembers,
+        onInviteToWorkspace: (wsId) => showInviteMemberDialog(
+          context: context,
+          workspaceId: wsId,
+          isDark: isDark,
+          scale: 1.0,
+          textColor: textColor,
+          textMuted: textMuted,
+          glassBorderColor: glassBorderColor,
+          currentLang: widget.currentLang,
+        ),
+        onShowTeamPulse: (wsId) => showTeamPulseDialog(
+          context: context,
+          wsId: wsId,
+          scale: 1.0,
+          currentLang: widget.currentLang,
+          textColor: textColor,
+          textMuted: textMuted,
+          tasks: tasks,
+          workspaceMembers: workspaceMembers,
+          formatDate: _formatDate,
+          buildGlassContainer: _buildGlassContainer,
+        ),
+        onAddWorkspace: () => showCreateWorkspaceDialog(
+          context: context,
+          isDark: isDark,
+          scale: 1.0,
+          textColor: textColor,
+          textMuted: textMuted,
+          glassBorderColor: glassBorderColor,
+          currentLang: widget.currentLang,
+          onWorkspaceCreated: _fetchWorkspaces,
+        ),
+        onOpenAccountSettings: _showAccountSettingsDialog,
+        buildStatisticsDashboard: _buildStatisticsDashboardWidget,
+        isDark: isDark,
+        toggleTheme: widget.toggleTheme,
+        changeLang: widget.changeLang,
+      );
+    }
 
     return Container(
       decoration: BoxDecoration(

@@ -1,0 +1,263 @@
+import 'package:flutter/material.dart';
+import '../../core/localization.dart';
+import '../../core/theme/design_tokens.dart';
+import 'mobile_today_screen.dart';
+import 'mobile_tasks_screen.dart';
+import 'mobile_teams_screen.dart';
+import 'mobile_settings_screen.dart';
+
+enum MobileTab { today, tasks, teams, settings }
+
+/// Мобильная/PWA-оболочка Clarify — отдельно спроектированная навигация
+/// (нижний таб-бар + FAB), а не десктопный сайдбар, сжатый в узкий экран.
+/// Бизнес-логика (загрузка задач, CRUD, воркспейсы) остаётся в
+/// DesktopPlannerScreen — сюда прокидываются только данные и колбэки,
+/// как и в остальные вынесенные виджеты приложения.
+class MobilePlannerShell extends StatefulWidget {
+  final String currentLang;
+  final String userInitial;
+  final String userFullName;
+  final List<Map<String, dynamic>> tasks;
+  final List<Map<String, dynamic>> workspaces;
+  final Map<int, List<Map<String, dynamic>>> workspaceMembers;
+  final String Function(DateTime date) formatDate;
+  final Color Function(String? priority) getPriorityColor;
+  final Map<String, int> Function(dynamic parentId) getSubtaskStats;
+  final bool Function(Map<String, dynamic> task) isOverdue;
+  final void Function(Map<String, dynamic> task) onToggleTask;
+  final void Function(dynamic taskId) onDeleteTask;
+  final void Function(Map<String, dynamic> task) onTaskTap;
+  final void Function({DateTime? preselectedDate}) onAddTask;
+  final void Function(int workspaceId) onOpenWorkspaceMembers;
+  final void Function(int workspaceId) onInviteToWorkspace;
+  final void Function(int workspaceId) onShowTeamPulse;
+  final VoidCallback onAddWorkspace;
+  final VoidCallback onOpenAccountSettings;
+  final Widget Function() buildStatisticsDashboard;
+  final bool isDark;
+  final VoidCallback toggleTheme;
+  final Function(String lang) changeLang;
+
+  const MobilePlannerShell({
+    super.key,
+    required this.currentLang,
+    required this.userInitial,
+    required this.userFullName,
+    required this.tasks,
+    required this.workspaces,
+    required this.workspaceMembers,
+    required this.formatDate,
+    required this.getPriorityColor,
+    required this.getSubtaskStats,
+    required this.isOverdue,
+    required this.onToggleTask,
+    required this.onDeleteTask,
+    required this.onTaskTap,
+    required this.onAddTask,
+    required this.onOpenWorkspaceMembers,
+    required this.onInviteToWorkspace,
+    required this.onShowTeamPulse,
+    required this.onAddWorkspace,
+    required this.onOpenAccountSettings,
+    required this.buildStatisticsDashboard,
+    required this.isDark,
+    required this.toggleTheme,
+    required this.changeLang,
+  });
+
+  @override
+  State<MobilePlannerShell> createState() => _MobilePlannerShellState();
+}
+
+class _MobilePlannerShellState extends State<MobilePlannerShell> {
+  MobileTab _tab = MobileTab.today;
+
+  List<Map<String, dynamic>> get _todayTasks {
+    final todayStr = widget.formatDate(DateTime.now());
+    final list = widget.tasks.where((t) => t['due_date'] == todayStr && t['parent_id'] == null).toList();
+    list.sort((a, b) => (a['due_time'] ?? '23:59').compareTo(b['due_time'] ?? '23:59'));
+    return list;
+  }
+
+  int get _inboxCount => widget.tasks.where((t) => (t['due_date'] == null || t['due_date'] == '') && t['parent_id'] == null).length;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+
+    return Scaffold(
+      backgroundColor: t.bg,
+      body: SafeArea(
+        bottom: false,
+        child: IndexedStack(
+          index: MobileTab.values.indexOf(_tab),
+          children: [
+            MobileTodayScreen(
+              currentLang: widget.currentLang,
+              userInitial: widget.userInitial,
+              todayTasks: _todayTasks,
+              inboxCount: _inboxCount,
+              getPriorityColor: widget.getPriorityColor,
+              getSubtaskStats: widget.getSubtaskStats,
+              isOverdue: widget.isOverdue,
+              onToggle: widget.onToggleTask,
+              onDelete: widget.onDeleteTask,
+              onTap: widget.onTaskTap,
+              onOpenInbox: () => setState(() => _tab = MobileTab.tasks),
+            ),
+            MobileTasksScreen(
+              currentLang: widget.currentLang,
+              tasks: widget.tasks,
+              getPriorityColor: widget.getPriorityColor,
+              getSubtaskStats: widget.getSubtaskStats,
+              isOverdue: widget.isOverdue,
+              onToggle: widget.onToggleTask,
+              onDelete: widget.onDeleteTask,
+              onTap: widget.onTaskTap,
+            ),
+            MobileTeamsScreen(
+              currentLang: widget.currentLang,
+              workspaces: widget.workspaces,
+              workspaceMembers: widget.workspaceMembers,
+              tasks: widget.tasks,
+              onAddWorkspace: widget.onAddWorkspace,
+              onOpenMembers: widget.onOpenWorkspaceMembers,
+              onInvite: widget.onInviteToWorkspace,
+              onShowPulse: widget.onShowTeamPulse,
+              getPriorityColor: widget.getPriorityColor,
+              getSubtaskStats: widget.getSubtaskStats,
+              isOverdue: widget.isOverdue,
+              onToggleTask: widget.onToggleTask,
+              onDeleteTask: widget.onDeleteTask,
+              onTaskTap: widget.onTaskTap,
+            ),
+            MobileSettingsScreen(
+              currentLang: widget.currentLang,
+              userInitial: widget.userInitial,
+              userFullName: widget.userFullName,
+              isDark: widget.isDark,
+              onOpenAccountSettings: widget.onOpenAccountSettings,
+              onOpenStatistics: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => _StatisticsPage(currentLang: widget.currentLang, builder: widget.buildStatisticsDashboard),
+              )),
+              toggleTheme: widget.toggleTheme,
+              changeLang: widget.changeLang,
+            ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: _MobileBottomNav(
+        current: _tab,
+        currentLang: widget.currentLang,
+        onSelect: (tab) => setState(() => _tab = tab),
+        onAdd: () => widget.onAddTask(),
+      ),
+    );
+  }
+}
+
+class _MobileBottomNav extends StatelessWidget {
+  final MobileTab current;
+  final String currentLang;
+  final void Function(MobileTab tab) onSelect;
+  final VoidCallback onAdd;
+
+  const _MobileBottomNav({required this.current, required this.currentLang, required this.onSelect, required this.onAdd});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+      decoration: BoxDecoration(
+        color: t.surface,
+        border: Border(top: BorderSide(color: t.border)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _NavItem(icon: Icons.wb_sunny_outlined, activeIcon: Icons.wb_sunny, label: 'День'.tr(currentLang), active: current == MobileTab.today, onTap: () => onSelect(MobileTab.today)),
+            _NavItem(icon: Icons.checklist_outlined, activeIcon: Icons.checklist, label: 'Задачи'.tr(currentLang), active: current == MobileTab.tasks, onTap: () => onSelect(MobileTab.tasks)),
+            _FabItem(onTap: onAdd),
+            _NavItem(icon: Icons.groups_outlined, activeIcon: Icons.groups, label: 'Команды'.tr(currentLang), active: current == MobileTab.teams, onTap: () => onSelect(MobileTab.teams)),
+            _NavItem(icon: Icons.settings_outlined, activeIcon: Icons.settings, label: 'Настройки'.tr(currentLang), active: current == MobileTab.settings, onTap: () => onSelect(MobileTab.settings)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatelessWidget {
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _NavItem({required this.icon, required this.activeIcon, required this.label, required this.active, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final color = active ? t.accent : t.text3;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(ClarifyRadius.md),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(active ? activeIcon : icon, size: 22, color: color),
+            const SizedBox(height: 2),
+            Text(label, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: color)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FabItem extends StatelessWidget {
+  final VoidCallback onTap;
+  const _FabItem({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 44,
+        height: 44,
+        margin: const EdgeInsets.only(bottom: 18),
+        decoration: BoxDecoration(color: t.accent, shape: BoxShape.circle, boxShadow: [BoxShadow(color: t.accent.withValues(alpha: 0.35), blurRadius: 16, offset: const Offset(0, 6))]),
+        child: Icon(Icons.add, color: t.onAccent, size: 24),
+      ),
+    );
+  }
+}
+
+class _StatisticsPage extends StatelessWidget {
+  final String currentLang;
+  final Widget Function() builder;
+  const _StatisticsPage({required this.currentLang, required this.builder});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Scaffold(
+      backgroundColor: t.bg,
+      appBar: AppBar(
+        backgroundColor: t.bg,
+        elevation: 0,
+        foregroundColor: t.text,
+        title: Text('Статистика'.tr(currentLang), style: TextStyle(fontFamily: 'Golos Text', fontWeight: FontWeight.w700)),
+      ),
+      body: builder(),
+    );
+  }
+}

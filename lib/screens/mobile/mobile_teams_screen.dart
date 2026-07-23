@@ -1,0 +1,264 @@
+import 'package:flutter/material.dart';
+import '../../core/localization.dart';
+import '../../core/theme/design_tokens.dart';
+import '../../widgets/clarify_button.dart';
+import 'widgets/mobile_task_row.dart';
+
+/// "Команды" — полный паритет с десктопом: список воркспейсов, участники,
+/// приглашение, «Пульс команды», задачи команды. Раздела не было в первом
+/// черновике мобильного макета — добавлен по прямому запросу.
+class MobileTeamsScreen extends StatelessWidget {
+  final String currentLang;
+  final List<Map<String, dynamic>> workspaces;
+  final Map<int, List<Map<String, dynamic>>> workspaceMembers;
+  final List<Map<String, dynamic>> tasks;
+  final VoidCallback onAddWorkspace;
+  final void Function(int workspaceId) onOpenMembers;
+  final void Function(int workspaceId) onInvite;
+  final void Function(int workspaceId) onShowPulse;
+  final Color Function(String? priority) getPriorityColor;
+  final Map<String, int> Function(dynamic parentId) getSubtaskStats;
+  final bool Function(Map<String, dynamic> task) isOverdue;
+  final void Function(Map<String, dynamic> task) onToggleTask;
+  final void Function(dynamic taskId) onDeleteTask;
+  final void Function(Map<String, dynamic> task) onTaskTap;
+
+  const MobileTeamsScreen({
+    super.key,
+    required this.currentLang,
+    required this.workspaces,
+    required this.workspaceMembers,
+    required this.tasks,
+    required this.onAddWorkspace,
+    required this.onOpenMembers,
+    required this.onInvite,
+    required this.onShowPulse,
+    required this.getPriorityColor,
+    required this.getSubtaskStats,
+    required this.isOverdue,
+    required this.onToggleTask,
+    required this.onDeleteTask,
+    required this.onTaskTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Команды'.tr(currentLang), style: TextStyle(fontFamily: 'Golos Text', fontSize: 22, fontWeight: FontWeight.w700, color: t.text)),
+              ClarifyIconButton(icon: Icons.add_business_outlined, onPressed: onAddWorkspace, tooltip: 'Новая команда'.tr(currentLang)),
+            ],
+          ),
+        ),
+        Expanded(
+          child: workspaces.isEmpty
+              ? _EmptyTeams(currentLang: currentLang, onAddWorkspace: onAddWorkspace)
+              : ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+                  itemCount: workspaces.length,
+                  itemBuilder: (context, index) {
+                    final ws = workspaces[index];
+                    final wsId = ws['id'] as int;
+                    final members = workspaceMembers[wsId] ?? [];
+                    final wsColor = t.tagPalette[wsId % t.tagPalette.length];
+                    final taskCount = tasks.where((task) => task['workspace_id'] == wsId && task['parent_id'] == null && task['is_completed'] != true).length;
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Material(
+                        color: t.surface,
+                        borderRadius: BorderRadius.circular(ClarifyRadius.md),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(ClarifyRadius.md),
+                          onTap: () {
+                            onOpenMembers(wsId);
+                            Navigator.of(context).push(MaterialPageRoute(
+                              builder: (_) => _WorkspaceDetailPage(
+                                currentLang: currentLang,
+                                workspace: ws,
+                                color: wsColor,
+                                members: members,
+                                tasks: tasks.where((task) => task['workspace_id'] == wsId && task['parent_id'] == null).toList(),
+                                onInvite: () => onInvite(wsId),
+                                onShowPulse: () => onShowPulse(wsId),
+                                getPriorityColor: getPriorityColor,
+                                getSubtaskStats: getSubtaskStats,
+                                isOverdue: isOverdue,
+                                onToggleTask: onToggleTask,
+                                onDeleteTask: onDeleteTask,
+                                onTaskTap: onTaskTap,
+                              ),
+                            ));
+                          },
+                          child: Container(
+                            decoration: BoxDecoration(borderRadius: BorderRadius.circular(ClarifyRadius.md), border: Border(left: BorderSide(color: wsColor, width: 3))),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                            child: Row(
+                              children: [
+                                Icon(Icons.group_work_outlined, color: wsColor, size: 22),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(ws['name']?.toString() ?? '', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: t.text)),
+                                      const SizedBox(height: 2),
+                                      Text('$taskCount активных задач'.tr(currentLang), style: TextStyle(fontSize: 12.5, color: t.text3)),
+                                    ],
+                                  ),
+                                ),
+                                Icon(Icons.chevron_right, color: t.text3),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+class _WorkspaceDetailPage extends StatelessWidget {
+  final String currentLang;
+  final Map<String, dynamic> workspace;
+  final Color color;
+  final List<Map<String, dynamic>> members;
+  final List<Map<String, dynamic>> tasks;
+  final VoidCallback onInvite;
+  final VoidCallback onShowPulse;
+  final Color Function(String? priority) getPriorityColor;
+  final Map<String, int> Function(dynamic parentId) getSubtaskStats;
+  final bool Function(Map<String, dynamic> task) isOverdue;
+  final void Function(Map<String, dynamic> task) onToggleTask;
+  final void Function(dynamic taskId) onDeleteTask;
+  final void Function(Map<String, dynamic> task) onTaskTap;
+
+  const _WorkspaceDetailPage({
+    required this.currentLang,
+    required this.workspace,
+    required this.color,
+    required this.members,
+    required this.tasks,
+    required this.onInvite,
+    required this.onShowPulse,
+    required this.getPriorityColor,
+    required this.getSubtaskStats,
+    required this.isOverdue,
+    required this.onToggleTask,
+    required this.onDeleteTask,
+    required this.onTaskTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final sorted = [...tasks]..sort((a, b) => (a['due_time'] ?? '23:59').compareTo(b['due_time'] ?? '23:59'));
+
+    return Scaffold(
+      backgroundColor: t.bg,
+      appBar: AppBar(
+        backgroundColor: t.bg,
+        elevation: 0,
+        foregroundColor: t.text,
+        title: Text(workspace['name']?.toString() ?? '', style: TextStyle(fontFamily: 'Golos Text', fontWeight: FontWeight.w700)),
+        actions: [
+          ClarifyIconButton(icon: Icons.monitor_heart_outlined, onPressed: onShowPulse, tooltip: 'Пульс команды'.tr(currentLang)),
+          const SizedBox(width: 4),
+        ],
+      ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: members.isEmpty
+                      ? Text('Участников пока нет'.tr(currentLang), style: TextStyle(fontSize: 13, color: t.text3))
+                      : SizedBox(
+                          height: 34,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: members.length,
+                            separatorBuilder: (_, _) => const SizedBox(width: 6),
+                            itemBuilder: (context, i) {
+                              final m = members[i];
+                              final name = (m['full_name'] ?? '?').toString();
+                              return CircleAvatar(
+                                radius: 17,
+                                backgroundColor: t.tagPalette[i % t.tagPalette.length],
+                                child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                              );
+                            },
+                          ),
+                        ),
+                ),
+                ClarifyButton(variant: ClarifyButtonVariant.outline, icon: Icons.person_add_alt_1, label: 'Пригласить'.tr(currentLang), onPressed: onInvite),
+              ],
+            ),
+          ),
+          Expanded(
+            child: sorted.isEmpty
+                ? Center(child: Text('В этой команде пока нет задач'.tr(currentLang), style: TextStyle(fontSize: 14, color: t.text3)))
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+                    itemCount: sorted.length,
+                    itemBuilder: (context, index) {
+                      final task = sorted[index];
+                      return MobileTaskRow(
+                        task: task,
+                        showDate: true,
+                        priorityColor: getPriorityColor(task['priority']),
+                        subtaskStats: getSubtaskStats(task['id']),
+                        overdue: isOverdue(task),
+                        onToggle: () => onToggleTask(task),
+                        onDelete: () => onDeleteTask(task['id']),
+                        onTap: () => onTaskTap(task),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyTeams extends StatelessWidget {
+  final String currentLang;
+  final VoidCallback onAddWorkspace;
+  const _EmptyTeams({required this.currentLang, required this.onAddWorkspace});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.groups_outlined, size: 40, color: t.text3),
+            const SizedBox(height: 16),
+            Text('Пока нет ни одной команды'.tr(currentLang), textAlign: TextAlign.center, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: t.text2)),
+            const SizedBox(height: 16),
+            ClarifyButton(variant: ClarifyButtonVariant.filled, icon: Icons.add, label: 'Создать команду'.tr(currentLang), onPressed: onAddWorkspace),
+          ],
+        ),
+      ),
+    );
+  }
+}
