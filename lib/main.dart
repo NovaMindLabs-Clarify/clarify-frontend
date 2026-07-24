@@ -17,6 +17,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:local_notifier/local_notifier.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
 import 'core/config.dart';
+import 'core/last_tap_tracker.dart';
 import 'core/localization.dart';
 import 'core/theme/design_tokens.dart';
 import 'widgets/clarify_glass.dart';
@@ -222,9 +223,9 @@ class _SmartPlannerAppState extends State<SmartPlannerApp> with TrayListener {
       builder: (context, child) {
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(
-            textScaler: const TextScaler.linear(1.0), 
+            textScaler: const TextScaler.linear(1.0),
           ),
-          child: child!,
+          child: LastTapTrackerScope(child: child!),
         );
       },
       // ===========================================

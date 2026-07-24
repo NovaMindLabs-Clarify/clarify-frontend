@@ -1,5 +1,6 @@
 import 'dart:ui' show SemanticsHitTestBehavior, lerpDouble;
 import 'package:flutter/material.dart';
+import '../core/last_tap_tracker.dart';
 import '../core/theme/design_tokens.dart';
 
 /// Замена [showDialog] с собственным переходом (масштаб + fade по
@@ -9,14 +10,17 @@ import '../core/theme/design_tokens.dart';
 /// что барьер, safe area и поведение с клавиатурой не отличаются, меняется
 /// только transitionBuilder. Прямая замена: тот же набор параметров.
 ///
-/// [originOffset] — если задан (точка на экране, откуда открывают, например
-/// центр FAB), окно "вылетает" из неё: масштаб+смещение вместо простого
-/// fade+scale от центра. Сознательно НЕ через Hero — попытка сделать этот же
-/// эффект Hero'ем между FAB и диалогом раньше падала рантайм-ошибкой
-/// "A Hero widget cannot be the descendant of another Hero widget", и без
-/// живой отладки причину было не подтвердить; этот вариант достигает того же
-/// визуального результата обычным Transform, не завязанным на Hero-машинерию
-/// сопоставления тегов между роутами — структурно не может упасть так же.
+/// Окно "вылетает" из точки последнего тапа (см. [LastTapTracker]) — единый
+/// стиль для всех диалогов приложения, а не только для одной кнопки: точка
+/// клика ловится глобально в [LastTapTrackerScope] (main.dart), явно
+/// передавать [originOffset] нужно только если реального тапа не было
+/// (например, диалог открыт по хоткею). Сознательно НЕ через Hero — попытка
+/// сделать этот же эффект Hero'ем между кнопкой и диалогом раньше падала
+/// рантайм-ошибкой "A Hero widget cannot be the descendant of another Hero
+/// widget", и без живой отладки причину было не подтвердить; этот вариант
+/// достигает того же визуального результата обычным Transform, не
+/// завязанным на Hero-машинерию сопоставления тегов между роутами —
+/// структурно не может упасть так же.
 Future<T?> showClarifySurface<T>({
   required BuildContext context,
   required WidgetBuilder builder,
@@ -24,12 +28,18 @@ Future<T?> showClarifySurface<T>({
   Color? barrierColor,
   Offset? originOffset,
 }) {
+  final effectiveOrigin = originOffset ?? LastTapTracker.position;
   return Navigator.of(context, rootNavigator: true).push<T>(
     RawDialogRoute<T>(
       barrierDismissible: barrierDismissible,
       barrierColor: barrierColor ?? Colors.black.withValues(alpha: 0.45),
       barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
-      transitionDuration: ClarifyMotion.base,
+      // 180мс (base) хватало для простого fade+scale-от-центра, но для
+      // полёта от кнопки (часто в углу/сбоку) до центра экрана — большая
+      // дистанция — это читалось как рывок/скачок, а не плавный перелёт.
+      // deliberate (420мс) только когда реально летим из точки; обычный
+      // fallback-диалог (без известной точки клика) остаётся на прежней длительности.
+      transitionDuration: effectiveOrigin == null ? ClarifyMotion.base : ClarifyMotion.deliberate,
       pageBuilder: (context, animation, secondaryAnimation) {
         return Semantics(
           hitTestBehavior: SemanticsHitTestBehavior.opaque,
@@ -38,7 +48,7 @@ Future<T?> showClarifySurface<T>({
       },
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         final curved = CurvedAnimation(parent: animation, curve: ClarifyMotion.standard);
-        if (originOffset == null) {
+        if (effectiveOrigin == null) {
           return FadeTransition(
             opacity: curved,
             child: ScaleTransition(
@@ -47,15 +57,20 @@ Future<T?> showClarifySurface<T>({
             ),
           );
         }
+        // Непрозрачность нарастает быстрее (первая половина анимации), чем
+        // едет/растёт сам диалог — иначе полупрозрачный силуэт долго летит
+        // через весь экран, что тоже читается как "криво". К моменту, когда
+        // движение/масштаб ещё продолжаются, окно уже полностью видно.
+        final opacityCurved = CurvedAnimation(parent: animation, curve: const Interval(0.0, 0.5, curve: Curves.easeOut));
         return AnimatedBuilder(
           animation: curved,
           builder: (context, child) {
             final t = curved.value.clamp(0.0, 1.0);
             final screenCenter = MediaQuery.sizeOf(context).center(Offset.zero);
-            final beginOffset = originOffset - screenCenter;
-            final scale = lerpDouble(0.15, 1.0, t)!;
+            final beginOffset = effectiveOrigin - screenCenter;
+            final scale = lerpDouble(0.2, 1.0, t)!;
             return Opacity(
-              opacity: t,
+              opacity: opacityCurved.value.clamp(0.0, 1.0),
               child: Transform.translate(
                 offset: beginOffset * (1 - t),
                 child: Transform.scale(scale: scale, child: child),

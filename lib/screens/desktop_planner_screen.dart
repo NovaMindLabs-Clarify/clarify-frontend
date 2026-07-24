@@ -76,13 +76,6 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   // одновременных действиях) добавляется сюда на время запроса и снимается
   // в finally, второй вызов с тем же id, пока первый не завершился, игнорируется.
   final Set<String> _pendingActionIds = {};
-  final GlobalKey _fabKey = GlobalKey();
-
-  Offset? _fabCenterOnScreen() {
-    final box = _fabKey.currentContext?.findRenderObject() as RenderBox?;
-    if (box == null || !box.attached) return null;
-    return box.localToGlobal(box.size.center(Offset.zero));
-  }
 
   Future<void> _guardedAction(String actionId, Future<void> Function() action) async {
     if (_pendingActionIds.contains(actionId)) return;
@@ -1491,19 +1484,10 @@ Map<String, dynamic> _parseSmartInput(String text) {
           // descendant of another Hero widget" при реальном запуске (не смог
           // безопасно продиагностировать вслепую без браузера/живой отладки).
           // Тот же эффект "окно вылетает из кнопки" сделан через
-          // showClarifySurface(originOffset: ...) — обычный Transform от
-          // экранных координат FAB, без Hero и его завязки на сопоставление
-          // тегов между роутами.
+          // showClarifySurface() — точка клика ловится глобально
+          // (LastTapTracker, main.dart), отдельно координаты FAB не нужны.
           child: FloatingActionButton.extended(
-            key: _fabKey,
-            onPressed: () {
-              final origin = _fabCenterOnScreen();
-              if (_isDuplicating && _taskToDuplicate != null) {
-                _showManualAddDialog(preselectedDate: DateTime.now(), sourceTaskForDuplicate: _taskToDuplicate, originOffset: origin);
-              } else {
-                _showManualAddDialog(originOffset: origin);
-              }
-            },
+            onPressed: () { if (_isDuplicating && _taskToDuplicate != null) { _showManualAddDialog(preselectedDate: DateTime.now(), sourceTaskForDuplicate: _taskToDuplicate); } else { _showManualAddDialog(); } },
             // Тот же акцент, что у кнопки "AI Ассистент" (ClarifyButtonVariant.filled)
             // — раньше FAB был захардкожен на стоковый Colors.blueAccent, из-за чего
             // две акцентные кнопки в интерфейсе визуально спорили друг с другом.
