@@ -125,8 +125,8 @@ void showTaskDetailsDialog({
                             Builder(builder: (context) {
                               var members = workspaceMembers[task['workspace_id']] ?? [];
                               var member = members.firstWhere((m) => m['user_id'] == task['assigned_to'], orElse: () => <String, dynamic>{});
-                              String name = member.isNotEmpty ? (member['full_name'] ?? 'Участник') : 'Неизвестно';
-                              return Text("Исполнитель: $name", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: textColor));
+                              String name = member.isNotEmpty ? (member['full_name'] ?? 'Участник'.tr(currentLang)) : 'Неизвестно'.tr(currentLang);
+                              return Text("${'Исполнитель: '.tr(currentLang)}$name", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: textColor));
                             }),
                           ],
                         ),
@@ -155,7 +155,7 @@ void showTaskDetailsDialog({
                         children: [
                           Icon(LucideIcons.listChecks, color: t.accent), const SizedBox(width: 8),
                           Text("Чек-лист".tr(currentLang), style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)), const Spacer(),
-                          if (subtasks.isNotEmpty) Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: glassColor, borderRadius: BorderRadius.circular(12)), child: Text("${subtasks.where((t) => t['is_completed'] == true).length} из ${subtasks.length}", style: TextStyle(color: textMuted, fontWeight: FontWeight.bold))),
+                          if (subtasks.isNotEmpty) Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: glassColor, borderRadius: BorderRadius.circular(12)), child: Text("${subtasks.where((t) => t['is_completed'] == true).length} ${'из'.tr(currentLang)} ${subtasks.length}", style: TextStyle(color: textMuted, fontWeight: FontWeight.bold))),
                         ],
                       ),
                       const SizedBox(height: 16),

@@ -384,7 +384,7 @@ class _AuthScreenState extends State<AuthScreen> {
         const SizedBox(height: 16),
         Text("Подтверждение".tr(widget.currentLang), textAlign: TextAlign.center, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: textColor)),
         const SizedBox(height: 8),
-        Text("Мы отправили 6-значный код на:\n${_emailController.text}".tr(widget.currentLang), textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: textMuted, height: 1.5)),
+        Text("${'Мы отправили 6-значный код на:\n'.tr(widget.currentLang)}${_emailController.text}", textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: textMuted, height: 1.5)),
         const SizedBox(height: 32),
         TextField(
           controller: _otpController, style: TextStyle(color: textColor, fontSize: 24, letterSpacing: 8, fontWeight: FontWeight.bold), 
@@ -662,7 +662,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 setState(() => _isOtpMode = true);
               }
             } catch (e) {
-              if (context.mounted) ClarifyToast.show(context, 'Ошибка: $e'.tr(widget.currentLang), variant: ClarifyToastVariant.danger);
+              if (context.mounted) ClarifyToast.show(context, "${'Ошибка: '.tr(widget.currentLang)}$e", variant: ClarifyToastVariant.danger);
             } finally {
               if (context.mounted) setState(() => _isLoading = false);
             }
@@ -755,7 +755,7 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
         setState(() => _avatarUrl = publicUrl);
       }
     } catch (e) {
-      if (mounted) ClarifyToast.show(context, 'Ошибка загрузки: $e'.tr(widget.currentLang), variant: ClarifyToastVariant.danger);
+      if (mounted) ClarifyToast.show(context, "${'Ошибка загрузки: '.tr(widget.currentLang)}$e", variant: ClarifyToastVariant.danger);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -780,7 +780,7 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
       );
 
     } catch (e) {
-      if (mounted) ClarifyToast.show(context, 'Ошибка: $e'.tr(widget.currentLang), variant: ClarifyToastVariant.danger);
+      if (mounted) ClarifyToast.show(context, "${'Ошибка: '.tr(widget.currentLang)}$e", variant: ClarifyToastVariant.danger);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -809,7 +809,7 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ClarifyToast.show(context, "Ошибка при удалении: $e".tr(widget.currentLang), variant: ClarifyToastVariant.danger);
+        ClarifyToast.show(context, "${'Ошибка при удалении: '.tr(widget.currentLang)}$e", variant: ClarifyToastVariant.danger);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

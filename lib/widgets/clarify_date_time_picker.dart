@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
 import 'clarify_glass.dart';
 import 'clarify_surface.dart';
@@ -11,30 +12,33 @@ import 'clarify_surface.dart';
 Future<DateTime?> showClarifyDatePicker({
   required BuildContext context,
   required bool isDark,
+  required String currentLang,
   DateTime? initialDate,
 }) {
   return showClarifySurface<DateTime>(
     context: context,
-    builder: (context) => _ClarifyDatePickerDialog(isDark: isDark, initialDate: initialDate ?? DateTime.now()),
+    builder: (context) => _ClarifyDatePickerDialog(isDark: isDark, currentLang: currentLang, initialDate: initialDate ?? DateTime.now()),
   );
 }
 
 Future<TimeOfDay?> showClarifyTimePicker({
   required BuildContext context,
   required bool isDark,
+  required String currentLang,
   TimeOfDay? initialTime,
 }) {
   return showClarifySurface<TimeOfDay>(
     context: context,
-    builder: (context) => _ClarifyTimePickerDialog(isDark: isDark, initialTime: initialTime ?? TimeOfDay.now()),
+    builder: (context) => _ClarifyTimePickerDialog(isDark: isDark, currentLang: currentLang, initialTime: initialTime ?? TimeOfDay.now()),
   );
 }
 
 class _ClarifyDatePickerDialog extends StatefulWidget {
   final bool isDark;
+  final String currentLang;
   final DateTime initialDate;
 
-  const _ClarifyDatePickerDialog({required this.isDark, required this.initialDate});
+  const _ClarifyDatePickerDialog({required this.isDark, required this.currentLang, required this.initialDate});
 
   @override
   State<_ClarifyDatePickerDialog> createState() => _ClarifyDatePickerDialogState();
@@ -83,7 +87,7 @@ class _ClarifyDatePickerDialogState extends State<_ClarifyDatePickerDialog> {
                       icon: Icon(LucideIcons.chevronLeft, color: t.text),
                       onPressed: () => setState(() => _visibleMonth = DateTime(year, month - 1)),
                     ),
-                    Text('${_monthsRu[month]} $year', style: TextStyle(color: t.text, fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text('${_monthsRu[month].tr(widget.currentLang)} $year', style: TextStyle(color: t.text, fontWeight: FontWeight.bold, fontSize: 16)),
                     IconButton(
                       icon: Icon(LucideIcons.chevronRight, color: t.text),
                       onPressed: () => setState(() => _visibleMonth = DateTime(year, month + 1)),
@@ -92,7 +96,7 @@ class _ClarifyDatePickerDialogState extends State<_ClarifyDatePickerDialog> {
                 ),
                 Row(
                   children: _weekdaysRu
-                      .map((d) => Expanded(child: Center(child: Text(d, style: TextStyle(color: t.text2, fontWeight: FontWeight.bold, fontSize: 12)))))
+                      .map((d) => Expanded(child: Center(child: Text(d.tr(widget.currentLang), style: TextStyle(color: t.text2, fontWeight: FontWeight.bold, fontSize: 12)))))
                       .toList(),
                 ),
                 const SizedBox(height: 8),
@@ -132,7 +136,7 @@ class _ClarifyDatePickerDialogState extends State<_ClarifyDatePickerDialog> {
                 const SizedBox(height: 8),
                 Align(
                   alignment: Alignment.centerRight,
-                  child: TextButton(onPressed: () => Navigator.of(context).pop(), child: Text('Отмена', style: TextStyle(color: t.text2))),
+                  child: TextButton(onPressed: () => Navigator.of(context).pop(), child: Text('Отмена'.tr(widget.currentLang), style: TextStyle(color: t.text2))),
                 ),
               ],
             ),
@@ -145,9 +149,10 @@ class _ClarifyDatePickerDialogState extends State<_ClarifyDatePickerDialog> {
 
 class _ClarifyTimePickerDialog extends StatefulWidget {
   final bool isDark;
+  final String currentLang;
   final TimeOfDay initialTime;
 
-  const _ClarifyTimePickerDialog({required this.isDark, required this.initialTime});
+  const _ClarifyTimePickerDialog({required this.isDark, required this.currentLang, required this.initialTime});
 
   @override
   State<_ClarifyTimePickerDialog> createState() => _ClarifyTimePickerDialogState();
@@ -216,7 +221,7 @@ class _ClarifyTimePickerDialogState extends State<_ClarifyTimePickerDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Время', style: TextStyle(color: t.text, fontWeight: FontWeight.bold, fontSize: 16)),
+              Text('Время'.tr(widget.currentLang), style: TextStyle(color: t.text, fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 12),
               Stack(
                 alignment: Alignment.center,
@@ -240,12 +245,12 @@ class _ClarifyTimePickerDialogState extends State<_ClarifyTimePickerDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  TextButton(onPressed: () => Navigator.of(context).pop(), child: Text('Отмена', style: TextStyle(color: t.text2))),
+                  TextButton(onPressed: () => Navigator.of(context).pop(), child: Text('Отмена'.tr(widget.currentLang), style: TextStyle(color: t.text2))),
                   const SizedBox(width: 8),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ClarifyRadius.sm))),
                     onPressed: () => Navigator.of(context).pop(TimeOfDay(hour: _hour, minute: _minute)),
-                    child: const Text('Готово', style: TextStyle(fontWeight: FontWeight.bold)),
+                    child: Text('Готово'.tr(widget.currentLang), style: const TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),

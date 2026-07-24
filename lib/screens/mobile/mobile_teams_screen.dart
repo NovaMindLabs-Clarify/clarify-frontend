@@ -117,7 +117,7 @@ class MobileTeamsScreen extends StatelessWidget {
                                     children: [
                                       Text(ws['name']?.toString() ?? '', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: t.text)),
                                       const SizedBox(height: 2),
-                                      Text('$taskCount активных задач'.tr(currentLang), style: TextStyle(fontSize: 12.5, color: t.text3)),
+                                      Text('$taskCount ${'активных задач'.tr(currentLang)}', style: TextStyle(fontSize: 12.5, color: t.text3)),
                                     ],
                                   ),
                                 ),

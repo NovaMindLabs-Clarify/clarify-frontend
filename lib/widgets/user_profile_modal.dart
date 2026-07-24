@@ -131,7 +131,7 @@ class _UserProfileModalState extends State<_UserProfileModal> {
                       ],
                       if (_isSelf && _profile?['friend_code'] != null) ...[
                         const SizedBox(height: 12),
-                        Text('Код друга: ${_profile!['friend_code']}'.tr(widget.currentLang), style: TextStyle(color: t.text3, fontSize: 13, letterSpacing: 1)),
+                        Text("${'Код друга: '.tr(widget.currentLang)}${_profile!['friend_code']}", style: TextStyle(color: t.text3, fontSize: 13, letterSpacing: 1)),
                       ],
                       const SizedBox(height: 24),
                       _buildActions(t),

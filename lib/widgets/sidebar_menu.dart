@@ -117,6 +117,7 @@ class _SidebarMenuState extends State<SidebarMenu> {
     final picked = await showIconPickerDialog(
       context: context,
       isDark: widget.isDark,
+      currentLang: widget.currentLang,
       current: widget.projectIconKeys[tag],
     );
     if (picked != null) widget.onSetProjectIcon(tag, picked);
@@ -126,6 +127,7 @@ class _SidebarMenuState extends State<SidebarMenu> {
     final picked = await showIconPickerDialog(
       context: context,
       isDark: widget.isDark,
+      currentLang: widget.currentLang,
       current: current,
     );
     if (picked != null) widget.onSetWorkspaceIcon(wsId, picked);

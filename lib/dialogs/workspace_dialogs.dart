@@ -118,7 +118,7 @@ void showInviteMemberDialog({
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text("Введите Email пользователя. Он уже должен быть зарегистрирован в Clarify.", style: TextStyle(color: textMuted, fontSize: 13 * s)),
+            Text("Введите Email пользователя. Он уже должен быть зарегистрирован в Clarify.".tr(currentLang), style: TextStyle(color: textMuted, fontSize: 13 * s)),
             SizedBox(height: 16 * s),
             TextField(
               controller: emailCtrl,

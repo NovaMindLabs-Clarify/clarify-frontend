@@ -100,13 +100,13 @@ void showTeamPulseDialog({
 
                   if (sortedHeroes.isNotEmpty) ...[
                     SizedBox(height: 32 * s),
-                    Align(alignment: Alignment.centerLeft, child: Text("🏆 ГЕРОИ ДНЯ:", style: TextStyle(fontWeight: FontWeight.w900, color: textMuted, fontSize: 12 * s, letterSpacing: 1.2))),
+                    Align(alignment: Alignment.centerLeft, child: Text("🏆 ГЕРОИ ДНЯ:".tr(currentLang), style: TextStyle(fontWeight: FontWeight.w900, color: textMuted, fontSize: 12 * s, letterSpacing: 1.2))),
                     SizedBox(height: 16 * s),
                     Column(
                       children: sortedHeroes.map((entry) {
                         var members = workspaceMembers[wsId] ?? [];
                         var member = members.firstWhere((m) => m['user_id'] == entry.key, orElse: () => <String, dynamic>{});
-                        String name = member.isNotEmpty ? (member['full_name'] ?? 'Участник') : 'Кто-то';
+                        String name = member.isNotEmpty ? (member['full_name'] ?? 'Участник'.tr(currentLang)) : 'Кто-то'.tr(currentLang);
                         String initial = name[0].toUpperCase();
 
                         return Padding(
@@ -116,7 +116,7 @@ void showTeamPulseDialog({
                               CircleAvatar(radius: 16 * s, backgroundColor: t.tagPalette[members.indexOf(member) % t.tagPalette.length], child: Text(initial, style: TextStyle(color: Colors.white, fontSize: 14 * s, fontWeight: FontWeight.bold))),
                               SizedBox(width: 12 * s),
                               Expanded(child: Text(name, style: TextStyle(color: textColor, fontWeight: FontWeight.w600, fontSize: 16 * s))),
-                              Container(padding: EdgeInsets.symmetric(horizontal: 12 * s, vertical: 6 * s), decoration: BoxDecoration(color: t.successSoft, borderRadius: BorderRadius.circular(16 * s)), child: Text("${entry.value} задач", style: TextStyle(color: t.success, fontWeight: FontWeight.w900, fontSize: 13 * s))),
+                              Container(padding: EdgeInsets.symmetric(horizontal: 12 * s, vertical: 6 * s), decoration: BoxDecoration(color: t.successSoft, borderRadius: BorderRadius.circular(16 * s)), child: Text("${entry.value} ${'задач'.tr(currentLang)}", style: TextStyle(color: t.success, fontWeight: FontWeight.w900, fontSize: 13 * s))),
                             ],
                           ),
                         );
@@ -124,7 +124,7 @@ void showTeamPulseDialog({
                     ),
                   ] else ...[
                     SizedBox(height: 32 * s),
-                    Text("Пока никто ничего не выполнил.\nСамое время начать! 🚀", textAlign: TextAlign.center, style: TextStyle(color: textMuted, fontSize: 15 * s)),
+                    Text("Пока никто ничего не выполнил.\nСамое время начать! 🚀".tr(currentLang), textAlign: TextAlign.center, style: TextStyle(color: textMuted, fontSize: 15 * s)),
                   ],
                 ],
               ),

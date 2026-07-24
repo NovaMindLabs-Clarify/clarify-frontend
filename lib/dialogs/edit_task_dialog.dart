@@ -106,9 +106,9 @@ void showEditTaskDialog({
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          Expanded(child: OutlinedButton.icon(icon: Icon(LucideIcons.calendar, size: 18, color: textColor), label: Text(selectedDate == null ? "Без даты".tr(currentLang) : formatDate(selectedDate!), style: TextStyle(color: textColor)), style: OutlinedButton.styleFrom(side: BorderSide(color: glassBorderColor), padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), onPressed: () async { final picked = await showClarifyDatePicker(context: context, isDark: isDark, initialDate: selectedDate); if (picked != null) setStateDialog(() => selectedDate = picked); })),
+                          Expanded(child: OutlinedButton.icon(icon: Icon(LucideIcons.calendar, size: 18, color: textColor), label: Text(selectedDate == null ? "Без даты".tr(currentLang) : formatDate(selectedDate!), style: TextStyle(color: textColor)), style: OutlinedButton.styleFrom(side: BorderSide(color: glassBorderColor), padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), onPressed: () async { final picked = await showClarifyDatePicker(context: context, isDark: isDark, currentLang: currentLang, initialDate: selectedDate); if (picked != null) setStateDialog(() => selectedDate = picked); })),
                           const SizedBox(width: 12),
-                          Expanded(child: OutlinedButton.icon(icon: Icon(LucideIcons.clock, size: 18, color: textColor), label: Text(selectedTime == null ? "Время".tr(currentLang) : selectedTime!.format(context), style: TextStyle(color: textColor)), style: OutlinedButton.styleFrom(side: BorderSide(color: glassBorderColor), padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), onPressed: () async { final picked = await showClarifyTimePicker(context: context, isDark: isDark, initialTime: selectedTime ?? TimeOfDay.now()); if (picked != null) setStateDialog(() => selectedTime = picked); })),
+                          Expanded(child: OutlinedButton.icon(icon: Icon(LucideIcons.clock, size: 18, color: textColor), label: Text(selectedTime == null ? "Время".tr(currentLang) : selectedTime!.format(context), style: TextStyle(color: textColor)), style: OutlinedButton.styleFrom(side: BorderSide(color: glassBorderColor), padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), onPressed: () async { final picked = await showClarifyTimePicker(context: context, isDark: isDark, currentLang: currentLang, initialTime: selectedTime ?? TimeOfDay.now()); if (picked != null) setStateDialog(() => selectedTime = picked); })),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -165,7 +165,7 @@ void showEditTaskDialog({
                           ),
                           value: selectedAssigneeId,
                           items: [
-                            DropdownMenuItem(value: null, child: Text("Никто", style: TextStyle(color: textColor))),
+                            DropdownMenuItem(value: null, child: Text("Никто".tr(currentLang), style: TextStyle(color: textColor))),
                             ...(workspaceMembers[task['workspace_id']] ?? []).map((m) => DropdownMenuItem(
                               value: m['user_id'] as String,
                               child: Text(m['full_name'] ?? 'Участник', style: TextStyle(color: textColor)),
@@ -193,7 +193,7 @@ void showEditTaskDialog({
                               if (newDateStr != null && newDateStr != task['due_date']) {
                                 final dayCount = tasks.where((t) => t['due_date'] == newDateStr && t['parent_id'] == null).length;
                                 if (dayCount >= AppConfig.dailyTaskLimit) {
-                                  ClarifyToast.show(context, "Достигнут лимит (${AppConfig.dailyTaskLimit}) на день!".tr(currentLang), variant: ClarifyToastVariant.danger);
+                                  ClarifyToast.show(context, "${'Достигнут лимит ('.tr(currentLang)}${AppConfig.dailyTaskLimit}${') на день!'.tr(currentLang)}", variant: ClarifyToastVariant.danger);
                                   setStateDialog(() => isSaving = false);
                                   return;
                                 }

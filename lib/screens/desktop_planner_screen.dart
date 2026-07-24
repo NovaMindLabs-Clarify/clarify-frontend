@@ -159,7 +159,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
       if (mounted) {
         ClarifyToast.show(
           context,
-          newState ? "Фокусирование включено! Уведомления заглушены" : "Фокусирование выключено!",
+          (newState ? "Фокусирование включено! Уведомления заглушены" : "Фокусирование выключено!").tr(widget.currentLang),
           variant: ClarifyToastVariant.info,
         );
       }
@@ -817,7 +817,7 @@ void _showDailyReviewOverlay(int taskCount) {
                     children: [
                       Text("🎉", style: TextStyle(fontSize: 70 * _s)),
                       SizedBox(height: 24 * _s),
-                      Text("Отличная работа!", style: TextStyle(color: textColor, fontSize: 32 * _s, fontWeight: FontWeight.w900)),
+                      Text("Отличная работа!".tr(widget.currentLang), style: TextStyle(color: textColor, fontSize: 32 * _s, fontWeight: FontWeight.w900)),
                       SizedBox(height: 16 * _s),
                       Text(
                         "Ты закрыл все задачи на сегодня ($taskCount шт).\nСистема синхронизирована. Можешь со спокойной душой закрывать приложение.\nОтдыхай, ты это заслужил!", 
@@ -837,7 +837,7 @@ void _showDailyReviewOverlay(int taskCount) {
                           _confettiController.stop();
                           Navigator.pop(context);
                         },
-                        child: Text("Завершить день", style: TextStyle(fontSize: 18 * _s, fontWeight: FontWeight.bold)),
+                        child: Text("Завершить день".tr(widget.currentLang), style: TextStyle(fontSize: 18 * _s, fontWeight: FontWeight.bold)),
                       )
                     ],
                   ),
@@ -894,7 +894,7 @@ void _checkBurnoutWarning(String dateStr) {
                   children: [
                     Icon(LucideIcons.flower, size: 60 * _s, color: _tokens.accent),
                     SizedBox(height: 20 * _s),
-                    Text("Эй, притормози! 🛑", style: TextStyle(color: textColor, fontSize: 24 * _s, fontWeight: FontWeight.w900)),
+                    Text("Эй, притормози! 🛑".tr(widget.currentLang), style: TextStyle(color: textColor, fontSize: 24 * _s, fontWeight: FontWeight.w900)),
                     SizedBox(height: 12 * _s),
                     Text(
                       "Это уже 10-я задача на этот день.\n\nПродуктивность — это прекрасно, но выгорание нам ни к чему. Постарайся не перегружать расписание и обязательно оставляй окна для отдыха.\nТы не робот! 🤖", // <-- Текст тоже обновили
@@ -911,7 +911,7 @@ void _checkBurnoutWarning(String dateStr) {
                         elevation: 0,
                       ),
                       onPressed: () => Navigator.pop(context),
-                      child: Text("Понял, спасибо", style: TextStyle(fontSize: 15 * _s, fontWeight: FontWeight.bold)),
+                      child: Text("Понял, спасибо".tr(widget.currentLang), style: TextStyle(fontSize: 15 * _s, fontWeight: FontWeight.bold)),
                     )
                   ],
                 ),
@@ -1353,7 +1353,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                       Padding(
                                         padding: EdgeInsets.only(right: 12 * _s),
                                         child: Tooltip(
-                                          message: "Несинхронизированных изменений: $_pendingOpsCount".tr(widget.currentLang),
+                                          message: "${'Несинхронизированных изменений: '.tr(widget.currentLang)}$_pendingOpsCount",
                                           child: Icon(LucideIcons.cloudAlert, color: _tokens.warning, size: 24 * _s),
                                         ),
                                       ),
@@ -1420,7 +1420,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Icon(LucideIcons.funnel, size: 18 * _s, color: _tokens.accent), SizedBox(width: 8 * _s),
-                                        Text("Тег: #$activeTagFilter".tr(widget.currentLang), style: TextStyle(color: _tokens.accent, fontWeight: FontWeight.bold, fontSize: 15 * _s)), SizedBox(width: 12 * _s),
+                                        Text("${'Тег: '.tr(widget.currentLang)}#$activeTagFilter", style: TextStyle(color: _tokens.accent, fontWeight: FontWeight.bold, fontSize: 15 * _s)), SizedBox(width: 12 * _s),
                                         InkWell(onTap: () => setState(() => activeTagFilter = null), child: Container(padding: EdgeInsets.all(4 * _s), decoration: BoxDecoration(shape: BoxShape.circle, color: _tokens.accent.withValues(alpha: 0.6)), child: Icon(LucideIcons.x, size: 14 * _s, color: _tokens.onAccent),))
                                       ],
                                     )

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
 import 'clarify_glass.dart';
 import 'clarify_surface.dart';
@@ -70,6 +71,7 @@ IconData iconByKey(String? key) => kPickableProjectIcons[key] ?? kPickableProjec
 Future<String?> showIconPickerDialog({
   required BuildContext context,
   required bool isDark,
+  required String currentLang,
   String? current,
 }) {
   return showClarifySurface<String>(
@@ -89,7 +91,7 @@ Future<String?> showIconPickerDialog({
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Выберите иконку', style: TextStyle(color: t.text, fontWeight: FontWeight.bold, fontSize: 16)),
+                  Text('Выберите иконку'.tr(currentLang), style: TextStyle(color: t.text, fontWeight: FontWeight.bold, fontSize: 16)),
                   const SizedBox(height: 16),
                   GridView.builder(
                     shrinkWrap: true,
@@ -116,7 +118,7 @@ Future<String?> showIconPickerDialog({
                   const SizedBox(height: 12),
                   Align(
                     alignment: Alignment.centerRight,
-                    child: TextButton(onPressed: () => Navigator.of(context).pop(), child: Text('Отмена', style: TextStyle(color: t.text2))),
+                    child: TextButton(onPressed: () => Navigator.of(context).pop(), child: Text('Отмена'.tr(currentLang), style: TextStyle(color: t.text2))),
                   ),
                 ],
               ),

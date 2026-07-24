@@ -172,7 +172,7 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
                   label: Text(_date == null ? 'Без даты'.tr(widget.currentLang) : widget.formatDate(_date!), style: TextStyle(color: t.text)),
                   style: OutlinedButton.styleFrom(side: BorderSide(color: t.border), padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md))),
                   onPressed: () async {
-                    final picked = await showClarifyDatePicker(context: context, isDark: Theme.of(context).brightness == Brightness.dark, initialDate: _date);
+                    final picked = await showClarifyDatePicker(context: context, isDark: Theme.of(context).brightness == Brightness.dark, currentLang: widget.currentLang, initialDate: _date);
                     if (picked != null) setState(() => _date = picked);
                   },
                 ),
@@ -184,7 +184,7 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
                   label: Text(_time == null ? 'Время'.tr(widget.currentLang) : _time!.format(context), style: TextStyle(color: t.text)),
                   style: OutlinedButton.styleFrom(side: BorderSide(color: t.border), padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md))),
                   onPressed: () async {
-                    final picked = await showClarifyTimePicker(context: context, isDark: Theme.of(context).brightness == Brightness.dark, initialTime: _time ?? TimeOfDay.now());
+                    final picked = await showClarifyTimePicker(context: context, isDark: Theme.of(context).brightness == Brightness.dark, currentLang: widget.currentLang, initialTime: _time ?? TimeOfDay.now());
                     if (picked != null) setState(() => _time = picked);
                   },
                 ),

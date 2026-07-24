@@ -103,7 +103,7 @@ class MobileTodayScreen extends StatelessWidget {
                   children: [
                     Icon(LucideIcons.inbox, size: 18, color: t.text2),
                     const SizedBox(width: 10),
-                    Expanded(child: Text('Входящие: $inboxCount без даты'.tr(currentLang), style: TextStyle(fontSize: 13, color: t.text2, fontWeight: FontWeight.w500))),
+                    Expanded(child: Text("${'Входящие: '.tr(currentLang)}$inboxCount${' без даты'.tr(currentLang)}", style: TextStyle(fontSize: 13, color: t.text2, fontWeight: FontWeight.w500))),
                     Icon(LucideIcons.chevronRight, size: 18, color: t.text3),
                   ],
                 ),

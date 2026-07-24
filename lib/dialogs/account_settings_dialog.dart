@@ -99,7 +99,7 @@ void showAccountSettingsDialog({
               onProfileChanged();
               if (context.mounted) ClarifyToast.show(context, 'Аватар обновлен!'.tr(currentLang), variant: ClarifyToastVariant.success);
             } catch (e) {
-              if (context.mounted) ClarifyToast.show(context, 'Ошибка: $e'.tr(currentLang), variant: ClarifyToastVariant.danger);
+              if (context.mounted) ClarifyToast.show(context, "${'Ошибка: '.tr(currentLang)}$e", variant: ClarifyToastVariant.danger);
             } finally {
               setStateDialog(() => isLoading = false);
             }
@@ -114,7 +114,7 @@ void showAccountSettingsDialog({
             onProfileChanged();
             if (context.mounted) ClarifyToast.show(context, 'Аватарка удалена!'.tr(currentLang), variant: ClarifyToastVariant.success);
           } catch (e) {
-            if (context.mounted) ClarifyToast.show(context, 'Ошибка: $e'.tr(currentLang), variant: ClarifyToastVariant.danger);
+            if (context.mounted) ClarifyToast.show(context, "${'Ошибка: '.tr(currentLang)}$e", variant: ClarifyToastVariant.danger);
           } finally {
             setStateDialog(() => isLoading = false);
           }
@@ -219,7 +219,7 @@ void showAccountSettingsDialog({
                                 onProfileChanged();
                                 if (context.mounted) ClarifyToast.show(context, 'Имя сохранено!'.tr(currentLang), variant: ClarifyToastVariant.success);
                               } catch (e) {
-                                if (context.mounted) ClarifyToast.show(context, 'Ошибка: $e'.tr(currentLang), variant: ClarifyToastVariant.danger);
+                                if (context.mounted) ClarifyToast.show(context, "${'Ошибка: '.tr(currentLang)}$e", variant: ClarifyToastVariant.danger);
                               } finally {
                                 setStateDialog(() => isLoading = false);
                               }
@@ -466,11 +466,11 @@ void showAccountSettingsDialog({
                                           if (e.message.contains('Invalid login credentials')) {
                                             ClarifyToast.show(context, 'Неверный текущий пароль!'.tr(currentLang), variant: ClarifyToastVariant.danger);
                                           } else {
-                                            ClarifyToast.show(context, 'Ошибка: ${e.message}'.tr(currentLang), variant: ClarifyToastVariant.danger);
+                                            ClarifyToast.show(context, "${'Ошибка: '.tr(currentLang)}${e.message}", variant: ClarifyToastVariant.danger);
                                           }
                                         }
                                       } catch (e) {
-                                        if (context.mounted) ClarifyToast.show(context, 'Ошибка: $e'.tr(currentLang), variant: ClarifyToastVariant.danger);
+                                        if (context.mounted) ClarifyToast.show(context, "${'Ошибка: '.tr(currentLang)}$e", variant: ClarifyToastVariant.danger);
                                       } finally {
                                         setStateDialog(() => isLoading = false);
                                       }
