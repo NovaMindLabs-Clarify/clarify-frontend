@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../widgets/clarify_surface.dart';
 import '../widgets/clarify_toast.dart';
 import '../widgets/clarify_date_time_picker.dart';
+import '../core/app_settings.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
 
@@ -62,8 +63,8 @@ void showManualAddDialog({
   final TextEditingController tagsController = TextEditingController(text: isFromDuplicate ? (sourceTaskForDuplicate['tags'] ?? '') : (activeTagFilter ?? ''));
   final TextEditingController subtaskController = TextEditingController();
 
-  String selectedPriority = isFromDuplicate ? (sourceTaskForDuplicate['priority'] ?? 'none') : 'none';
-  String selectedRecurrence = isFromDuplicate ? (sourceTaskForDuplicate['recurrence'] ?? 'none') : 'none';
+  String selectedPriority = isFromDuplicate ? (sourceTaskForDuplicate['priority'] ?? 'none') : AppSettings.quickAddDefaultPriority;
+  String selectedRecurrence = isFromDuplicate ? (sourceTaskForDuplicate['recurrence'] ?? 'none') : AppSettings.quickAddDefaultRecurrence;
   String? selectedAssigneeId;
   DateTime? selectedDate = preselectedDate ?? DateTime.now();
   TimeOfDay? selectedTime;

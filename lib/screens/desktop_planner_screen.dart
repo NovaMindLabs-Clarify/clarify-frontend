@@ -13,6 +13,7 @@ import 'package:hotkey_manager/hotkey_manager.dart';
 import 'package:confetti/confetti.dart';
 import 'package:local_notifier/local_notifier.dart';
 
+import '../core/app_settings.dart';
 import '../core/config.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
@@ -150,7 +151,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
       await Supabase.instance.client.from('user_status')
           .update({
             'is_in_zen': newState, 
-            'zen_until': newState ? DateTime.now().add(AppConfig.zenModeDuration).toIso8601String() : null
+            'zen_until': newState ? DateTime.now().add(Duration(minutes: AppSettings.zenDurationMinutes)).toIso8601String() : null
           })
           .eq('user_id', user.id);
           
@@ -476,6 +477,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   }
 
    void _checkDailyReviewTrigger() {
+    if (!AppSettings.dailyReviewEnabled) return;
     final todayStr = _formatDate(DateTime.now());
     if (_dailyReviewShownForDate == todayStr) return; // Уже хвалили сегодня — пропускаем
 
@@ -536,7 +538,8 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
 
   Future<void> _triggerPushNotification(String title, String body) async {
     // 🚀 ЕСЛИ МЫ В ФОКУСЕ - БЛОКИРУЕМ ЛЮБЫЕ ПУШИ ОТ ЗАДАЧ
-    if (_isMyZenActive) return; 
+    if (_isMyZenActive) return;
+    if (!AppSettings.notificationsEnabled) return;
 
     try {
       LocalNotification notification = LocalNotification(

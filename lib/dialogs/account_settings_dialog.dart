@@ -1,12 +1,17 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../widgets/clarify_surface.dart';
 import '../widgets/clarify_toast.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../core/app_settings.dart';
 import '../core/config.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
@@ -57,6 +62,9 @@ void showAccountSettingsDialog({
   bool isAutostart = false; // Состояние автозапуска
   bool showPlanDetails = false;
   bool showCalendars = false;
+  bool showAccentPicker = false;
+  bool showQuickAddDefaults = false;
+  bool showCacheDetails = false;
   String? friendCode;
   bool friendCodeFetchStarted = false;
 
@@ -118,6 +126,62 @@ void showAccountSettingsDialog({
           } finally {
             setStateDialog(() => isLoading = false);
           }
+        }
+
+        String cacheSizeLabel() {
+          final raw = Hive.box('tasks_cache').get('all_tasks') as String?;
+          final bytes = raw == null ? 0 : utf8.encode(raw).length;
+          if (bytes < 1024) return '$bytes Б';
+          return '${(bytes / 1024).toStringAsFixed(1)} КБ';
+        }
+
+        void clearCache() {
+          Hive.box('tasks_cache').delete('all_tasks');
+          setStateDialog(() {});
+          ClarifyToast.show(context, 'Кэш очищен'.tr(currentLang), variant: ClarifyToastVariant.success);
+        }
+
+        Future<void> exportTasksCsv() async {
+          final raw = Hive.box('tasks_cache').get('all_tasks') as String?;
+          final tasks = raw == null ? const [] : (json.decode(raw) as List);
+          if (tasks.isEmpty) {
+            ClarifyToast.show(context, 'Задач нет — нечего экспортировать'.tr(currentLang), variant: ClarifyToastVariant.info);
+            return;
+          }
+
+          String esc(dynamic value) {
+            final s = (value ?? '').toString();
+            if (s.contains(',') || s.contains('"') || s.contains('\n')) {
+              return '"${s.replaceAll('"', '""')}"';
+            }
+            return s;
+          }
+
+          final buffer = StringBuffer('﻿');
+          buffer.writeln('title,due_date,due_time,priority,recurrence,is_completed,folder,note');
+          for (final item in tasks) {
+            final task = Map<String, dynamic>.from(item as Map);
+            buffer.writeln([
+              esc(task['title']),
+              esc(task['due_date']),
+              esc(task['due_time']),
+              esc(task['priority']),
+              esc(task['recurrence']),
+              esc(task['is_completed']),
+              esc(task['folder']),
+              esc(task['note']),
+            ].join(','));
+          }
+
+          final path = await FilePicker.platform.saveFile(
+            dialogTitle: 'Экспорт задач в CSV'.tr(currentLang),
+            fileName: 'clarify_tasks_${DateTime.now().millisecondsSinceEpoch}.csv',
+            type: FileType.custom,
+            allowedExtensions: ['csv'],
+          );
+          if (path == null) return;
+          await File(path).writeAsBytes(utf8.encode(buffer.toString()));
+          if (context.mounted) ClarifyToast.show(context, 'Файл сохранён'.tr(currentLang), variant: ClarifyToastVariant.success);
         }
 
         return Center(
@@ -278,6 +342,17 @@ void showAccountSettingsDialog({
                           ),
                         ),
                         const SizedBox(height: 12),
+
+                        ClarifySettingsCard(
+                          icon: LucideIcons.doorClosed,
+                          title: "Закрытие в трей".tr(currentLang),
+                          trailing: Switch(
+                            value: AppSettings.closeToTray,
+                            activeColor: t.accent,
+                            onChanged: (val) => setStateDialog(() => AppSettings.closeToTray = val),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
                       ],
 
                       ClarifySettingsCard(
@@ -306,6 +381,153 @@ void showAccountSettingsDialog({
                               Text("EN", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                             ],
                           ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // --- УВЕДОМЛЕНИЯ / ФОКУС-РЕЖИМ / ЕЖЕДНЕВНЫЙ ОБЗОР ---
+                      ClarifySettingsCard(
+                        icon: LucideIcons.bell,
+                        title: "Уведомления".tr(currentLang),
+                        trailing: Switch(
+                          value: AppSettings.notificationsEnabled,
+                          activeColor: t.accent,
+                          onChanged: (val) => setStateDialog(() => AppSettings.notificationsEnabled = val),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      ClarifySettingsCard(
+                        icon: LucideIcons.timer,
+                        title: "Длительность фокус-режима".tr(currentLang),
+                        trailing: DropdownButton<int>(
+                          value: AppSettings.zenDurationMinutes,
+                          dropdownColor: t.surface2,
+                          underline: const SizedBox(),
+                          style: TextStyle(fontSize: 14, color: textColor),
+                          items: [15, 25, 45, 60, 90].map((m) => DropdownMenuItem(
+                            value: m,
+                            child: Text('$m ${"мин".tr(currentLang)}', style: TextStyle(color: textColor)),
+                          )).toList(),
+                          onChanged: (val) => setStateDialog(() => AppSettings.zenDurationMinutes = val!),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      ClarifySettingsCard(
+                        icon: LucideIcons.calendarCheck,
+                        title: "Ежедневный обзор".tr(currentLang),
+                        trailing: Switch(
+                          value: AppSettings.dailyReviewEnabled,
+                          activeColor: t.accent,
+                          onChanged: (val) => setStateDialog(() => AppSettings.dailyReviewEnabled = val),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // --- ВНЕШНИЙ ВИД И ПОВЕДЕНИЕ ---
+                      ClarifySettingsCard(
+                        icon: LucideIcons.palette,
+                        title: "Акцентный цвет".tr(currentLang),
+                        onTap: () => setStateDialog(() => showAccentPicker = !showAccentPicker),
+                        isExpanded: showAccentPicker,
+                        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Container(
+                            width: 18, height: 18,
+                            decoration: BoxDecoration(color: ClarifyAccentPresets.values[AppSettings.accentPresetIndex.value], shape: BoxShape.circle),
+                          ),
+                          const SizedBox(width: 6),
+                          Icon(showAccentPicker ? LucideIcons.chevronUp : LucideIcons.chevronDown, color: textMuted, size: 18),
+                        ]),
+                        expandedChild: Column(
+                          children: [
+                            Divider(color: t.border, height: 17),
+                            Wrap(
+                              spacing: 12,
+                              runSpacing: 12,
+                              children: List.generate(ClarifyAccentPresets.values.length, (i) {
+                                final color = ClarifyAccentPresets.values[i];
+                                final isSelected = AppSettings.accentPresetIndex.value == i;
+                                return GestureDetector(
+                                  onTap: () => setStateDialog(() => AppSettings.setAccentPresetIndex(i)),
+                                  child: Container(
+                                    width: 32, height: 32,
+                                    decoration: BoxDecoration(
+                                      color: color,
+                                      shape: BoxShape.circle,
+                                      border: isSelected ? Border.all(color: textColor, width: 2) : null,
+                                    ),
+                                    child: isSelected ? Icon(LucideIcons.check, size: 16, color: Colors.white) : null,
+                                  ),
+                                );
+                              }),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      ClarifySettingsCard(
+                        icon: LucideIcons.zapOff,
+                        title: "Меньше анимаций".tr(currentLang),
+                        trailing: Switch(
+                          value: AppSettings.reducedMotionOverride.value,
+                          activeColor: t.accent,
+                          onChanged: (val) => setStateDialog(() => AppSettings.setReducedMotionOverride(val)),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      ClarifySettingsCard(
+                        icon: LucideIcons.listPlus,
+                        title: "Быстрое добавление".tr(currentLang),
+                        onTap: () => setStateDialog(() => showQuickAddDefaults = !showQuickAddDefaults),
+                        isExpanded: showQuickAddDefaults,
+                        trailing: Icon(showQuickAddDefaults ? LucideIcons.chevronUp : LucideIcons.chevronDown, color: textMuted, size: 18),
+                        expandedChild: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Divider(color: t.border, height: 17),
+                            Text("Приоритет по умолчанию".tr(currentLang), style: TextStyle(color: textMuted, fontSize: 12.5)),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: ['none', 'red', 'orange', 'blue', 'gray'].map((pVal) {
+                                Color dotColor;
+                                switch (pVal) {
+                                  case 'red': dotColor = t.danger; break;
+                                  case 'orange': dotColor = t.warning; break;
+                                  case 'blue': dotColor = t.accent; break;
+                                  case 'gray': dotColor = textMuted; break;
+                                  default: dotColor = Colors.transparent;
+                                }
+                                final isSelected = AppSettings.quickAddDefaultPriority == pVal;
+                                return GestureDetector(
+                                  onTap: () => setStateDialog(() => AppSettings.quickAddDefaultPriority = pVal),
+                                  child: Container(
+                                    margin: const EdgeInsets.only(right: 8), width: 26, height: 26,
+                                    decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle, border: isSelected ? Border.all(color: textColor, width: 2) : Border.all(color: glassBorderColor, width: 1)),
+                                    child: isSelected && pVal == 'none' ? Icon(LucideIcons.x, size: 14, color: textMuted) : null,
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                            const SizedBox(height: 16),
+                            Text("Повтор по умолчанию".tr(currentLang), style: TextStyle(color: textMuted, fontSize: 12.5)),
+                            const SizedBox(height: 8),
+                            DropdownButton<String>(
+                              value: AppSettings.quickAddDefaultRecurrence,
+                              dropdownColor: t.surface2,
+                              underline: const SizedBox(),
+                              style: TextStyle(fontSize: 14, color: textColor),
+                              items: [
+                                DropdownMenuItem(value: 'none', child: Text("Без повтора".tr(currentLang), style: TextStyle(color: textColor))),
+                                DropdownMenuItem(value: 'daily', child: Text("Каждый день".tr(currentLang), style: TextStyle(color: textColor))),
+                                DropdownMenuItem(value: 'weekly', child: Text("Каждую неделю".tr(currentLang), style: TextStyle(color: textColor))),
+                                DropdownMenuItem(value: 'monthly', child: Text("Каждый месяц".tr(currentLang), style: TextStyle(color: textColor))),
+                              ],
+                              onChanged: (val) => setStateDialog(() => AppSettings.quickAddDefaultRecurrence = val!),
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -370,6 +592,43 @@ void showAccountSettingsDialog({
                               ),
                             ),
                           ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // --- ДАННЫЕ: локальный кэш + экспорт в CSV ---
+                      ClarifySettingsCard(
+                        icon: LucideIcons.database,
+                        title: "Локальный кэш".tr(currentLang),
+                        onTap: () => setStateDialog(() => showCacheDetails = !showCacheDetails),
+                        isExpanded: showCacheDetails,
+                        trailing: Icon(showCacheDetails ? LucideIcons.chevronUp : LucideIcons.chevronDown, color: textMuted, size: 18),
+                        expandedChild: Column(
+                          children: [
+                            Divider(color: t.border, height: 17),
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: Icon(LucideIcons.hardDrive, color: textColor, size: 22),
+                              title: Text("Размер кэша".tr(currentLang), style: TextStyle(color: textColor, fontWeight: FontWeight.w600)),
+                              subtitle: Text(cacheSizeLabel(), style: TextStyle(color: textMuted, fontSize: 12.5)),
+                              trailing: OutlinedButton(
+                                style: OutlinedButton.styleFrom(side: BorderSide(color: t.danger), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999))),
+                                onPressed: clearCache,
+                                child: Text("Очистить кэш".tr(currentLang), style: TextStyle(color: t.danger)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      ClarifySettingsCard(
+                        icon: LucideIcons.fileDown,
+                        title: "Экспорт задач в CSV".tr(currentLang),
+                        trailing: OutlinedButton(
+                          style: OutlinedButton.styleFrom(side: BorderSide(color: glassBorderColor), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999))),
+                          onPressed: exportTasksCsv,
+                          child: Text("Экспортировать".tr(currentLang), style: TextStyle(color: textColor)),
                         ),
                       ),
                       const SizedBox(height: 16),

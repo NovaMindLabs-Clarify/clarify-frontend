@@ -155,6 +155,17 @@ class ClarifyTokens extends ThemeExtension<ClarifyTokens> {
     );
   }
 
+  /// Пересчитывает акцент-зависимые поля из одного [accent] — для пресетов
+  /// цвета в настройках, без ручного подбора hover/soft/onAccent под каждый.
+  ClarifyTokens withAccent(Color accent) {
+    return copyWith(
+      accent: accent,
+      accentHover: Color.lerp(accent, Colors.black, 0.12),
+      accentSoft: accent.withOpacity(0.12),
+      onAccent: accent.computeLuminance() > 0.45 ? const Color(0xFF14141F) : Colors.white,
+    );
+  }
+
   @override
   ClarifyTokens lerp(ThemeExtension<ClarifyTokens>? other, double t) {
     if (other is! ClarifyTokens) return this;
@@ -237,6 +248,23 @@ class ClarifyMotion {
   static const Duration deliberate = Duration(milliseconds: 420);
   static const Curve standard = Cubic(0.2, 0.7, 0.3, 1.0);
   static const Curve spring = Cubic(0.34, 1.56, 0.64, 1.0);
+}
+
+/// Пресеты акцента в настройках — фиксированный набор, не произвольный
+/// color-picker, чтобы каждый пресет был заведомо проверен на контраст
+/// через [ClarifyTokens.withAccent]. Индекс 0 — индиго по умолчанию,
+/// совпадает с [ClarifyTokens.light]/[ClarifyTokens.dark].accent.
+class ClarifyAccentPresets {
+  ClarifyAccentPresets._();
+
+  static const List<Color> values = [
+    Color(0xFF4F46E5), // индиго (дефолт)
+    Color(0xFF9333EA), // фиолетовый
+    Color(0xFFDB2777), // розовый
+    Color(0xFF0891B2), // бирюзовый
+    Color(0xFF059669), // изумрудный
+    Color(0xFFEA580C), // терракотовый
+  ];
 }
 
 extension ClarifyThemeX on BuildContext {

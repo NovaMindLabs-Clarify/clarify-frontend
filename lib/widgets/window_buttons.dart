@@ -1,5 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
+
+import '../core/app_settings.dart';
 
 class WindowButtons extends StatefulWidget {
   final bool isDark;
@@ -52,8 +56,14 @@ class _WindowButtonsState extends State<WindowButtons> {
           colors: closeButtonColors,
           iconBuilder: (buttonContext) => CloseIcon(color: buttonContext.iconColor),
           onPressed: () {
-            // Тот самый пункт 1, окно скрывается, а не умирает
-            appWindow.hide();
+            // Тот самый пункт 1, окно скрывается, а не умирает —
+            // если пользователь отключил "закрытие в трей" в настройках,
+            // ведём себя как пункт "Выход" в меню трея.
+            if (AppSettings.closeToTray) {
+              appWindow.hide();
+            } else {
+              exit(0);
+            }
           },
         ),
       ],

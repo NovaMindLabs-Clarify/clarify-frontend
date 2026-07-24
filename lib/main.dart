@@ -16,6 +16,7 @@ import 'package:hotkey_manager/hotkey_manager.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:local_notifier/local_notifier.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
+import 'core/app_settings.dart';
 import 'core/config.dart';
 import 'core/last_tap_tracker.dart';
 import 'core/localization.dart';
@@ -213,54 +214,75 @@ class _SmartPlannerAppState extends State<SmartPlannerApp> with TrayListener {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Clarify',
-      debugShowCheckedModeBanner: false,
-      
-      // === 🚀 МАГИЯ АБСОЛЮТНЫХ ПРОПОРЦИЙ ===
-      // Жестко фиксируем масштаб шрифтов на 1.0. 
-      // Теперь Windows не сможет раздуть текст на ноутбуках!
-      builder: (context, child) {
-        return MediaQuery(
-          data: MediaQuery.of(context).copyWith(
-            textScaler: const TextScaler.linear(1.0),
+    // Акцент — настраиваемый пресет (AppSettings.accentPresetIndex), поэтому
+    // тема пересобирается через ValueListenableBuilder, а не читается из
+    // const ClarifyTokens.light/dark напрямую.
+    return ValueListenableBuilder<int>(
+      valueListenable: AppSettings.accentPresetIndex,
+      builder: (context, accentIndex, _) {
+        final lightTokens = accentIndex == 0
+            ? ClarifyTokens.light
+            : ClarifyTokens.light.withAccent(ClarifyAccentPresets.values[accentIndex]);
+        final darkTokens = accentIndex == 0
+            ? ClarifyTokens.dark
+            : ClarifyTokens.dark.withAccent(ClarifyAccentPresets.values[accentIndex]);
+        return MaterialApp(
+          title: 'Clarify',
+          debugShowCheckedModeBanner: false,
+
+          // === 🚀 МАГИЯ АБСОЛЮТНЫХ ПРОПОРЦИЙ ===
+          // Жестко фиксируем масштаб шрифтов на 1.0.
+          // Теперь Windows не сможет раздуть текст на ноутбуках!
+          builder: (context, child) {
+            return ValueListenableBuilder<bool>(
+              valueListenable: AppSettings.reducedMotionOverride,
+              builder: (context, reducedMotion, _) {
+                final mq = MediaQuery.of(context);
+                return MediaQuery(
+                  data: mq.copyWith(
+                    textScaler: const TextScaler.linear(1.0),
+                    disableAnimations: mq.disableAnimations || reducedMotion,
+                  ),
+                  child: LastTapTrackerScope(child: child!),
+                );
+              },
+            );
+          },
+          // ===========================================
+
+          scrollBehavior: NoScrollbarBehavior(),
+          themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
+          theme: ThemeData(
+            brightness: Brightness.light,
+            scaffoldBackgroundColor: Colors.transparent,
+            fontFamily: 'Golos Text',
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: lightTokens.accent,
+              brightness: Brightness.light,
+            ),
+            extensions: [lightTokens],
+            useMaterial3: true,
           ),
-          child: LastTapTrackerScope(child: child!),
+          darkTheme: ThemeData(
+            brightness: Brightness.dark,
+            scaffoldBackgroundColor: Colors.transparent,
+            fontFamily: 'Golos Text',
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: darkTokens.accent,
+              brightness: Brightness.dark,
+            ),
+            extensions: [darkTokens],
+            useMaterial3: true,
+          ),
+          home: !_isAuthenticated
+              ? (_hasSeenOnboarding
+                  ? AuthScreen(isDark: isDark, toggleTheme: toggleTheme, currentLang: currentLang, changeLang: changeLang)
+                  : OnboardingFlow(isDark: isDark, toggleTheme: toggleTheme, currentLang: currentLang, changeLang: changeLang))
+              : (_hasName
+                  ? DesktopPlannerScreen(isDark: isDark, toggleTheme: toggleTheme, currentLang: currentLang, changeLang: changeLang)
+                  : SetupProfileScreen(isDark: isDark, toggleTheme: toggleTheme, currentLang: currentLang, changeLang: changeLang)),
         );
       },
-      // ===========================================
-
-      scrollBehavior: NoScrollbarBehavior(),
-      themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
-      theme: ThemeData(
-        brightness: Brightness.light,
-        scaffoldBackgroundColor: Colors.transparent,
-        fontFamily: 'Golos Text',
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF4F46E5),
-          brightness: Brightness.light,
-        ),
-        extensions: const [ClarifyTokens.light],
-        useMaterial3: true,
-      ),
-      darkTheme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: Colors.transparent,
-        fontFamily: 'Golos Text',
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF4F46E5),
-          brightness: Brightness.dark,
-        ),
-        extensions: const [ClarifyTokens.dark],
-        useMaterial3: true,
-      ),
-      home: !_isAuthenticated
-          ? (_hasSeenOnboarding
-              ? AuthScreen(isDark: isDark, toggleTheme: toggleTheme, currentLang: currentLang, changeLang: changeLang)
-              : OnboardingFlow(isDark: isDark, toggleTheme: toggleTheme, currentLang: currentLang, changeLang: changeLang))
-          : (_hasName
-              ? DesktopPlannerScreen(isDark: isDark, toggleTheme: toggleTheme, currentLang: currentLang, changeLang: changeLang)
-              : SetupProfileScreen(isDark: isDark, toggleTheme: toggleTheme, currentLang: currentLang, changeLang: changeLang)),
     );
   }
 }
