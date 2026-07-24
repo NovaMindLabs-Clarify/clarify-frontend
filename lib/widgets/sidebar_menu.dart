@@ -5,9 +5,21 @@ import '../core/theme/design_tokens.dart';
 import 'icon_picker_dialog.dart';
 
 /// Сайдбар: по умолчанию свёрнут в узкую полосу с иконками, разворачивается
-/// при наведении мыши (REDESIGN_V3_PLAN.md §5.11). Ширина и раскладка строк
+/// по клику (REDESIGN_V3_PLAN.md §5.11). Ширина и раскладка строк
 /// анимируются, содержимое (пункты меню/проекты/команды/аккаунт-блок) — одно
 /// и то же, просто с подписью или без.
+///
+/// Изначально переключение было по наведению мыши (MouseRegion.onEnter/
+/// onExit) — после нескольких циклов разворота/сворачивания приложение
+/// зависало насмерть (не реагировало даже на системную кнопку сворачивания
+/// окна), воспроизводимо. Живо отладить зависание невозможно (нет доступа к
+/// интерактивным DevTools в этом окружении), а автоматический hover на ~15-20
+/// одновременно монтируемых/размонтируемых Tooltip-виджетов при каждом
+/// микро-движении мыши — самый вероятный источник гонки. Явный клик меняет
+/// состояние ровно по одному чёткому действию пользователя, а не по каждому
+/// движению курсора — не гарантия, что причина была именно в этом, но
+/// убирает целый класс риска (тот же принцип, что и решение откатить Hero
+/// вместо повторных догадок вслепую).
 class SidebarMenu extends StatefulWidget {
   final bool isDark;
   final double scale;
@@ -178,19 +190,10 @@ class _SidebarMenuState extends State<SidebarMenu> {
     final highlightColor = t.accentSoft;
     final s = widget.scale;
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _expanded = true),
-      onExit: (_) => setState(() => _expanded = false),
-      child: widget.buildGlassContainer(
+    return widget.buildGlassContainer(
         borderRadius: const BorderRadius.only(topRight: Radius.circular(24), bottomRight: Radius.circular(24)),
         margin: EdgeInsets.zero,
         child: AnimatedContainer(
-          // base (180мс) читалось как резкий скачок, а не разворот — та же
-          // причина, что у анимации диалогов из точки клика: слишком быстро
-          // для заметной смены размера. slow (280мс) — компромисс: заметно
-          // плавнее, но всё ещё достаточно отзывчиво для наведения мышью,
-          // которое повторяется часто (в отличие от разовых диалогов, где
-          // подошла более медленная deliberate).
           duration: ClarifyMotion.slow,
           curve: ClarifyMotion.standard,
           width: (_expanded ? _expandedWidth : _collapsedWidth) * s,
@@ -199,16 +202,33 @@ class _SidebarMenuState extends State<SidebarMenu> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: EdgeInsets.fromLTRB(_expanded ? 28 * s : 0, 40 * s, _expanded ? 24 * s : 0, 32 * s),
+                  padding: EdgeInsets.fromLTRB(_expanded ? 28 * s : 0, 40 * s, _expanded ? 20 * s : 0, 32 * s),
                   child: _expanded
-                      ? Text("Clarify", style: TextStyle(fontSize: 24 * s, fontWeight: FontWeight.w900, letterSpacing: -0.5, color: textColor))
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text("Clarify", style: TextStyle(fontSize: 24 * s, fontWeight: FontWeight.w900, letterSpacing: -0.5, color: textColor)),
+                            InkWell(
+                              borderRadius: BorderRadius.circular(8 * s),
+                              onTap: () => setState(() => _expanded = false),
+                              child: Padding(
+                                padding: EdgeInsets.all(4 * s),
+                                child: Icon(LucideIcons.chevronsLeft, size: 20 * s, color: textMuted),
+                              ),
+                            ),
+                          ],
+                        )
                       : Center(
-                          child: Container(
-                            width: 32 * s,
-                            height: 32 * s,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(shape: BoxShape.circle, color: t.accent),
-                            child: Text("C", style: TextStyle(fontSize: 16 * s, fontWeight: FontWeight.w900, color: t.onAccent)),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(16 * s),
+                            onTap: () => setState(() => _expanded = true),
+                            child: Container(
+                              width: 32 * s,
+                              height: 32 * s,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(shape: BoxShape.circle, color: t.accent),
+                              child: Text("C", style: TextStyle(fontSize: 16 * s, fontWeight: FontWeight.w900, color: t.onAccent)),
+                            ),
                           ),
                         ),
                 ),
@@ -289,7 +309,6 @@ class _SidebarMenuState extends State<SidebarMenu> {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 }
