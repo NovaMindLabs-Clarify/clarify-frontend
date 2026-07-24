@@ -269,58 +269,38 @@ class _SidebarMenuState extends State<SidebarMenu> {
                   32 * s,
                 ),
                 child: _expanded
-                    ? Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            "Clarify",
-                            style: TextStyle(
-                              fontSize: 24 * s,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -0.5,
-                              color: textColor,
-                            ),
-                          ),
-                          ClarifyPressGlow(
-                            color: t.accent,
-                            spread: 10 * s,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(8 * s),
-                              onTap: () => setState(() => _expanded = false),
-                              child: Padding(
-                                padding: EdgeInsets.all(4 * s),
-                                child: Icon(
-                                  LucideIcons.chevronsLeft,
-                                  size: 20 * s,
-                                  color: textMuted,
-                                ),
+                    ? Align(
+                        alignment: Alignment.centerRight,
+                        child: ClarifyPressGlow(
+                          color: t.accent,
+                          spread: 10 * s,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(8 * s),
+                            onTap: () => setState(() => _expanded = false),
+                            child: Padding(
+                              padding: EdgeInsets.all(4 * s),
+                              child: Icon(
+                                LucideIcons.chevronsLeft,
+                                size: 20 * s,
+                                color: textMuted,
                               ),
                             ),
                           ),
-                        ],
+                        ),
                       )
                     : Center(
                         child: ClarifyPressGlow(
                           color: t.accent,
-                          spread: 12 * s,
+                          spread: 10 * s,
                           child: InkWell(
-                            borderRadius: BorderRadius.circular(16 * s),
+                            borderRadius: BorderRadius.circular(8 * s),
                             onTap: () => setState(() => _expanded = true),
-                            child: Container(
-                              width: 32 * s,
-                              height: 32 * s,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: t.accent,
-                              ),
-                              child: Text(
-                                "C",
-                                style: TextStyle(
-                                  fontSize: 16 * s,
-                                  fontWeight: FontWeight.w900,
-                                  color: t.onAccent,
-                                ),
+                            child: Padding(
+                              padding: EdgeInsets.all(4 * s),
+                              child: Icon(
+                                LucideIcons.chevronsRight,
+                                size: 20 * s,
+                                color: textMuted,
                               ),
                             ),
                           ),

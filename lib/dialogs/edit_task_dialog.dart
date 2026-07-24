@@ -78,7 +78,13 @@ void showEditTaskDialog({
                       ),
                       const SizedBox(height: 16),
                       TextField(controller: titleController, style: TextStyle(color: textColor, fontSize: 16), decoration: InputDecoration(labelText: "Заголовок".tr(currentLang), labelStyle: TextStyle(color: textMuted), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: t.accent)))),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(color: t.surfaceSunken, borderRadius: BorderRadius.circular(ClarifyRadius.md), border: Border.all(color: t.border)),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                       Row(
                         children: [
                           Text("Приоритет: ".tr(currentLang), style: TextStyle(color: textMuted, fontSize: 14)),
@@ -131,10 +137,21 @@ void showEditTaskDialog({
                           )
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      TextField(controller: tagsController, style: TextStyle(color: textColor), decoration: InputDecoration(labelText: "Теги".tr(currentLang), labelStyle: TextStyle(color: textMuted), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: t.accent)), isDense: true)),
-                      const SizedBox(height: 12),
-                      TextField(controller: noteController, style: TextStyle(color: textColor), maxLines: 2, decoration: InputDecoration(labelText: "Заметка".tr(currentLang), labelStyle: TextStyle(color: textMuted), alignLabelWithHint: true, enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: t.accent)))),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                        decoration: BoxDecoration(color: t.surfaceSunken, borderRadius: BorderRadius.circular(ClarifyRadius.md), border: Border.all(color: t.border)),
+                        child: Column(
+                          children: [
+                            TextField(controller: tagsController, style: TextStyle(color: textColor), decoration: InputDecoration(labelText: "Теги".tr(currentLang), labelStyle: TextStyle(color: textMuted), border: InputBorder.none, isDense: true)),
+                            Divider(color: t.border, height: 1),
+                            TextField(controller: noteController, style: TextStyle(color: textColor), maxLines: 2, decoration: InputDecoration(labelText: "Заметка".tr(currentLang), labelStyle: TextStyle(color: textMuted), alignLabelWithHint: true, border: InputBorder.none)),
+                          ],
+                        ),
+                      ),
 
                       if (task['workspace_id'] != null) ...[
                         const SizedBox(height: 12),

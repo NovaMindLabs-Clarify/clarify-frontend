@@ -1215,10 +1215,10 @@ Map<String, dynamic> _parseSmartInput(String text) {
                               children: [
                                 // Заголовок
                                 Text(
-                                  selectedMenu.startsWith('ws_') 
-                                    ? workspaces.firstWhere((w) => w['id'].toString() == selectedMenu.substring(3), orElse: () => {'name': 'Команда'})['name'] 
-                                    : selectedMenu.tr(widget.currentLang), 
-                                  style: TextStyle(fontSize: 32 * _s, fontWeight: FontWeight.w900, letterSpacing: -1.0, color: textColor)
+                                  selectedMenu.startsWith('ws_')
+                                    ? workspaces.firstWhere((w) => w['id'].toString() == selectedMenu.substring(3), orElse: () => {'name': 'Команда'})['name']
+                                    : selectedMenu.tr(widget.currentLang),
+                                  style: TextStyle(fontSize: 32 * _s, fontWeight: FontWeight.w700, letterSpacing: -1.0, color: textColor)
                                 ),
                                 
                                 Row(

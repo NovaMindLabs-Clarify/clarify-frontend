@@ -1,4 +1,3 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../core/localization.dart';
@@ -196,6 +195,8 @@ class MainContentArea extends StatelessWidget {
         String title = index == 0 ? 'Сегодня'.tr(currentLang) : (index == 1 ? 'Завтра'.tr(currentLang) : weekdayName);
         String subtitle = index < 2 ? weekdayName : "${targetDate.day.toString().padLeft(2, '0')}.${targetDate.month.toString().padLeft(2, '0')}";
 
+        final bool isToday = index == 0;
+
         return DragTarget<Map<String, dynamic>>(
           onAccept: (Map<String, dynamic> task) => onTaskDropped(task, dateStr, dayTasks.length),
           builder: (context, candidateData, rejectedData) {
@@ -205,9 +206,19 @@ class MainContentArea extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Padding(padding: EdgeInsets.fromLTRB(16 * scale, 20 * scale, 16 * scale, 12 * scale), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title.tr(currentLang), style: TextStyle(fontSize: 16 * scale, fontWeight: FontWeight.bold, color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis), SizedBox(height: 4 * scale), Text(subtitle.tr(currentLang), style: TextStyle(fontSize: 13 * scale, color: textMuted, fontWeight: FontWeight.w600))])),
+                  // Акцент "Сегодня" — полоса слева у заголовка, тот же приём,
+                  // что уже используется в MobileTaskRow/аккаунт-блоке сайдбара,
+                  // а не постоянная заливка фона (она уже занята drag-hover'ом).
+                  Container(
+                    padding: EdgeInsets.fromLTRB((isToday ? 13 : 16) * scale, 20 * scale, 16 * scale, 12 * scale),
+                    decoration: isToday ? BoxDecoration(border: Border(left: BorderSide(color: t.accent, width: 3 * scale))) : null,
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title.tr(currentLang), style: TextStyle(fontSize: 16 * scale, fontWeight: FontWeight.bold, color: isToday ? t.accent : textColor), maxLines: 1, overflow: TextOverflow.ellipsis), SizedBox(height: 4 * scale), Text(subtitle.tr(currentLang), style: TextStyle(fontSize: 13 * scale, color: textMuted, fontWeight: FontWeight.w600))]),
+                  ),
                   Padding(padding: EdgeInsets.fromLTRB(12 * scale, 0, 12 * scale, 16 * scale), child: InkWell(borderRadius: BorderRadius.circular(12 * scale), onTap: () => onPlusTap(targetDate, dayTasks.length), child: Container(width: double.infinity, padding: EdgeInsets.symmetric(vertical: 6 * scale), decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(12 * scale), border: Border.all(color: glassBorderColor, width: 1.0)), child: Icon(LucideIcons.plus, size: 16 * scale, color: textMuted)), ), ),
-                  Expanded(child: ListView.builder(padding: EdgeInsets.symmetric(horizontal: 12 * scale), itemCount: dayTasks.length, itemBuilder: (context, taskIndex) { final task = dayTasks[taskIndex]; return LongPressDraggable<Map<String, dynamic>>(data: task, delay: const Duration(milliseconds: 200), feedback: Material(color: Colors.transparent, child: SizedBox(width: 250 * scale, child: buildBoardTaskCardExpanded(task))), childWhenDragging: Opacity(opacity: 0.3, child: buildBoardTaskCardExpanded(task)), child: buildBoardTaskCardExpanded(task)); }), ),
+                  // Компактная карточка (та же, что в ячейках Календаря) вместо
+                  // buildBoardTaskCardExpanded — единый визуальный язык; сама
+                  // buildCalendarTaskCard уже оборачивает в LongPressDraggable.
+                  Expanded(child: ListView.builder(padding: EdgeInsets.symmetric(horizontal: 12 * scale), itemCount: dayTasks.length, itemBuilder: (context, taskIndex) => buildCalendarTaskCard(dayTasks[taskIndex]))),
                 ],
               ),
             );
@@ -313,11 +324,12 @@ class MainContentArea extends StatelessWidget {
                   ),
                   itemCount: totalCells,
                   itemBuilder: (context, index) {
-                    if (index < startOffset) return const SizedBox.shrink(); 
+                    if (index < startOffset) return const SizedBox.shrink();
                     final dayNumber = index - startOffset + 1; final cellDate = DateTime(year, month, dayNumber); final cellDateStr = _formatDate(cellDate);
                     final dayTasks = filteredTasks.where((t) => t['due_date'] == cellDateStr && t['parent_id'] == null).toList();
                     dayTasks.sort((a, b) => (a['due_time'] ?? '23:59').compareTo(b['due_time'] ?? '23:59'));
                     final taskCount = dayTasks.length;
+                    final dayTitle = "${_capitalize(weekdaysRu[cellDate.weekday - 1])}, ${dayNumber.toString().padLeft(2, '0')}.${month.toString().padLeft(2, '0')}";
                     return DragTarget<Map<String, dynamic>>(
                       onAccept: (Map<String, dynamic> task) => onTaskDropped(task, cellDateStr, taskCount),
                       builder: (context, candidateData, rejectedData) {
@@ -331,7 +343,7 @@ class MainContentArea extends StatelessWidget {
                             children: [
                               Padding(padding: EdgeInsets.only(bottom: 8 * scale, left: 8 * scale, top: 4 * scale), child: Text("$dayNumber", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18 * scale, color: cellDateStr == _formatDate(DateTime.now()) ? t.accent : textColor)),),
                               Expanded(child: Column(mainAxisAlignment: MainAxisAlignment.spaceBetween, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                Expanded(child: _CalendarDayTasksPager(tasks: dayTasks, buildCalendarTaskCard: buildCalendarTaskCard, scale: scale, dotColor: t.accent, dotColorInactive: glassBorderColor)),
+                                Expanded(child: _CalendarDayTasksPreview(dayTitle: dayTitle, tasks: dayTasks, buildCalendarTaskCard: buildCalendarTaskCard, buildListTaskCard: buildListTaskCard, scale: scale, t: t, currentLang: currentLang)),
                                 Align(alignment: Alignment.bottomCenter, child: InkWell(onTap: () => onPlusTap(cellDate, taskCount), child: Padding(padding: EdgeInsets.only(bottom: 4 * scale), child: Icon(LucideIcons.plus, color: textMuted, size: 20 * scale), ), ), ),
                               ], ), ),
                             ],
@@ -475,107 +487,125 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
   }
 }
 
-/// Ровно 5 задач на странице ячейки календаря, остальное — постранично
-/// (REDESIGN_V3_PLAN.md §5.9: было "криво" из-за нефиксированного числа
-/// строк, обрезанных высотой ячейки). Свайп (мышью — через явные
-/// dragDevices, тачпад/тач по умолчанию) и стрелки дают одинаковый результат.
-class _CalendarDayTasksPager extends StatefulWidget {
+/// До 3 задач прямо в ячейке + пилюля "+N ещё", открывающая полный список дня
+/// попапом (REDESIGN_V3_PLAN.md §5.9: пейджер с точками/стрелками было
+/// "криво" при 5+ задачах — заменено на google/apple-calendar паттерн, без
+/// внутреннего свайпа и скачков раскладки сетки).
+class _CalendarDayTasksPreview extends StatelessWidget {
+  static const int _previewCount = 3;
+
+  final String dayTitle;
   final List<Map<String, dynamic>> tasks;
   final Widget Function(Map<String, dynamic>) buildCalendarTaskCard;
+  final Widget Function(Map<String, dynamic>) buildListTaskCard;
   final double scale;
-  final Color dotColor;
-  final Color dotColorInactive;
+  final ClarifyTokens t;
+  final String currentLang;
 
-  const _CalendarDayTasksPager({
+  const _CalendarDayTasksPreview({
+    required this.dayTitle,
     required this.tasks,
     required this.buildCalendarTaskCard,
+    required this.buildListTaskCard,
     required this.scale,
-    required this.dotColor,
-    required this.dotColorInactive,
+    required this.t,
+    required this.currentLang,
   });
 
   @override
-  State<_CalendarDayTasksPager> createState() => _CalendarDayTasksPagerState();
-}
-
-class _CalendarDayTasksPagerState extends State<_CalendarDayTasksPager> {
-  static const int _pageSize = 5;
-  final PageController _controller = PageController();
-  int _page = 0;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  void didUpdateWidget(covariant _CalendarDayTasksPager oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    final pageCount = (widget.tasks.length / _pageSize).ceil().clamp(1, 1 << 30);
-    if (_page > pageCount - 1) {
-      _page = pageCount - 1;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_controller.hasClients) _controller.jumpToPage(_page);
-      });
-    }
-  }
-
-  void _goTo(int page) {
-    _controller.animateToPage(page, duration: ClarifyMotion.base, curve: ClarifyMotion.standard);
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final pageCount = (widget.tasks.length / _pageSize).ceil().clamp(1, 1 << 30);
+    final overflow = tasks.length - _previewCount;
+    final previewTasks = overflow > 0 ? tasks.sublist(0, _previewCount) : tasks;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // ListView вместо просто Column детей — она сама клипует контент,
+        // не помещающийся в отведённую высоту ячейки, вместо RenderFlex
+        // overflow ("BOTTOM OVERFLOWED") на переполненных днях.
         Expanded(
-          child: ScrollConfiguration(
-            behavior: const ScrollBehavior().copyWith(scrollbars: false, dragDevices: {PointerDeviceKind.touch, PointerDeviceKind.mouse, PointerDeviceKind.trackpad, PointerDeviceKind.stylus}),
-            child: PageView.builder(
-              controller: _controller,
-              itemCount: pageCount,
-              onPageChanged: (i) => setState(() => _page = i),
-              itemBuilder: (context, pageIndex) {
-                final start = pageIndex * _pageSize;
-                final end = (start + _pageSize).clamp(0, widget.tasks.length);
-                final pageTasks = widget.tasks.sublist(start, end);
-                return ListView.builder(
-                  padding: EdgeInsets.zero,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: pageTasks.length,
-                  itemBuilder: (context, i) => widget.buildCalendarTaskCard(pageTasks[i]),
-                );
-              },
-            ),
+          child: ListView(
+            padding: EdgeInsets.zero,
+            physics: const NeverScrollableScrollPhysics(),
+            children: [for (final task in previewTasks) buildCalendarTaskCard(task)],
           ),
         ),
-        if (pageCount > 1)
+        if (overflow > 0)
           Padding(
-            padding: EdgeInsets.only(top: 2 * widget.scale),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                GestureDetector(
-                  onTap: _page > 0 ? () => _goTo(_page - 1) : null,
-                  child: Icon(LucideIcons.chevronLeft, size: 12 * widget.scale, color: _page > 0 ? widget.dotColor : widget.dotColorInactive),
+            padding: EdgeInsets.only(top: 2 * scale),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(ClarifyRadius.sm),
+              onTap: () => showClarifySurface<void>(
+                context: context,
+                builder: (context) => _DayAgendaDialog(
+                  dayTitle: dayTitle,
+                  tasks: tasks,
+                  buildListTaskCard: buildListTaskCard,
+                  t: t,
                 ),
-                ...List.generate(pageCount, (i) => Container(
-                      margin: EdgeInsets.symmetric(horizontal: 2 * widget.scale),
-                      width: 5 * widget.scale,
-                      height: 5 * widget.scale,
-                      decoration: BoxDecoration(shape: BoxShape.circle, color: i == _page ? widget.dotColor : widget.dotColorInactive),
-                    )),
-                GestureDetector(
-                  onTap: _page < pageCount - 1 ? () => _goTo(_page + 1) : null,
-                  child: Icon(LucideIcons.chevronRight, size: 12 * widget.scale, color: _page < pageCount - 1 ? widget.dotColor : widget.dotColorInactive),
-                ),
-              ],
+              ),
+              child: Text(
+                "+$overflow ${'Ещё'.tr(currentLang)}",
+                style: TextStyle(fontSize: 11 * scale, fontWeight: FontWeight.w600, color: t.text2),
+              ),
             ),
           ),
       ],
+    );
+  }
+}
+
+/// Полный список задач дня — открывается по клику на пилюлю "+N ещё" в ячейке
+/// календаря. Тот же стеклянный шаблон, что и у `_MonthYearPickerDialog`;
+/// анимация вылета из точки клика уже даёт `showClarifySurface`.
+class _DayAgendaDialog extends StatelessWidget {
+  final String dayTitle;
+  final List<Map<String, dynamic>> tasks;
+  final Widget Function(Map<String, dynamic>) buildListTaskCard;
+  final ClarifyTokens t;
+
+  const _DayAgendaDialog({
+    required this.dayTitle,
+    required this.tasks,
+    required this.buildListTaskCard,
+    required this.t,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Material(
+        color: Colors.transparent,
+        child: ClarifyGlass(
+          borderRadius: BorderRadius.circular(ClarifyRadius.lg),
+          padding: const EdgeInsets.all(20),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
+            child: SizedBox(
+              width: 340,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(dayTitle, style: TextStyle(color: t.text, fontWeight: FontWeight.bold, fontSize: 18)),
+                      IconButton(icon: Icon(LucideIcons.x, color: t.text2), onPressed: () => Navigator.of(context).pop()),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Flexible(
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: tasks.map(buildListTaskCard).toList(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

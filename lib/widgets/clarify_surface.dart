@@ -29,6 +29,7 @@ Future<T?> showClarifySurface<T>({
   Offset? originOffset,
 }) {
   final effectiveOrigin = originOffset ?? LastTapTracker.position;
+  final collapseOnClose = _CollapseFlag();
   return Navigator.of(context, rootNavigator: true).push<T>(
     RawDialogRoute<T>(
       barrierDismissible: barrierDismissible,
@@ -43,11 +44,26 @@ Future<T?> showClarifySurface<T>({
       pageBuilder: (context, animation, secondaryAnimation) {
         return Semantics(
           hitTestBehavior: SemanticsHitTestBehavior.opaque,
-          child: SafeArea(child: Builder(builder: builder)),
+          child: SafeArea(
+            child: ClarifySurfaceTransitionOut(
+              onMarkCollapse: () => collapseOnClose.value = true,
+              child: Builder(builder: builder),
+            ),
+          ),
         );
       },
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         final curved = CurvedAnimation(parent: animation, curve: ClarifyMotion.standard);
+        if (collapseOnClose.value) {
+          // Переход в другое окно (напр. "Изменить" → редактирование задачи):
+          // схлопывается на месте и растворяется, а не летит обратно к точке
+          // открытия — иначе взгляд спорил бы между двумя одновременными
+          // перелётами (эта модалка назад, новая — с кнопки перехода).
+          return FadeTransition(
+            opacity: curved,
+            child: ScaleTransition(scale: Tween<double>(begin: 0.05, end: 1.0).animate(curved), child: child),
+          );
+        }
         if (effectiveOrigin == null) {
           return FadeTransition(
             opacity: curved,
@@ -82,4 +98,24 @@ Future<T?> showClarifySurface<T>({
       },
     ),
   );
+}
+
+class _CollapseFlag {
+  bool value = false;
+}
+
+/// Помечает следующее закрытие текущего [showClarifySurface] как переход в
+/// другое окно, а не обычный dismiss (крестик/клик по фону/удаление) —
+/// см. [_CollapseFlag] в [showClarifySurface].
+class ClarifySurfaceTransitionOut extends InheritedWidget {
+  final VoidCallback onMarkCollapse;
+
+  const ClarifySurfaceTransitionOut({super.key, required this.onMarkCollapse, required super.child});
+
+  static void markCollapseOnClose(BuildContext context) {
+    context.findAncestorWidgetOfExactType<ClarifySurfaceTransitionOut>()?.onMarkCollapse();
+  }
+
+  @override
+  bool updateShouldNotify(covariant ClarifySurfaceTransitionOut oldWidget) => false;
 }

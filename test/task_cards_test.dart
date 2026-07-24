@@ -43,6 +43,7 @@ void main() {
         home: Scaffold(body: _builders(onDelete: (id) => deletedId = id).buildListTaskCard(task)),
       ));
       await tester.tap(find.byIcon(LucideIcons.x));
+      await tester.pumpAndSettle();
 
       expect(deletedId, 42);
     });

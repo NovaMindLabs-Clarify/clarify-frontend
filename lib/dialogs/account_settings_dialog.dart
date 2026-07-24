@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/config.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
+import '../widgets/clarify_settings_card.dart';
 
 /// Диалог настроек аккаунта: аватар, имя, автозапуск, язык, смена пароля,
 /// выход. Вынесено из DesktopPlannerScreen (P3.1, docs/IMPROVEMENT_PLAN.md) —
@@ -231,196 +232,146 @@ void showAccountSettingsDialog({
 
                       // --- КОД ДРУГА --- SOCIAL_PLAN.md §4.1: поиск/добавление в друзья по
                       // короткому публичному коду вместо email.
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(LucideIcons.userRound, color: textColor, size: 20),
-                              const SizedBox(width: 8),
-                              Text("Код друга".tr(currentLang), style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                          if (friendCode == null)
-                            SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: textMuted))
-                          else
-                            InkWell(
-                              borderRadius: BorderRadius.circular(8),
-                              onTap: () {
-                                Clipboard.setData(ClipboardData(text: friendCode!));
-                                ClarifyToast.show(context, 'Код скопирован!'.tr(currentLang), variant: ClarifyToastVariant.success);
-                              },
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(friendCode!, style: TextStyle(color: t.accent, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
-                                    const SizedBox(width: 6),
-                                    Icon(LucideIcons.copy, size: 14, color: t.accent),
-                                  ],
+                      ClarifySettingsCard(
+                        icon: LucideIcons.userRound,
+                        title: "Код друга".tr(currentLang),
+                        trailing: friendCode == null
+                            ? SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: textMuted))
+                            : InkWell(
+                                borderRadius: BorderRadius.circular(8),
+                                onTap: () {
+                                  Clipboard.setData(ClipboardData(text: friendCode!));
+                                  ClarifyToast.show(context, 'Код скопирован!'.tr(currentLang), variant: ClarifyToastVariant.success);
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(friendCode!, style: TextStyle(color: t.accent, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                                      const SizedBox(width: 6),
+                                      Icon(LucideIcons.copy, size: 14, color: t.accent),
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ),
-                        ],
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
 
                       // --- ПЕРЕКЛЮЧАТЕЛЬ АВТОЗАПУСКА --- только на десктопе, на мобильном
                       // (PWA) автозапуск с Windows бессмысленен (REDESIGN_V3_PLAN.md §3.14/5.14).
                       if (!isMobileContext) ...[
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(LucideIcons.rocket, color: textColor, size: 20),
-                                const SizedBox(width: 8),
-                                Text("Автозапуск с Windows".tr(currentLang), style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                            Switch(
-                              value: isAutostart,
-                              activeColor: t.accent,
-                              onChanged: (val) async {
-                                setStateDialog(() => isAutostart = val);
-                                if (val) {
-                                  await launchAtStartup.enable();
-                                } else {
-                                  await launchAtStartup.disable();
-                                }
-                              },
-                            )
-                          ]
+                        ClarifySettingsCard(
+                          icon: LucideIcons.rocket,
+                          title: "Автозапуск с Windows".tr(currentLang),
+                          trailing: Switch(
+                            value: isAutostart,
+                            activeColor: t.accent,
+                            onChanged: (val) async {
+                              setStateDialog(() => isAutostart = val);
+                              if (val) {
+                                await launchAtStartup.enable();
+                              } else {
+                                await launchAtStartup.disable();
+                              }
+                            },
+                          ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 12),
                       ],
 
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(LucideIcons.globe, color: textColor, size: 20),
-                              const SizedBox(width: 8),
-                              Text("Язык".tr(currentLang), style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                      ClarifySettingsCard(
+                        icon: LucideIcons.globe,
+                        title: "Язык".tr(currentLang),
+                        trailing: Container(
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: glassColor,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: glassBorderColor)
+                          ),
+                          child: ToggleButtons(
+                            borderRadius: BorderRadius.circular(12),
+                            borderColor: Colors.transparent, selectedBorderColor: Colors.transparent,
+                            fillColor: t.accentSoft,
+                            selectedColor: t.accent, color: textMuted,
+                            constraints: const BoxConstraints(minHeight: 36, minWidth: 48),
+                            isSelected: [currentLang == 'ru', currentLang == 'en'],
+                            onPressed: (index) {
+                              changeLang(index == 0 ? 'ru' : 'en');
+                              Navigator.pop(context);
+                            },
+                            children: const [
+                              Text("RU", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                              Text("EN", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                             ],
                           ),
-                          Container(
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: glassColor,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: glassBorderColor)
-                            ),
-                            child: ToggleButtons(
-                              borderRadius: BorderRadius.circular(12),
-                              borderColor: Colors.transparent, selectedBorderColor: Colors.transparent,
-                              fillColor: t.accentSoft,
-                              selectedColor: t.accent, color: textMuted,
-                              constraints: const BoxConstraints(minHeight: 36, minWidth: 48),
-                              isSelected: [currentLang == 'ru', currentLang == 'en'],
-                              onPressed: (index) {
-                                changeLang(index == 0 ? 'ru' : 'en');
-                                Navigator.pop(context);
-                              },
-                              children: const [
-                                Text("RU", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                Text("EN", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                              ],
-                            ),
-                          )
-                        ]
+                        ),
                       ),
-                      const SizedBox(height: 16),
-                      Divider(color: glassBorderColor),
                       const SizedBox(height: 16),
 
                       // --- ПЛАН: текущий тариф + сравнение Free/Pro ---
                       // Только каркас — реальной оплаты нет, см. REDESIGN_V2_PLAN.md §4.
-                      InkWell(
-                        borderRadius: BorderRadius.circular(12),
+                      ClarifySettingsCard(
+                        icon: LucideIcons.crown,
+                        iconColor: t.warning,
+                        title: "План".tr(currentLang),
                         onTap: () => setStateDialog(() => showPlanDetails = !showPlanDetails),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        isExpanded: showPlanDetails,
+                        trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                            decoration: BoxDecoration(color: t.accentSoft, borderRadius: BorderRadius.circular(999)),
+                            child: Text("Free", style: TextStyle(color: t.accent, fontSize: 12, fontWeight: FontWeight.bold)),
+                          ),
+                          const SizedBox(width: 6),
+                          Icon(showPlanDetails ? LucideIcons.chevronUp : LucideIcons.chevronDown, color: textMuted, size: 18),
+                        ]),
+                        expandedChild: Column(
                           children: [
-                            Row(children: [
-                              Icon(LucideIcons.crown, color: textColor, size: 20),
-                              const SizedBox(width: 8),
-                              Text("План".tr(currentLang), style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
-                            ]),
-                            Row(children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                                decoration: BoxDecoration(color: t.accentSoft, borderRadius: BorderRadius.circular(999)),
-                                child: Text("Free", style: TextStyle(color: t.accent, fontSize: 12, fontWeight: FontWeight.bold)),
+                            Divider(color: t.border, height: 17),
+                            _PlanRow(label: "AI-запросы в месяц".tr(currentLang), free: "50", pro: "Без лимита".tr(currentLang), textColor: textColor, textMuted: textMuted),
+                            _PlanRow(label: "Участников в команде".tr(currentLang), free: "3", pro: "Без лимита".tr(currentLang), textColor: textColor, textMuted: textMuted),
+                            _PlanRow(label: "Синхронизация с Яндекс.Календарём".tr(currentLang), freeCheck: false, textColor: textColor, textMuted: textMuted, accent: t.accent, danger: t.danger),
+                            _PlanRow(label: "Расширенная статистика".tr(currentLang), freeCheck: false, textColor: textColor, textMuted: textMuted, accent: t.accent, danger: t.danger),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                                onPressed: () => ClarifyToast.show(context, "Оплата Pro скоро будет доступна".tr(currentLang), variant: ClarifyToastVariant.info),
+                                child: Text("Оформить Pro — 199 ₽/мес".tr(currentLang), style: const TextStyle(fontWeight: FontWeight.bold)),
                               ),
-                              const SizedBox(width: 6),
-                              Icon(showPlanDetails ? LucideIcons.chevronUp : LucideIcons.chevronDown, color: textMuted, size: 18),
-                            ]),
+                            ),
                           ],
                         ),
                       ),
-                      if (showPlanDetails) ...[
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(color: t.surfaceSunken, borderRadius: BorderRadius.circular(12)),
-                          child: Column(
-                            children: [
-                              _PlanRow(label: "AI-запросы в месяц".tr(currentLang), free: "50", pro: "Без лимита".tr(currentLang), textColor: textColor, textMuted: textMuted),
-                              _PlanRow(label: "Участников в команде".tr(currentLang), free: "3", pro: "Без лимита".tr(currentLang), textColor: textColor, textMuted: textMuted),
-                              _PlanRow(label: "Синхронизация с Яндекс.Календарём".tr(currentLang), freeCheck: false, textColor: textColor, textMuted: textMuted, accent: t.accent, danger: t.danger),
-                              _PlanRow(label: "Расширенная статистика".tr(currentLang), freeCheck: false, textColor: textColor, textMuted: textMuted, accent: t.accent, danger: t.danger),
-                              const SizedBox(height: 12),
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton(
-                                  style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                                  onPressed: () => ClarifyToast.show(context, "Оплата Pro скоро будет доступна".tr(currentLang), variant: ClarifyToastVariant.info),
-                                  child: Text("Оформить Pro — 199 ₽/мес".tr(currentLang), style: const TextStyle(fontWeight: FontWeight.bold)),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
 
                       // --- КАЛЕНДАРИ: внешние интеграции (P2.4 IMPROVEMENT_PLAN.md) ---
-                      InkWell(
-                        borderRadius: BorderRadius.circular(12),
+                      ClarifySettingsCard(
+                        icon: LucideIcons.calendarSync,
+                        title: "Календари".tr(currentLang),
                         onTap: () => setStateDialog(() => showCalendars = !showCalendars),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        isExpanded: showCalendars,
+                        trailing: Icon(showCalendars ? LucideIcons.chevronUp : LucideIcons.chevronDown, color: textMuted, size: 18),
+                        expandedChild: Column(
                           children: [
-                            Row(children: [
-                              Icon(LucideIcons.calendarSync, color: textColor, size: 20),
-                              const SizedBox(width: 8),
-                              Text("Календари".tr(currentLang), style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
-                            ]),
-                            Icon(showCalendars ? LucideIcons.chevronUp : LucideIcons.chevronDown, color: textMuted, size: 18),
+                            Divider(color: t.border, height: 17),
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: Icon(LucideIcons.calendarDays, color: textColor, size: 22),
+                              title: Text("Яндекс.Календарь".tr(currentLang), style: TextStyle(color: textColor, fontWeight: FontWeight.w600)),
+                              subtitle: Text("Требует Pro".tr(currentLang), style: TextStyle(color: textMuted, fontSize: 12.5)),
+                              trailing: OutlinedButton(
+                                style: OutlinedButton.styleFrom(side: BorderSide(color: glassBorderColor), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999))),
+                                onPressed: () => ClarifyToast.show(context, "Интеграция скоро будет доступна".tr(currentLang), variant: ClarifyToastVariant.info),
+                                child: Text("Подключить".tr(currentLang), style: TextStyle(color: textColor)),
+                              ),
+                            ),
                           ],
                         ),
                       ),
-                      if (showCalendars) ...[
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                          decoration: BoxDecoration(color: t.surfaceSunken, borderRadius: BorderRadius.circular(12)),
-                          child: ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: Icon(LucideIcons.calendarDays, color: textColor, size: 22),
-                            title: Text("Яндекс.Календарь".tr(currentLang), style: TextStyle(color: textColor, fontWeight: FontWeight.w600)),
-                            subtitle: Text("Требует Pro".tr(currentLang), style: TextStyle(color: textMuted, fontSize: 12.5)),
-                            trailing: OutlinedButton(
-                              style: OutlinedButton.styleFrom(side: BorderSide(color: glassBorderColor), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999))),
-                              onPressed: () => ClarifyToast.show(context, "Интеграция скоро будет доступна".tr(currentLang), variant: ClarifyToastVariant.info),
-                              child: Text("Подключить".tr(currentLang), style: TextStyle(color: textColor)),
-                            ),
-                          ),
-                        ),
-                      ],
                       const SizedBox(height: 16),
 
                       SizedBox(

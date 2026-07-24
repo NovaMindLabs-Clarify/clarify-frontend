@@ -361,7 +361,7 @@ void showTaskDetailsDialog({
                             children: [
                               TextButton.icon(icon: Icon(LucideIcons.copy, color: t.accent), label: Text("Дублировать".tr(currentLang), style: TextStyle(color: t.accent)), onPressed: () { onDuplicate(task); Navigator.of(context).pop(); ClarifyToast.show(context, "Кликни на плюсик любого дня".tr(currentLang), variant: ClarifyToastVariant.info); }),
                               const SizedBox(width: 8),
-                              ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), icon: const Icon(LucideIcons.pencil, size: 18), label: Text("Изменить".tr(currentLang), style: TextStyle(fontWeight: FontWeight.bold)), onPressed: () { Navigator.of(context).pop(); onEdit(task); }),
+                              ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), icon: const Icon(LucideIcons.pencil, size: 18), label: Text("Изменить".tr(currentLang), style: TextStyle(fontWeight: FontWeight.bold)), onPressed: () { ClarifySurfaceTransitionOut.markCollapseOnClose(context); Navigator.of(context).pop(); onEdit(task); }),
                             ]
                           )
                         ]
