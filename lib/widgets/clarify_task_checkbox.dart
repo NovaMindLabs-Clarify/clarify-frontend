@@ -155,38 +155,46 @@ class _ClarifyStrikeTextState extends State<ClarifyStrikeText> with TickerProvid
   @override
   Widget build(BuildContext context) {
     final color = widget.strikeColor ?? widget.style.color ?? Colors.black;
-    // IntrinsicWidth — иначе Stack растягивается на всю ширину родителя
-    // (Expanded в вызывающем коде), и Positioned.fill внутри считает долю
-    // не от ширины текста, а от ширины всего ряда — зачёркивание задевало
-    // весь блок карточки, а не только сам текст.
-    return IntrinsicWidth(
-      child: Stack(
-        alignment: Alignment.centerLeft,
-        children: [
-          Text(widget.text, style: widget.style, maxLines: widget.maxLines, overflow: widget.overflow),
-          AnimatedBuilder(
-            animation: Listenable.merge([_draw, _fade]),
-            builder: (context, _) {
-              final width = CurvedAnimation(parent: _draw, curve: ClarifyMotion.standard).value.clamp(0.0, 1.0);
-              final opacity = CurvedAnimation(parent: _fade, curve: ClarifyMotion.standard).value.clamp(0.0, 1.0);
-              if (width <= 0.001 || opacity <= 0.001) return const SizedBox.shrink();
-              return Positioned.fill(
-                child: Align(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // IntrinsicWidth не помогает здесь: вызывающий код кладёт этот виджет
+        // в Expanded, который даёт ЖЁСТКИЕ (tight) constraints — под ними
+        // IntrinsicWidth ничего не сжимает, он влияет только на свободные
+        // (loose) constraints. Поэтому ширина текста меряется явно через
+        // TextPainter (с тем же maxLines/overflow, что и у самого Text) —
+        // раньше линия растягивалась на всю ширину Expanded-родителя вместо
+        // ширины реального текста.
+        final painter = TextPainter(
+          text: TextSpan(text: widget.text, style: widget.style),
+          maxLines: widget.maxLines,
+          textDirection: Directionality.of(context),
+          textScaler: MediaQuery.textScalerOf(context),
+          ellipsis: widget.overflow == TextOverflow.ellipsis ? '…' : null,
+        )..layout(maxWidth: constraints.hasBoundedWidth ? constraints.maxWidth : double.infinity);
+        final textWidth = painter.width;
+
+        return Stack(
+          alignment: Alignment.centerLeft,
+          children: [
+            Text(widget.text, style: widget.style, maxLines: widget.maxLines, overflow: widget.overflow),
+            AnimatedBuilder(
+              animation: Listenable.merge([_draw, _fade]),
+              builder: (context, _) {
+                final width = CurvedAnimation(parent: _draw, curve: ClarifyMotion.standard).value.clamp(0.0, 1.0);
+                final opacity = CurvedAnimation(parent: _fade, curve: ClarifyMotion.standard).value.clamp(0.0, 1.0);
+                if (width <= 0.001 || opacity <= 0.001) return const SizedBox.shrink();
+                return Align(
                   alignment: Alignment.centerLeft,
-                  child: FractionallySizedBox(
-                    widthFactor: width,
-                    alignment: Alignment.centerLeft,
-                    child: Opacity(
-                      opacity: opacity,
-                      child: Container(height: 1.4, color: color),
-                    ),
+                  child: Opacity(
+                    opacity: opacity,
+                    child: Container(width: textWidth * width, height: 1.4, color: color),
                   ),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
+                );
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 }

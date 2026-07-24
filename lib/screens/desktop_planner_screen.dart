@@ -524,6 +524,22 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
       final fetchedTasks = await _taskService.fetchTasks();
       if (mounted) {
         setState(() {
+          // Пока для задачи есть незавершённое собственное действие (toggle
+          // ещё летит на сервер, см. _pendingActionIds/_guardedAction) — не
+          // даём этому fetchTasks() (например, случайно триггернутому чужим
+          // realtime-событием, пришедшим прямо во время нашего же клика)
+          // откатить локальное оптимистичное состояние снимком с сервера,
+          // который мог быть сделан ДО того, как наш собственный запрос
+          // закоммитился. Именно это было причиной периодического "мигания"
+          // чекбокса (отметился/откатился/отметился).
+          if (_pendingActionIds.isNotEmpty) {
+            for (final fetched in fetchedTasks) {
+              if (_pendingActionIds.contains('toggle_${fetched['id']}')) {
+                final local = tasks.firstWhere((t) => t['id'] == fetched['id'], orElse: () => const {});
+                if (local.isNotEmpty) fetched['is_completed'] = local['is_completed'];
+              }
+            }
+          }
           tasks = fetchedTasks;
           _isOffline = false;
           _pendingOpsCount = _taskService.pendingOpsCount;
