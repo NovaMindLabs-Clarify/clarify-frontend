@@ -52,6 +52,7 @@ void showManualAddDialog({
   }) buildGlassContainer,
   DateTime? preselectedDate,
   Map<String, dynamic>? sourceTaskForDuplicate,
+  Offset? originOffset,
 }) {
   final t = context.tokens;
   final s = scale;
@@ -83,6 +84,7 @@ void showManualAddDialog({
   showClarifySurface(
     context: context,
     barrierColor: Colors.black.withOpacity(0.4),
+    originOffset: originOffset,
     builder: (context) {
       return StatefulBuilder(builder: (context, setStateDialog) {
         return Center(

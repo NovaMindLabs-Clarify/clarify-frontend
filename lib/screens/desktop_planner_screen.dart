@@ -76,6 +76,13 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   // одновременных действиях) добавляется сюда на время запроса и снимается
   // в finally, второй вызов с тем же id, пока первый не завершился, игнорируется.
   final Set<String> _pendingActionIds = {};
+  final GlobalKey _fabKey = GlobalKey();
+
+  Offset? _fabCenterOnScreen() {
+    final box = _fabKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.attached) return null;
+    return box.localToGlobal(box.size.center(Offset.zero));
+  }
 
   Future<void> _guardedAction(String actionId, Future<void> Function() action) async {
     if (_pendingActionIds.contains(actionId)) return;
@@ -878,9 +885,10 @@ void _checkBurnoutWarning(String dateStr) {
 
   void shiftDate(int days, int months, StateSetter setStateDialog, DateTime? currentDate) { DateTime baseDate = currentDate ?? DateTime.now(); setStateDialog(() => currentDate = DateTime(baseDate.year, baseDate.month + months, baseDate.day + days)); }
 
-  void _showManualAddDialog({DateTime? preselectedDate, Map<String, dynamic>? sourceTaskForDuplicate}) {
+  void _showManualAddDialog({DateTime? preselectedDate, Map<String, dynamic>? sourceTaskForDuplicate, Offset? originOffset}) {
     showManualAddDialog(
       context: context,
+      originOffset: originOffset,
       isDark: isDark,
       scale: _s,
       textColor: textColor,
@@ -1482,10 +1490,20 @@ Map<String, dynamic> _parseSmartInput(String text) {
           // Container transform через Hero откачен — "A Hero widget cannot be the
           // descendant of another Hero widget" при реальном запуске (не смог
           // безопасно продиагностировать вслепую без браузера/живой отладки).
-          // Модалка создания задачи открывается обычным showClarifySurface
-          // (scale+fade), без разворота из кнопки.
+          // Тот же эффект "окно вылетает из кнопки" сделан через
+          // showClarifySurface(originOffset: ...) — обычный Transform от
+          // экранных координат FAB, без Hero и его завязки на сопоставление
+          // тегов между роутами.
           child: FloatingActionButton.extended(
-            onPressed: () { if (_isDuplicating && _taskToDuplicate != null) { _showManualAddDialog(preselectedDate: DateTime.now(), sourceTaskForDuplicate: _taskToDuplicate); } else { _showManualAddDialog(); } },
+            key: _fabKey,
+            onPressed: () {
+              final origin = _fabCenterOnScreen();
+              if (_isDuplicating && _taskToDuplicate != null) {
+                _showManualAddDialog(preselectedDate: DateTime.now(), sourceTaskForDuplicate: _taskToDuplicate, originOffset: origin);
+              } else {
+                _showManualAddDialog(originOffset: origin);
+              }
+            },
             // Тот же акцент, что у кнопки "AI Ассистент" (ClarifyButtonVariant.filled)
             // — раньше FAB был захардкожен на стоковый Colors.blueAccent, из-за чего
             // две акцентные кнопки в интерфейсе визуально спорили друг с другом.

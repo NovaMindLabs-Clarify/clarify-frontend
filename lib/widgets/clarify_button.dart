@@ -63,6 +63,20 @@ class ClarifyButton extends StatelessWidget {
         side: BorderSide(color: borderColor),
       ),
       textStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: 14 * scale),
+      // Явный hover/press overlay акцентным цветом — без него Material сам
+      // берёт цвет из foregroundColor (t.text: почти чёрный в светлой теме,
+      // почти белый в тёмной), и на прозрачном фоне outline-кнопки в светлой
+      // теме это давало низкоконтрастную мутную заливку поверх и без того
+      // полупрозрачной обводки (t.borderStrong: ~18% альфы) — контур на
+      // hover визуально "плыл". Акцентный оттенок с фиксированной альфой
+      // одинаково читаем в обеих темах.
+    ).copyWith(
+      overlayColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.pressed)) return t.accent.withValues(alpha: 0.16);
+        if (states.contains(WidgetState.hovered)) return t.accent.withValues(alpha: 0.08);
+        if (states.contains(WidgetState.focused)) return t.accent.withValues(alpha: 0.08);
+        return Colors.transparent;
+      }),
     );
 
     // clipBehavior: без него hover/pressed-заливка ElevatedButton иногда не
