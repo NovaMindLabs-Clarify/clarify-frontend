@@ -246,15 +246,17 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
           hoverColor: _tokens.accent.withValues(alpha: 0.06),
           child: Container(
             padding: EdgeInsets.all(12 * _s),
+            // Только левая сторона border'а — если задать все четыре стороны
+            // разными цветами вместе с borderRadius, Flutter кидает
+            // FlutterError в paint() ("A borderRadius can only be given on
+            // borders with uniform colors"), из-за чего блок не рендерился
+            // вообще. BorderSide.none на остальных сторонах не считается
+            // "невидимым цветом" и не ломает borderRadius — тот же приём,
+            // что уже работает в MobileTaskRow и карточке "7 дней".
             decoration: BoxDecoration(
               color: glassColor,
               borderRadius: BorderRadius.circular(16 * _s),
-              border: Border(
-                top: BorderSide(color: glassBorderColor),
-                right: BorderSide(color: glassBorderColor),
-                bottom: BorderSide(color: glassBorderColor),
-                left: BorderSide(color: _tokens.accent, width: 3),
-              ),
+              border: Border(left: BorderSide(color: _tokens.accent, width: 3)),
             ),
             child: Row(
               children: [
@@ -669,7 +671,14 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
           _spawnNextRecurringTask(task);
         }
 
-        _fetchTasks();
+        // Раньше здесь был ещё и явный _fetchTasks() — но initRealtime уже
+        // подписан на изменения таблицы tasks и сам вызывает _fetchTasks()
+        // при коммите этого же UPDATE (onTasksChanged, см. ниже). Два
+        // параллельных fetchTasks() на одно действие гонялись друг с другом
+        // и оба целиком перезаписывали tasks новыми объектами — из-за этого
+        // чекбокс визуально "отмечался, откатывался, отмечался снова" за
+        // один клик. Оптимистичное обновление выше уже отражает верное
+        // состояние — второй, серверный, придёт сам через realtime.
 
         // ВОТ СЮДА ДОБАВЛЯЕМ ПРОВЕРКУ
         if (newStatus == true) {
@@ -1334,6 +1343,17 @@ Map<String, dynamic> _parseSmartInput(String text) {
                           Expanded(
                             child: PageTransitionSwitcher(
                               duration: ClarifyMotion.slow,
+                              // Дефолтный layoutBuilder пакета animations кладёт
+                              // страницы в Stack(alignment: Alignment.center) —
+                              // контент короче доступной высоты (как в
+                              // "Статистике", в отличие от списков, которые
+                              // всегда заполняют Expanded целиком) оказывался
+                              // отцентрирован по вертикали, а не прижат к верху:
+                              // отсюда "начинается не с самого верха". fit:expand
+                              // заставляет каждую страницу занимать ровно всю
+                              // высоту Expanded, alignment: topLeft — на случай,
+                              // если что-то всё же не растянется на всю высоту.
+                              layoutBuilder: (entries) => Stack(alignment: Alignment.topLeft, fit: StackFit.expand, children: entries),
                               transitionBuilder: (child, primaryAnimation, secondaryAnimation) => SharedAxisTransition(
                                 animation: primaryAnimation,
                                 secondaryAnimation: secondaryAnimation,

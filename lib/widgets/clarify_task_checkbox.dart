@@ -112,56 +112,81 @@ class ClarifyStrikeText extends StatefulWidget {
   State<ClarifyStrikeText> createState() => _ClarifyStrikeTextState();
 }
 
-class _ClarifyStrikeTextState extends State<ClarifyStrikeText> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _progress;
+class _ClarifyStrikeTextState extends State<ClarifyStrikeText> with TickerProviderStateMixin {
+  // Два раздельных прогресса, а не один реверсируемый: "растворяется" на
+  // отмене должно быть затуханием прозрачности уже нарисованной линии, а не
+  // тем же сжатием ширины назад, что и рисование при выполнении — иначе
+  // (см. баг) на середине анимации отмены линия визуально "проскакивает"
+  // мимо короткого текста и обрывается раньше, чем реально дотухла.
+  late final AnimationController _draw; // 0 → 1: линия дорисовывается слева направо
+  late final AnimationController _fade; // 1 → 0: дорисованная линия растворяется
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: ClarifyMotion.base, value: widget.isDone ? 1 : 0);
-    _progress = CurvedAnimation(parent: _controller, curve: ClarifyMotion.standard);
+    _draw = AnimationController(vsync: this, duration: ClarifyMotion.base, value: widget.isDone ? 1 : 0);
+    _fade = AnimationController(vsync: this, duration: ClarifyMotion.base, value: 1);
   }
 
   @override
   void didUpdateWidget(covariant ClarifyStrikeText oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.isDone != widget.isDone) {
-      widget.isDone ? _controller.forward() : _controller.reverse();
+      if (widget.isDone) {
+        _fade.value = 1;
+        _draw.forward(from: 0);
+      } else {
+        _fade.reverse(from: 1).whenCompleteOrCancel(() {
+          if (!mounted) return;
+          _draw.value = 0;
+          _fade.value = 1;
+        });
+      }
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _draw.dispose();
+    _fade.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final color = widget.strikeColor ?? widget.style.color ?? Colors.black;
-    return Stack(
-      alignment: Alignment.centerLeft,
-      children: [
-        Text(widget.text, style: widget.style, maxLines: widget.maxLines, overflow: widget.overflow),
-        AnimatedBuilder(
-          animation: _progress,
-          builder: (context, _) {
-            final t = _progress.value.clamp(0.0, 1.0);
-            if (t <= 0.001) return const SizedBox.shrink();
-            return Positioned.fill(
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: FractionallySizedBox(
-                  widthFactor: t,
+    // IntrinsicWidth — иначе Stack растягивается на всю ширину родителя
+    // (Expanded в вызывающем коде), и Positioned.fill внутри считает долю
+    // не от ширины текста, а от ширины всего ряда — зачёркивание задевало
+    // весь блок карточки, а не только сам текст.
+    return IntrinsicWidth(
+      child: Stack(
+        alignment: Alignment.centerLeft,
+        children: [
+          Text(widget.text, style: widget.style, maxLines: widget.maxLines, overflow: widget.overflow),
+          AnimatedBuilder(
+            animation: Listenable.merge([_draw, _fade]),
+            builder: (context, _) {
+              final width = CurvedAnimation(parent: _draw, curve: ClarifyMotion.standard).value.clamp(0.0, 1.0);
+              final opacity = CurvedAnimation(parent: _fade, curve: ClarifyMotion.standard).value.clamp(0.0, 1.0);
+              if (width <= 0.001 || opacity <= 0.001) return const SizedBox.shrink();
+              return Positioned.fill(
+                child: Align(
                   alignment: Alignment.centerLeft,
-                  child: Container(height: 1.4, color: color),
+                  child: FractionallySizedBox(
+                    widthFactor: width,
+                    alignment: Alignment.centerLeft,
+                    child: Opacity(
+                      opacity: opacity,
+                      child: Container(height: 1.4, color: color),
+                    ),
+                  ),
                 ),
-              ),
-            );
-          },
-        ),
-      ],
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 }

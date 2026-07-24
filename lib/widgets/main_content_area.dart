@@ -121,20 +121,55 @@ class MainContentArea extends StatelessWidget {
         // Единственное место, где остаётся drag — здесь у задач нет даты,
         // поэтому порядок в списке ничем, кроме самого пользователя, не
         // задан; перетаскивание — единственный способ его выставить вручную.
-        // ReorderableListView сам считает feedback по реальному размеру
-        // элемента — раньше здесь был LongPressDraggable с фиксированной
-        // шириной feedback (500px), из-за чего при перетаскивании карточка
-        // "резалась криво", если реальная колонка была уже/шире 500px.
+        //
+        // buildDefaultDragHandles:false + свой ReorderableDragStartListener —
+        // дефолтная ручка Flutter на десктопе накладывается Positioned'ом
+        // поверх карточки по правому краю, центрированная по ВСЕЙ высоте
+        // плитки, а не по верху, как крестик удаления внутри самой карточки —
+        // отсюда ручка и крестик были на разных высотах.
+        //
+        // proxyDecorator переопределён — дефолтный оборачивает перетаскиваемый
+        // элемент в `Material(elevation: ...)` БЕЗ borderRadius/shape; поверх
+        // скруглённой стеклянной карточки (ClipRRect + BackdropFilter внутри
+        // buildGlassContainer) это давало несовпадающие границы тени/клипа —
+        // отсюда "режется криво" при зажатой ручке. Лёгкий scale вместо
+        // elevation не конфликтует со скруглением/блюром карточки.
         return ClarifyListEntrance(
           child: ReorderableListView(
             padding: const EdgeInsets.symmetric(horizontal: 24),
+            buildDefaultDragHandles: false,
+            proxyDecorator: (child, index, animation) {
+              return AnimatedBuilder(
+                animation: animation,
+                builder: (context, _) {
+                  final t = Curves.easeInOut.transform(animation.value);
+                  return Transform.scale(scale: 1.0 + 0.02 * t, child: child);
+                },
+                child: child,
+              );
+            },
             onReorder: (int oldIndex, int newIndex) {
               onReorderTasks(oldIndex, newIndex, targetTasks);
             },
-            children: targetTasks.map((task) {
-              return Container(
+            children: targetTasks.asMap().entries.map((entry) {
+              final index = entry.key;
+              final task = entry.value;
+              return Row(
                 key: ValueKey(task['id'].toString()),
-                child: buildListTaskCard(task),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: buildListTaskCard(task)),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4, top: 14),
+                    child: ReorderableDragStartListener(
+                      index: index,
+                      child: MouseRegion(
+                        cursor: SystemMouseCursors.grab,
+                        child: Icon(LucideIcons.gripVertical, size: 18, color: textMuted),
+                      ),
+                    ),
+                  ),
+                ],
               );
             }).toList(),
           ),

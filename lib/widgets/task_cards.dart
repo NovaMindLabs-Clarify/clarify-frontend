@@ -173,13 +173,19 @@ class TaskCardBuilders {
               ),
             ),
             Expanded(
+              // Настоящая линия, не карточка: без заливки и скругления —
+              // только полоса приоритета слева и тонкий разделитель снизу.
+              // Раньше здесь была та же "стеклянная" заливка+скругление, что
+              // и у остальных карточек, из-за чего в узкой колонке "7 дней"
+              // это читалось как жирный блок, а не строка списка.
               child: Container(
                 decoration: BoxDecoration(
-                  color: isDone ? doneCardColor : (overdue ? _t.dangerSoft : _t.surface),
-                  borderRadius: BorderRadius.circular(ClarifyRadius.md * _s),
-                  border: Border(left: BorderSide(color: stripeColor, width: 3 * _s)),
+                  border: Border(
+                    left: BorderSide(color: stripeColor, width: 3 * _s),
+                    bottom: BorderSide(color: glassBorderColor),
+                  ),
                 ),
-                padding: EdgeInsets.symmetric(horizontal: 12 * _s, vertical: 12 * _s),
+                padding: EdgeInsets.fromLTRB(12 * _s, 10 * _s, 6 * _s, 10 * _s),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
