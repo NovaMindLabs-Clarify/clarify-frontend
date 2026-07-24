@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
@@ -159,49 +160,180 @@ class _ClarifyTimePickerDialog extends StatefulWidget {
 }
 
 class _ClarifyTimePickerDialogState extends State<_ClarifyTimePickerDialog> {
+  static const double _itemExtent = 40;
+  static const int _visibleRadius = 2;
+  static const List<(int, int)> _presets = [(9, 0), (12, 0), (15, 0), (18, 0), (21, 0)];
+
   late int _hour;
   late int _minute;
-  late final FixedExtentScrollController _hourController;
-  late final FixedExtentScrollController _minuteController;
+  double _hourDrag = 0;
+  double _minuteDrag = 0;
+  bool _editingHour = false;
+  bool _editingMinute = false;
+  late final TextEditingController _hourFieldController;
+  late final TextEditingController _minuteFieldController;
+  late final FocusNode _hourFocusNode;
+  late final FocusNode _minuteFocusNode;
 
   @override
   void initState() {
     super.initState();
     _hour = widget.initialTime.hour;
     _minute = widget.initialTime.minute;
-    _hourController = FixedExtentScrollController(initialItem: _hour);
-    _minuteController = FixedExtentScrollController(initialItem: _minute);
+    _hourFieldController = TextEditingController();
+    _minuteFieldController = TextEditingController();
+    _hourFocusNode = FocusNode()..addListener(_onHourFocusChange);
+    _minuteFocusNode = FocusNode()..addListener(_onMinuteFocusChange);
   }
 
   @override
   void dispose() {
-    _hourController.dispose();
-    _minuteController.dispose();
+    _hourFocusNode.removeListener(_onHourFocusChange);
+    _minuteFocusNode.removeListener(_onMinuteFocusChange);
+    _hourFieldController.dispose();
+    _minuteFieldController.dispose();
+    _hourFocusNode.dispose();
+    _minuteFocusNode.dispose();
     super.dispose();
   }
 
-  Widget _wheel({
+  void _onHourFocusChange() {
+    if (!_hourFocusNode.hasFocus && _editingHour) _commitHourEdit();
+  }
+
+  void _onMinuteFocusChange() {
+    if (!_minuteFocusNode.hasFocus && _editingMinute) _commitMinuteEdit();
+  }
+
+  void _startEditHour() {
+    setState(() {
+      _editingHour = true;
+      _hourFieldController.text = _hour.toString().padLeft(2, '0');
+      _hourFieldController.selection = TextSelection(baseOffset: 0, extentOffset: _hourFieldController.text.length);
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _hourFocusNode.requestFocus());
+  }
+
+  void _startEditMinute() {
+    setState(() {
+      _editingMinute = true;
+      _minuteFieldController.text = _minute.toString().padLeft(2, '0');
+      _minuteFieldController.selection = TextSelection(baseOffset: 0, extentOffset: _minuteFieldController.text.length);
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _minuteFocusNode.requestFocus());
+  }
+
+  void _commitHourEdit() {
+    final parsed = int.tryParse(_hourFieldController.text);
+    setState(() {
+      if (parsed != null) _hour = parsed < 0 ? 0 : (parsed > 23 ? 23 : parsed);
+      _editingHour = false;
+    });
+  }
+
+  void _commitMinuteEdit() {
+    final parsed = int.tryParse(_minuteFieldController.text);
+    setState(() {
+      if (parsed != null) _minute = parsed < 0 ? 0 : (parsed > 59 ? 59 : parsed);
+      _editingMinute = false;
+    });
+  }
+
+  // Своя drag-логика вместо ListWheelScrollView: последний реагирует и на
+  // колесо мыши (Scrollable перехватывает PointerScrollEvent) — по концепту
+  // нужен только жест перетаскивания, имитирующий тач-свайп на сенсорном
+  // экране, колесо мыши сюда специально не подключено.
+  void _onHourDrag(double delta) {
+    setState(() {
+      _hourDrag += delta;
+      while (_hourDrag <= -_itemExtent) {
+        _hourDrag += _itemExtent;
+        _hour = (_hour + 1) % 24;
+      }
+      while (_hourDrag >= _itemExtent) {
+        _hourDrag -= _itemExtent;
+        _hour = (_hour - 1 + 24) % 24;
+      }
+    });
+  }
+
+  void _onMinuteDrag(double delta) {
+    setState(() {
+      _minuteDrag += delta;
+      while (_minuteDrag <= -_itemExtent) {
+        _minuteDrag += _itemExtent;
+        _minute = (_minute + 1) % 60;
+      }
+      while (_minuteDrag >= _itemExtent) {
+        _minuteDrag -= _itemExtent;
+        _minute = (_minute - 1 + 60) % 60;
+      }
+    });
+  }
+
+  Widget _column({
+    required int value,
     required int itemCount,
-    required FixedExtentScrollController controller,
-    required void Function(int) onChanged,
+    required double dragOffset,
+    required void Function(double) onDrag,
+    required VoidCallback onDragEnd,
+    required bool editing,
+    required TextEditingController fieldController,
+    required FocusNode focusNode,
+    required VoidCallback onStartEdit,
     required ClarifyTokens t,
   }) {
-    return SizedBox(
-      width: 64,
-      height: 160,
-      child: ListWheelScrollView.useDelegate(
-        controller: controller,
-        itemExtent: 40,
-        diameterRatio: 1.4,
-        physics: const FixedExtentScrollPhysics(),
-        onSelectedItemChanged: onChanged,
-        childDelegate: ListWheelChildBuilderDelegate(
-          childCount: itemCount,
-          builder: (context, index) => Center(
-            child: Text(
-              index.toString().padLeft(2, '0'),
-              style: TextStyle(color: t.text, fontSize: 22, fontWeight: FontWeight.w600),
-            ),
+    if (editing) {
+      return SizedBox(
+        width: 64,
+        height: _itemExtent,
+        child: TextField(
+          controller: fieldController,
+          focusNode: focusNode,
+          autofocus: true,
+          textAlign: TextAlign.center,
+          keyboardType: TextInputType.number,
+          maxLength: 2,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          decoration: const InputDecoration(counterText: '', border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.zero),
+          style: TextStyle(color: t.text, fontSize: 22, fontWeight: FontWeight.w600),
+          onSubmitted: (_) => focusNode.unfocus(),
+        ),
+      );
+    }
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onVerticalDragUpdate: (details) => onDrag(details.delta.dy),
+      onVerticalDragEnd: (_) => onDragEnd(),
+      onTap: onStartEdit,
+      child: SizedBox(
+        width: 64,
+        height: _itemExtent * (_visibleRadius * 2 + 1),
+        child: ClipRect(
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              for (var offset = -_visibleRadius; offset <= _visibleRadius; offset++)
+                Transform.translate(
+                  offset: Offset(0, offset * _itemExtent + dragOffset),
+                  child: SizedBox(
+                    height: _itemExtent,
+                    child: Center(
+                      child: Opacity(
+                        opacity: offset == 0 ? 1.0 : (1.0 - offset.abs() * 0.3),
+                        child: Text(
+                          (((value + offset) % itemCount + itemCount) % itemCount).toString().padLeft(2, '0'),
+                          style: TextStyle(
+                            color: t.text,
+                            fontSize: offset == 0 ? 22 : 16,
+                            fontWeight: offset == 0 ? FontWeight.w600 : FontWeight.w400,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ),
@@ -227,19 +359,69 @@ class _ClarifyTimePickerDialogState extends State<_ClarifyTimePickerDialog> {
                 alignment: Alignment.center,
                 children: [
                   Container(
-                    height: 40,
+                    height: _itemExtent,
                     margin: const EdgeInsets.symmetric(horizontal: 8),
                     decoration: BoxDecoration(color: t.accentSoft, borderRadius: BorderRadius.circular(ClarifyRadius.sm)),
                   ),
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      _wheel(itemCount: 24, controller: _hourController, onChanged: (v) => _hour = v, t: t),
+                      _column(
+                        value: _hour,
+                        itemCount: 24,
+                        dragOffset: _hourDrag,
+                        onDrag: _onHourDrag,
+                        onDragEnd: () => setState(() => _hourDrag = 0),
+                        editing: _editingHour,
+                        fieldController: _hourFieldController,
+                        focusNode: _hourFocusNode,
+                        onStartEdit: _startEditHour,
+                        t: t,
+                      ),
                       Text(':', style: TextStyle(color: t.text, fontSize: 22, fontWeight: FontWeight.bold)),
-                      _wheel(itemCount: 60, controller: _minuteController, onChanged: (v) => _minute = v, t: t),
+                      _column(
+                        value: _minute,
+                        itemCount: 60,
+                        dragOffset: _minuteDrag,
+                        onDrag: _onMinuteDrag,
+                        onDragEnd: () => setState(() => _minuteDrag = 0),
+                        editing: _editingMinute,
+                        fieldController: _minuteFieldController,
+                        focusNode: _minuteFocusNode,
+                        onStartEdit: _startEditMinute,
+                        t: t,
+                      ),
                     ],
                   ),
                 ],
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                alignment: WrapAlignment.center,
+                children: _presets.map((p) {
+                  final selected = _hour == p.$1 && _minute == p.$2;
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(ClarifyRadius.pill),
+                    onTap: () => setState(() {
+                      _hour = p.$1;
+                      _minute = p.$2;
+                    }),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: selected ? t.accentSoft : Colors.transparent,
+                        borderRadius: BorderRadius.circular(ClarifyRadius.pill),
+                        border: Border.all(color: selected ? t.accent.withValues(alpha: 0.4) : t.border),
+                      ),
+                      child: Text(
+                        '${p.$1.toString().padLeft(2, '0')}:${p.$2.toString().padLeft(2, '0')}',
+                        style: TextStyle(color: selected ? t.accent : t.text2, fontSize: 13, fontWeight: selected ? FontWeight.bold : FontWeight.normal),
+                      ),
+                    ),
+                  );
+                }).toList(),
               ),
               const SizedBox(height: 12),
               Row(
