@@ -185,7 +185,13 @@ class _SidebarMenuState extends State<SidebarMenu> {
         borderRadius: const BorderRadius.only(topRight: Radius.circular(24), bottomRight: Radius.circular(24)),
         margin: EdgeInsets.zero,
         child: AnimatedContainer(
-          duration: ClarifyMotion.base,
+          // base (180мс) читалось как резкий скачок, а не разворот — та же
+          // причина, что у анимации диалогов из точки клика: слишком быстро
+          // для заметной смены размера. slow (280мс) — компромисс: заметно
+          // плавнее, но всё ещё достаточно отзывчиво для наведения мышью,
+          // которое повторяется часто (в отличие от разовых диалогов, где
+          // подошла более медленная deliberate).
+          duration: ClarifyMotion.slow,
           curve: ClarifyMotion.standard,
           width: (_expanded ? _expandedWidth : _collapsedWidth) * s,
           child: ClipRect(
