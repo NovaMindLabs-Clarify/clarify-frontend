@@ -232,19 +232,29 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     final avatarUrl = metadata['avatar_url']?.toString();
     final initial = fullName.isNotEmpty ? fullName[0].toUpperCase() : '?';
 
+    // Та же карточная логика, что у строк друзей/команд (glass-контейнер +
+    // круглая аватарка), плюс цветная полоса слева — тот же приём, что уже
+    // используется в MobileTaskRow, для узнаваемого "этим можно управлять"
+    // акцента вместо ровного контура со всех сторон.
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 16 * _s),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(16 * _s),
-          onTap: _showAccountSettingsDialog, 
+          onTap: _showAccountSettingsDialog,
+          hoverColor: _tokens.accent.withValues(alpha: 0.06),
           child: Container(
             padding: EdgeInsets.all(12 * _s),
             decoration: BoxDecoration(
               color: glassColor,
               borderRadius: BorderRadius.circular(16 * _s),
-              border: Border.all(color: glassBorderColor),
+              border: Border(
+                top: BorderSide(color: glassBorderColor),
+                right: BorderSide(color: glassBorderColor),
+                bottom: BorderSide(color: glassBorderColor),
+                left: BorderSide(color: _tokens.accent, width: 3),
+              ),
             ),
             child: Row(
               children: [
@@ -252,7 +262,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
                   radius: 20 * _s, // <-- Масштабируем аватарку
                   backgroundColor: isDark ? Colors.black45 : Colors.white54,
                   backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-                  child: avatarUrl == null 
+                  child: avatarUrl == null
                     ? Text(initial, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 18 * _s))
                     : null,
                 ),
@@ -267,6 +277,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
                     ],
                   ),
                 ),
+                Icon(LucideIcons.chevronRight, size: 16 * _s, color: textMuted),
               ],
             ),
           ),
@@ -1432,15 +1443,17 @@ Map<String, dynamic> _parseSmartInput(String text) {
         ),
         floatingActionButton: Padding(
           padding: EdgeInsets.only(right: rightPanelState != 'none' ? 360.0 * _s : 0.0, bottom: 24.0 * _s),
-          // Hero с тем же тегом на корневом контейнере диалога (manual_add_dialog.dart) —
-          // кнопка визуально разворачивается в форму создания задачи и обратно
-          // (REDESIGN_V3_PLAN.md §4/5.6, container transform).
-          child: Hero(
-            tag: 'add-task-fab',
-            child: FloatingActionButton.extended(
-              onPressed: () { if (_isDuplicating && _taskToDuplicate != null) { _showManualAddDialog(preselectedDate: DateTime.now(), sourceTaskForDuplicate: _taskToDuplicate); } else { _showManualAddDialog(); } },
-              backgroundColor: Colors.blueAccent, foregroundColor: Colors.white, elevation: 8, icon: Icon(LucideIcons.plus, size: 26 * _s), label: Text("Создать задачу".tr(widget.currentLang), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _s)),
-            ),
+          // Container transform через Hero откачен — "A Hero widget cannot be the
+          // descendant of another Hero widget" при реальном запуске (не смог
+          // безопасно продиагностировать вслепую без браузера/живой отладки).
+          // Модалка создания задачи открывается обычным showClarifySurface
+          // (scale+fade), без разворота из кнопки.
+          child: FloatingActionButton.extended(
+            onPressed: () { if (_isDuplicating && _taskToDuplicate != null) { _showManualAddDialog(preselectedDate: DateTime.now(), sourceTaskForDuplicate: _taskToDuplicate); } else { _showManualAddDialog(); } },
+            // Тот же акцент, что у кнопки "AI Ассистент" (ClarifyButtonVariant.filled)
+            // — раньше FAB был захардкожен на стоковый Colors.blueAccent, из-за чего
+            // две акцентные кнопки в интерфейсе визуально спорили друг с другом.
+            backgroundColor: _tokens.accent, foregroundColor: _tokens.onAccent, elevation: 8, icon: Icon(LucideIcons.plus, size: 26 * _s), label: Text("Создать задачу".tr(widget.currentLang), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _s)),
           ),
         ),
       ),

@@ -6,7 +6,7 @@ import '../core/theme/design_tokens.dart';
 /// Раздел "Статистика". Вынесено из DesktopPlannerScreen (P3.1,
 /// docs/IMPROVEMENT_PLAN.md) — логика и разметка не менялись, только доступ
 /// к состоянию родителя заменён на явные параметры конструктора.
-class StatisticsDashboard extends StatelessWidget {
+class StatisticsDashboard extends StatefulWidget {
   final List<Map<String, dynamic>> tasks;
   final String currentLang;
   final Color textColor;
@@ -33,7 +33,31 @@ class StatisticsDashboard extends StatelessWidget {
   });
 
   @override
+  State<StatisticsDashboard> createState() => _StatisticsDashboardState();
+}
+
+class _StatisticsDashboardState extends State<StatisticsDashboard> {
+  // keepScrollOffset: false — иначе Flutter восстанавливает через PageStorage
+  // прошлую позицию скролла этого раздела (при переключении между пунктами
+  // сайдбара сюда назад), и страница открывается не с верха, а с того места,
+  // где был скролл в прошлый раз.
+  final _scrollController = ScrollController(keepScrollOffset: false);
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final tasks = widget.tasks;
+    final currentLang = widget.currentLang;
+    final textColor = widget.textColor;
+    final textMuted = widget.textMuted;
+    final isOverdue = widget.isOverdue;
+    final parseDate = widget.parseDate;
+    final buildGlassContainer = widget.buildGlassContainer;
     final t = context.tokens;
     final now = DateTime.now();
     List<int> weeklyStats = List.filled(7, 0);
@@ -84,6 +108,7 @@ class StatisticsDashboard extends StatelessWidget {
     }
 
     return SingleChildScrollView(
+      controller: _scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:frontend/widgets/clarify_task_checkbox.dart';
 import 'package:frontend/widgets/task_cards.dart';
 
 TaskCardBuilders _builders({
@@ -53,7 +54,7 @@ void main() {
       await tester.pumpWidget(MaterialApp(
         home: Scaffold(body: _builders(onToggle: (t) => toggled = t).buildListTaskCard(task)),
       ));
-      await tester.tap(find.byType(Checkbox));
+      await tester.tap(find.byType(ClarifyCheckCircle));
 
       expect(toggled, task);
     });

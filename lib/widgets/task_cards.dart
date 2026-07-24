@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../core/theme/design_tokens.dart';
 import 'clarify_pressable.dart';
+import 'clarify_task_checkbox.dart';
 
 /// Строит карточки задачи для трёх представлений (список, доска "7 дней",
 /// календарь). Вынесено из DesktopPlannerScreen (P3.1, docs/IMPROVEMENT_PLAN.md) —
@@ -77,19 +78,13 @@ class TaskCardBuilders {
             // ПРИНУДИТЕЛЬНОЕ масштабирование кругляшка
             Padding(
               padding: EdgeInsets.only(top: 1 * _s),
-              child: SizedBox(
-                width: 16 * _s,
-                height: 16 * _s,
-                child: Transform.scale(
-                  scale: 0.7 * _s, // Уменьшаем сам рисунок чекбокса
-                  child: Checkbox(
-                    shape: const CircleBorder(),
-                    side: BorderSide(color: isDone ? glassBorderColor : (hasPriority ? priorityColor : (overdue ? _t.danger : glassBorderColor)), width: hasPriority || overdue ? 2.0 : 1.5),
-                    value: isDone,
-                    activeColor: _t.accent,
-                    onChanged: (val) => onToggle(task),
-                  ),
-                ),
+              child: ClarifyCheckCircle(
+                size: 12 * _s,
+                borderWidth: hasPriority || overdue ? 2.0 : 1.5,
+                borderColor: isDone ? glassBorderColor : (hasPriority ? priorityColor : (overdue ? _t.danger : glassBorderColor)),
+                checkedColor: _t.accent,
+                value: isDone,
+                onTap: () => onToggle(task),
               ),
             ),
             SizedBox(width: 4 * _s),
@@ -99,12 +94,12 @@ class TaskCardBuilders {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    displayTitle,
+                  ClarifyStrikeText(
+                    text: displayTitle,
+                    isDone: isDone,
                     style: TextStyle(
                       fontSize: 11 * _s,
                       fontWeight: FontWeight.w600,
-                      decoration: isDone ? TextDecoration.lineThrough : TextDecoration.none,
                       color: isDone ? textMuted : textColor,
                     ),
                     maxLines: 1,
@@ -154,6 +149,10 @@ class TaskCardBuilders {
     final bool overdue = isOverdue(task);
 
     String displayTitle = task['title'] ?? '';
+    // Полоса слева вместо сплошной стеклянной подложки — тот же язык, что у
+    // MobileTaskRow (REDESIGN_V3_PLAN §5.3): "жирный блок" был из-за границы
+    // со всех сторон + заливки, здесь акцент только слева, карточка легче.
+    final Color stripeColor = isDone ? glassBorderColor : (hasPriority ? priorityColor : (overdue ? _t.danger : glassBorderColor));
 
     return ClarifyPressable(
       onTap: () => onTap(task),
@@ -174,30 +173,33 @@ class TaskCardBuilders {
               ),
             ),
             Expanded(
-              child: buildGlassContainer(
-                customColor: isDone ? doneCardColor : (overdue ? _t.dangerSoft : null),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: isDone ? doneCardColor : (overdue ? _t.dangerSoft : _t.surface),
+                  borderRadius: BorderRadius.circular(ClarifyRadius.md * _s),
+                  border: Border(left: BorderSide(color: stripeColor, width: 3 * _s)),
+                ),
                 padding: EdgeInsets.symmetric(horizontal: 12 * _s, vertical: 12 * _s),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(
-                      width: 20 * _s,
-                      height: 20 * _s,
-                      child: Transform.scale(
-                        scale: 0.9 * _s,
-                        child: Checkbox(shape: const CircleBorder(), side: BorderSide(color: isDone ? glassBorderColor : (hasPriority ? priorityColor : (overdue ? _t.danger : glassBorderColor)), width: 2.0), value: isDone, onChanged: (val) => onToggle(task), activeColor: _t.accent),
-                      ),
+                    ClarifyCheckCircle(
+                      size: 18 * _s,
+                      borderColor: stripeColor,
+                      checkedColor: _t.accent,
+                      value: isDone,
+                      onTap: () => onToggle(task),
                     ),
                     SizedBox(width: 10 * _s),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            displayTitle,
+                          ClarifyStrikeText(
+                            text: displayTitle,
+                            isDone: isDone,
                             style: TextStyle(
                               fontSize: 15 * _s,
-                              decoration: isDone ? TextDecoration.lineThrough : TextDecoration.none,
                               color: isDone ? textMuted : textColor,
                               fontWeight: FontWeight.bold,
                             ),
@@ -243,45 +245,67 @@ class TaskCardBuilders {
 
     final bool overdue = isOverdue(task);
 
+    // Раньше это был ListTile: leading/trailing он центрирует по всей высоте
+    // плитки (с учётом subtitle), а бейдж подзадач в title — по верху title-
+    // строки. Из-за этого X и бейдж оказывались на разных высотах, когда
+    // была видна subtitle-строка (время/тег/заметка). Обычный Row с единым
+    // crossAxisAlignment.start убирает рассинхронизацию — так же, как уже
+    // сделано в buildBoardTaskCardExpanded.
     return buildGlassContainer(
       margin: const EdgeInsets.only(bottom: 12),
       customColor: isDone ? doneCardColor : (overdue ? _t.dangerSoft : null),
-      child: ListTile(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      child: GestureDetector(
         onTap: () => onTap(task),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        leading: Checkbox(shape: const CircleBorder(), side: BorderSide(color: isDone ? glassBorderColor : (hasPriority ? getPriorityColor(task['priority']) : (overdue ? _t.danger : glassBorderColor)), width: 2.0), value: isDone, onChanged: (val) => onToggle(task), activeColor: _t.accent),
-        title: Row(
+        behavior: HitTestBehavior.opaque,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            ClarifyCheckCircle(
+              size: 22,
+              borderColor: isDone ? glassBorderColor : (hasPriority ? getPriorityColor(task['priority']) : (overdue ? _t.danger : glassBorderColor)),
+              checkedColor: _t.accent,
+              value: isDone,
+              onTap: () => onToggle(task),
+            ),
+            const SizedBox(width: 16),
             Expanded(
-              child: Text(
-                task['title'] ?? '',
-                style: TextStyle(fontSize: 18, decoration: isDone ? TextDecoration.lineThrough : TextDecoration.none, color: isDone ? textMuted : textColor, fontWeight: FontWeight.w600),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ClarifyStrikeText(
+                          text: task['title'] ?? '',
+                          isDone: isDone,
+                          style: TextStyle(fontSize: 18, color: isDone ? textMuted : textColor, fontWeight: FontWeight.w600),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (hasRecurrence) Padding(padding: const EdgeInsets.only(left: 8), child: Icon(LucideIcons.repeat, size: 16, color: isDone ? textMuted : _t.text3)),
+                      if (hasSubtasks) Padding(padding: const EdgeInsets.only(left: 12), child: Text("[${stats['done']}/${stats['total']}]", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: allDone ? _t.success : textMuted))),
+                    ],
+                  ),
+                  if (task['due_time'] != null || task['note'] != null || task['tags'] != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Row(
+                        children: [
+                          if (task['due_date'] != null || task['due_time'] != null) ...[
+                            if (overdue) Padding(padding: const EdgeInsets.only(right: 4), child: Icon(LucideIcons.alertCircle, size: 16, color: _t.danger)),
+                            Text("${task['due_date'] != null ? '${task['due_date']} ' : ''}${task['due_time'] ?? ''}  ", style: TextStyle(fontSize: 14, color: overdue ? _t.danger : textMuted, fontWeight: overdue ? FontWeight.bold : FontWeight.normal)),
+                          ],
+                          if (task['tags'] != null && task['tags'].toString().trim().isNotEmpty) GestureDetector(onTap: () => onTagTap(task['tags'].toString().split(',')[0].trim()), child: Padding(padding: const EdgeInsets.only(right: 12), child: Text("[${task['tags'].toString().split(',')[0].trim()}]", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _t.accent)))),
+                          if (task['note'] != null && task['note'].toString().isNotEmpty) Expanded(child: Text(task['note'], style: TextStyle(fontSize: 14, color: textMuted), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                        ],
+                      ),
+                    ),
+                ],
               ),
             ),
-            if (hasRecurrence) Padding(padding: const EdgeInsets.only(left: 8), child: Icon(LucideIcons.repeat, size: 16, color: isDone ? textMuted : _t.text3)),
-            if (hasSubtasks) Padding(padding: const EdgeInsets.only(left: 12), child: Text("[${stats['done']}/${stats['total']}]", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: allDone ? _t.success : textMuted))),
-          ],
-        ),
-        subtitle: (task['due_time'] != null || task['note'] != null || task['tags'] != null)
-            ? Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Row(
-                  children: [
-                    if (task['due_date'] != null || task['due_time'] != null) ...[
-                      if (overdue) Padding(padding: const EdgeInsets.only(right: 4), child: Icon(LucideIcons.alertCircle, size: 16, color: _t.danger)),
-                      Text("${task['due_date'] != null ? '${task['due_date']} ' : ''}${task['due_time'] ?? ''}  ", style: TextStyle(fontSize: 14, color: overdue ? _t.danger : textMuted, fontWeight: overdue ? FontWeight.bold : FontWeight.normal)),
-                    ],
-                    if (task['tags'] != null && task['tags'].toString().trim().isNotEmpty) GestureDetector(onTap: () => onTagTap(task['tags'].toString().split(',')[0].trim()), child: Padding(padding: const EdgeInsets.only(right: 12), child: Text("[${task['tags'].toString().split(',')[0].trim()}]", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _t.accent)))),
-                    if (task['note'] != null && task['note'].toString().isNotEmpty) Expanded(child: Text(task['note'], style: TextStyle(fontSize: 14, color: textMuted), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                  ],
-                ),
-              )
-            : null,
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+            const SizedBox(width: 8),
             if (task['assigned_to'] != null)
               Builder(builder: (context) {
                 var members = workspaceMembers[task['workspace_id']] ?? [];
@@ -298,7 +322,7 @@ class TaskCardBuilders {
                 final avatarColor = _t.tagPalette[members.indexOf(member) % _t.tagPalette.length];
 
                 return Padding(
-                  padding: const EdgeInsets.only(right: 12),
+                  padding: const EdgeInsets.only(right: 8),
                   child: Tooltip(
                     message: "Ответственный: $name",
                     child: CircleAvatar(

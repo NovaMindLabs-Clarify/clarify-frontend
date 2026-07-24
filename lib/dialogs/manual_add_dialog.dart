@@ -86,12 +86,7 @@ void showManualAddDialog({
     builder: (context) {
       return StatefulBuilder(builder: (context, setStateDialog) {
         return Center(
-          // Тот же Hero-тег, что у FAB "Создать задачу" (desktop_planner_screen.dart) —
-          // при отсутствии совпадения (открытие с "+" на ячейке календаря и т.п.)
-          // Hero просто не находит пару и работает как обычный переход, без ошибок.
-          child: Hero(
-            tag: 'add-task-fab',
-            child: Material(
+          child: Material(
             color: Colors.transparent,
             child: buildGlassContainer(
               padding: const EdgeInsets.all(24),
@@ -304,7 +299,6 @@ void showManualAddDialog({
                   ),
                 ),
               )
-            ),
             ),
           ),
         );

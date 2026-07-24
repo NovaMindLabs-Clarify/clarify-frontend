@@ -65,11 +65,15 @@ class ClarifyButton extends StatelessWidget {
       textStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: 14 * scale),
     );
 
+    // clipBehavior: без него hover/pressed-заливка ElevatedButton иногда не
+    // обрезается по скруглению pill-формы и на границе видны острые углы —
+    // баг именно в этом, не в цветах/форме самой кнопки.
     if (icon == null) {
-      return ElevatedButton(style: style, onPressed: onPressed, child: Text(label));
+      return ElevatedButton(style: style, clipBehavior: Clip.antiAlias, onPressed: onPressed, child: Text(label));
     }
     return ElevatedButton.icon(
       style: style,
+      clipBehavior: Clip.antiAlias,
       onPressed: onPressed,
       icon: Icon(icon, size: 18 * scale),
       label: Text(label, overflow: TextOverflow.ellipsis),
