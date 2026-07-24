@@ -198,3 +198,36 @@ class _ClarifyStrikeTextState extends State<ClarifyStrikeText> with TickerProvid
     );
   }
 }
+
+/// Значок наличия чек-листа на карточке задачи — иконка списка + "done/total"
+/// в закрашенной пилюле, а не голые "[done/total]" в цвете обычного текста
+/// (легко спутать с произвольной пометкой, не читается как индикатор
+/// прогресса на беглый взгляд). Фон зелёный, когда все подзадачи выполнены,
+/// иначе нейтральный акцентный.
+class ClarifySubtaskBadge extends StatelessWidget {
+  final int done;
+  final int total;
+  final ClarifyTokens tokens;
+  final double scale;
+
+  const ClarifySubtaskBadge({super.key, required this.done, required this.total, required this.tokens, this.scale = 1.0});
+
+  @override
+  Widget build(BuildContext context) {
+    final bool allDone = total > 0 && done == total;
+    final Color fg = allDone ? tokens.success : tokens.text2;
+    final Color bg = allDone ? tokens.successSoft : tokens.accentSoft;
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 6 * scale, vertical: 2 * scale),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(ClarifyRadius.sm)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(LucideIcons.listChecks, size: 12 * scale, color: fg),
+          SizedBox(width: 3 * scale),
+          Text('$done/$total', style: TextStyle(fontSize: 11.5 * scale, fontWeight: FontWeight.bold, color: fg)),
+        ],
+      ),
+    );
+  }
+}

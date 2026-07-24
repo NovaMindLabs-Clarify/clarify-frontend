@@ -186,7 +186,6 @@ class TaskCardBuilders {
         task['recurrence'] != null && task['recurrence'] != 'none';
     final stats = getSubtaskStats(task['id']);
     final bool hasSubtasks = stats['total']! > 0;
-    final bool allDone = hasSubtasks && stats['done'] == stats['total'];
 
     final bool overdue = isOverdue(task);
 
@@ -301,15 +300,11 @@ class TaskCardBuilders {
                                         color: isDone ? textMuted : _t.text3,
                                       ),
                                     if (hasSubtasks)
-                                      Text(
-                                        "[${stats['done']}/${stats['total']}]",
-                                        style: TextStyle(
-                                          fontSize: 12 * _s,
-                                          fontWeight: FontWeight.bold,
-                                          color: allDone
-                                              ? _t.success
-                                              : textMuted,
-                                        ),
+                                      ClarifySubtaskBadge(
+                                        done: stats['done']!,
+                                        total: stats['total']!,
+                                        tokens: _t,
+                                        scale: _s,
                                       ),
                                     if (task['tags'] != null &&
                                         task['tags']
@@ -372,7 +367,6 @@ class TaskCardBuilders {
         task['recurrence'] != null && task['recurrence'] != 'none';
     final stats = getSubtaskStats(task['id']);
     final bool hasSubtasks = stats['total']! > 0;
-    final bool allDone = hasSubtasks && stats['done'] == stats['total'];
 
     final bool overdue = isOverdue(task);
 
@@ -437,13 +431,10 @@ class TaskCardBuilders {
                         if (hasSubtasks)
                           Padding(
                             padding: const EdgeInsets.only(left: 12),
-                            child: Text(
-                              "[${stats['done']}/${stats['total']}]",
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: allDone ? _t.success : textMuted,
-                              ),
+                            child: ClarifySubtaskBadge(
+                              done: stats['done']!,
+                              total: stats['total']!,
+                              tokens: _t,
                             ),
                           ),
                       ],

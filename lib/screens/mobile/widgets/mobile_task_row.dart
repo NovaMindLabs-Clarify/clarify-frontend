@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../core/theme/design_tokens.dart';
+import '../../../widgets/clarify_task_checkbox.dart';
 
 /// Строка задачи, общая для "Сегодня", "Задачи" и "Команды" на мобильной
 /// версии — левая полоса цвета приоритета вместо отдельного кружка-чекбокса
@@ -88,7 +89,7 @@ class MobileTaskRow extends StatelessWidget {
                               if (task['due_time'] != null)
                                 Text(task['due_time'], style: TextStyle(fontSize: 12, color: overdue && !isDone ? t.danger : t.text3, fontWeight: FontWeight.w600)),
                               if (hasSubtasks)
-                                Text('${subtaskStats['done']}/${subtaskStats['total']}', style: TextStyle(fontSize: 12, color: t.text3, fontWeight: FontWeight.w600)),
+                                ClarifySubtaskBadge(done: subtaskStats['done']!, total: subtaskStats['total']!, tokens: t),
                               if (tag != null && tag.isNotEmpty)
                                 Text('#$tag', style: TextStyle(fontSize: 12, color: t.accent, fontWeight: FontWeight.w600)),
                             ],
