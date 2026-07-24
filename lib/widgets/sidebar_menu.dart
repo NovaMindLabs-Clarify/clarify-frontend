@@ -88,6 +88,18 @@ class _SidebarMenuState extends State<SidebarMenu> {
 
   bool _expanded = false;
 
+  @override
+  void didUpdateWidget(SidebarMenu oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Мессенджер — 3-колоночный макет (список чатов + открытый чат) — сам
+    // претендует на горизонтальное место, поэтому при входе в него сайдбар
+    // сворачивается в icon-полосу по умолчанию. Не блокирует ручной разворот
+    // обратно кликом — просто стартовое состояние при переходе.
+    if (widget.selectedMenu == 'Сообщения' && oldWidget.selectedMenu != 'Сообщения') {
+      _expanded = false;
+    }
+  }
+
   Future<void> _pickWorkspaceIcon(int wsId, String? current) async {
     final picked = await showIconPickerDialog(
       context: context,
@@ -234,24 +246,36 @@ class _SidebarMenuState extends State<SidebarMenu> {
                   32 * s,
                 ),
                 child: _expanded
-                    ? Align(
-                        alignment: Alignment.centerRight,
-                        child: ClarifyPressGlow(
-                          color: t.accent,
-                          spread: 10 * s,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(8 * s),
-                            onTap: () => setState(() => _expanded = false),
-                            child: Padding(
-                              padding: EdgeInsets.all(4 * s),
-                              child: Icon(
-                                LucideIcons.chevronsLeft,
-                                size: 20 * s,
-                                color: textMuted,
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Clarify",
+                            style: TextStyle(
+                              fontFamily: 'Unbounded',
+                              fontSize: 18 * s,
+                              fontWeight: FontWeight.w700,
+                              color: t.accent,
+                              letterSpacing: -0.01,
+                            ),
+                          ),
+                          ClarifyPressGlow(
+                            color: t.accent,
+                            spread: 10 * s,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(8 * s),
+                              onTap: () => setState(() => _expanded = false),
+                              child: Padding(
+                                padding: EdgeInsets.all(4 * s),
+                                child: Icon(
+                                  LucideIcons.chevronsLeft,
+                                  size: 20 * s,
+                                  color: textMuted,
+                                ),
                               ),
                             ),
                           ),
-                        ),
+                        ],
                       )
                     : Center(
                         child: ClarifyPressGlow(

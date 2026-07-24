@@ -5,8 +5,8 @@ import '../core/theme/design_tokens.dart';
 import 'clarify_glass.dart';
 import 'clarify_list_entrance.dart';
 import 'clarify_surface.dart';
-import 'conversations_screen.dart';
 import 'friends_screen.dart';
+import 'messenger_shell.dart';
 import 'user_profile_modal.dart';
 import 'project_kanban_board.dart';
 import 'projects_screen.dart';
@@ -39,6 +39,14 @@ class MainContentArea extends StatelessWidget {
   final Map<String, String> projectIconKeys;
   final void Function(String tag, String iconKey) onSetProjectIcon;
 
+  // Открыть личный чат в мессенджере (из карточки друга/профиля) — вместо
+  // Navigator.push поверх всего шелла (тогда пропадали бы сайдбар и список
+  // чатов, ломая 3-колоночный макет). Родитель переключает selectedMenu на
+  // 'Сообщения' и прокидывает выбранного партнёра сюда же.
+  final String? pendingChatPartnerId;
+  final String? pendingChatPartnerName;
+  final void Function(String partnerId, String partnerName)? onOpenDirectChat;
+
   const MainContentArea({
     Key? key,
     required this.selectedMenu,
@@ -61,6 +69,9 @@ class MainContentArea extends StatelessWidget {
     required this.onMenuSelected,
     required this.projectIconKeys,
     required this.onSetProjectIcon,
+    this.pendingChatPartnerId,
+    this.pendingChatPartnerName,
+    this.onOpenDirectChat,
   }) : super(key: key);
 
   String _formatDate(DateTime date) {
@@ -386,22 +397,17 @@ class MainContentArea extends StatelessWidget {
           context: context,
           userId: userId,
           currentLang: currentLang,
-          onOpenConversation: (partnerId, name) => Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => ConversationScreen(currentLang: currentLang, partnerId: partnerId, partnerName: name),
-          )),
+          onOpenConversation: (partnerId, name) => onOpenDirectChat?.call(partnerId, name),
         ),
       );
     }
     else if (selectedMenu == 'Сообщения') {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
-            child: Text('Сообщения'.tr(currentLang), style: TextStyle(fontFamily: 'Golos Text', fontSize: 22, fontWeight: FontWeight.w700, color: textColor)),
-          ),
-          Expanded(child: ConversationsListScreen(currentLang: currentLang, scale: scale, buildGlassContainer: buildGlassContainer)),
-        ],
+      return MessengerShell(
+        currentLang: currentLang,
+        scale: scale,
+        buildGlassContainer: buildGlassContainer,
+        initialPartnerId: pendingChatPartnerId,
+        initialPartnerName: pendingChatPartnerName,
       );
     }
     else if (selectedMenu == 'Статистика') {

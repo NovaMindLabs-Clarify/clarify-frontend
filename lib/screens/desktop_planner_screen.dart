@@ -26,7 +26,6 @@ import '../widgets/ambient_background.dart';
 import '../widgets/clarify_toast.dart';
 import '../widgets/main_content_area.dart';
 import '../widgets/user_profile_modal.dart';
-import '../widgets/conversations_screen.dart';
 import '../widgets/sidebar_menu.dart';
 import '../widgets/window_buttons.dart';
 import 'mobile/mobile_planner_shell.dart';
@@ -93,6 +92,10 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   bool _isDuplicating = false;
 
   String selectedMenu = 'Мой день';
+  // Переход "написать" из карточки друга — открывает Сообщения сразу с этим
+  // диалогом (см. MainContentArea.onOpenDirectChat/MessengerShell).
+  String? _pendingChatPartnerId;
+  String? _pendingChatPartnerName;
   final String baseUrl = AppConfig.backendBaseUrl;
   bool isAiTyping = false;
   bool _isOffline = false;
@@ -1267,9 +1270,11 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                                     currentLang: widget.currentLang,
                                                     teamRole: m['role']?.toString(),
                                                     onOpenOwnSettings: _showAccountSettingsDialog,
-                                                    onOpenConversation: (userId, name) => Navigator.of(context).push(MaterialPageRoute(
-                                                      builder: (_) => ConversationScreen(currentLang: widget.currentLang, partnerId: userId, partnerName: name),
-                                                    )),
+                                                    onOpenConversation: (userId, name) => setState(() {
+                                                      _pendingChatPartnerId = userId;
+                                                      _pendingChatPartnerName = name;
+                                                      selectedMenu = 'Сообщения';
+                                                    }),
                                                   ),
                                                   child: Tooltip(
                                                   // Обновляем подсказку при наведении
@@ -1482,6 +1487,13 @@ Map<String, dynamic> _parseSmartInput(String text) {
                               onMenuSelected: (menu) => setState(() => selectedMenu = menu),
                               projectIconKeys: _readProjectIconKeys(),
                               onSetProjectIcon: _setProjectIcon,
+                              pendingChatPartnerId: _pendingChatPartnerId,
+                              pendingChatPartnerName: _pendingChatPartnerName,
+                              onOpenDirectChat: (partnerId, name) => setState(() {
+                                _pendingChatPartnerId = partnerId;
+                                _pendingChatPartnerName = name;
+                                selectedMenu = 'Сообщения';
+                              }),
                               currentCalendarDate: _currentCalendarDate,
                               onCalendarDateChanged: (newDate) {
                                 setState(() {
