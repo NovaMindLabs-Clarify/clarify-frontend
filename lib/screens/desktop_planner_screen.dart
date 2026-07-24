@@ -288,6 +288,47 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     );
   }
 
+  // Свёрнутый вариант — только аватар (по решению из этого же диалога:
+  // "только аватар, имя/Настройки скрыты").
+  Widget _buildUserAccountBlockCollapsed() {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return const SizedBox.shrink();
+
+    final metadata = user.userMetadata ?? {};
+    final fullName = metadata['full_name']?.toString() ?? 'Без имени';
+    final avatarUrl = metadata['avatar_url']?.toString();
+    final initial = fullName.isNotEmpty ? fullName[0].toUpperCase() : '?';
+
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 8 * _s),
+      child: Center(
+        child: Tooltip(
+          message: "$fullName — ${"Настройки".tr(widget.currentLang)}",
+          child: Material(
+            color: Colors.transparent,
+            shape: const CircleBorder(),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: _showAccountSettingsDialog,
+              hoverColor: _tokens.accent.withValues(alpha: 0.06),
+              child: Padding(
+                padding: EdgeInsets.all(4 * _s),
+                child: CircleAvatar(
+                  radius: 20 * _s,
+                  backgroundColor: isDark ? Colors.black45 : Colors.white54,
+                  backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+                  child: avatarUrl == null
+                      ? Text(initial, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 18 * _s))
+                      : null,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   late ConfettiController _confettiController;
   // Храним дату (ДД.ММ.ГГГГ), для которой уже показывали обзор — а не просто bool,
   // иначе поздравление не повторится на следующий день без перезапуска приложения.
@@ -356,6 +397,35 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
       map[taskId.toString()] = status;
       _settingsBox.put('kanban_status', json.encode(map));
     });
+  }
+
+  // Иконки авто-папок проектов (тег → ключ из kPickableProjectIcons) —
+  // локально, не через Supabase: у тегов нет своей строки в базе, это личные
+  // ярлыки одного пользователя (см. REDESIGN_V3_PLAN.md §5.11).
+  Map<String, String> _readProjectIconKeys() {
+    final raw = _settingsBox.get('project_icons');
+    if (raw == null) return {};
+    return Map<String, String>.from(json.decode(raw));
+  }
+
+  void _setProjectIcon(String tag, String iconKey) {
+    setState(() {
+      final map = _readProjectIconKeys();
+      map[tag] = iconKey;
+      _settingsBox.put('project_icons', json.encode(map));
+    });
+  }
+
+  Future<void> _setWorkspaceIcon(int workspaceId, String iconKey) async {
+    setState(() {
+      final idx = workspaces.indexWhere((w) => w['id'] == workspaceId);
+      if (idx != -1) workspaces[idx]['icon'] = iconKey;
+    });
+    try {
+      await Supabase.instance.client.from('workspaces').update({'icon': iconKey}).eq('id', workspaceId);
+    } catch (e) {
+      print("Не удалось сохранить иконку команды: $e");
+    }
   }
 
   @override
@@ -1112,6 +1182,9 @@ Map<String, dynamic> _parseSmartInput(String text) {
                       menuItems: menuItems,
                       workspaces: workspaces,
                       tasks: tasks,
+                      projectIconKeys: _readProjectIconKeys(),
+                      onSetProjectIcon: _setProjectIcon,
+                      onSetWorkspaceIcon: _setWorkspaceIcon,
                       onMenuSelected: (menu) => setState(() => selectedMenu = menu),
                       onAddWorkspace: () => showCreateWorkspaceDialog(
                         context: context,
@@ -1128,6 +1201,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
                         _fetchWorkspaceMembers(id);
                       },
                       userAccountBlock: _buildUserAccountBlock(),
+                      userAccountBlockCollapsed: _buildUserAccountBlockCollapsed(),
                       buildGlassContainer: _buildGlassContainer,
                     ),
                     Expanded(

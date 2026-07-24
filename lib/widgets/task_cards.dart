@@ -62,16 +62,19 @@ class TaskCardBuilders {
 
     String displayTitle = task['title'] ?? '';
     final String? dueTime = task['due_time'];
+    // Полоса слева — тот же язык, что и везде (7 дней/аккаунт-блок/мобильные
+    // строки), плюс кружок отмены остаётся: полоса не заменяет чекбокс (им
+    // нечем было бы отмечать выполнение в свёрнутом виде ячейки), а даёт
+    // ряду видимую структуру — раньше обычная (не просроченная) задача не
+    // имела вообще никакой рамки/фона и "плыла" в ячейке без опоры.
+    final Color stripeColor = isDone ? glassBorderColor : (hasPriority ? priorityColor : (overdue ? _t.danger : glassBorderColor));
 
     return ClarifyPressable(
       onTap: () => onTap(task),
       child: Container(
         margin: EdgeInsets.only(bottom: 4 * _s, left: 4 * _s, right: 4 * _s),
-        decoration: BoxDecoration(
-          color: isDone ? Colors.transparent : (overdue ? _t.dangerSoft : Colors.transparent),
-          borderRadius: BorderRadius.circular(6 * _s),
-        ),
-        padding: EdgeInsets.symmetric(vertical: 2 * _s, horizontal: 2 * _s),
+        decoration: BoxDecoration(border: Border(left: BorderSide(color: stripeColor, width: 2 * _s))),
+        padding: EdgeInsets.only(top: 2 * _s, bottom: 2 * _s, left: 4 * _s, right: 2 * _s),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

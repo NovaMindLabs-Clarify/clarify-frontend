@@ -2,8 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
+import 'icon_picker_dialog.dart';
 
-class SidebarMenu extends StatelessWidget {
+/// Сайдбар: по умолчанию свёрнут в узкую полосу с иконками, разворачивается
+/// при наведении мыши (REDESIGN_V3_PLAN.md §5.11). Ширина и раскладка строк
+/// анимируются, содержимое (пункты меню/проекты/команды/аккаунт-блок) — одно
+/// и то же, просто с подписью или без.
+class SidebarMenu extends StatefulWidget {
   final bool isDark;
   final double scale;
   final String currentLang;
@@ -12,11 +17,18 @@ class SidebarMenu extends StatelessWidget {
   final List<dynamic> workspaces;
   final List<Map<String, dynamic>> tasks;
 
+  // Ключ (см. kPickableProjectIcons в icon_picker_dialog.dart) — не сама
+  // IconData, её нельзя хранить произвольно из-за @mustBeConst codePoint.
+  final Map<String, String> projectIconKeys;
+  final void Function(String tag, String iconKey) onSetProjectIcon;
+  final void Function(int workspaceId, String iconKey) onSetWorkspaceIcon;
+
   final Function(String) onMenuSelected;
   final VoidCallback onAddWorkspace;
   final Function(int, String) onWorkspaceSelected;
-  
+
   final Widget userAccountBlock;
+  final Widget userAccountBlockCollapsed;
   final Widget Function({required Widget child, BorderRadius? borderRadius, EdgeInsetsGeometry? margin, Color? customColor}) buildGlassContainer;
 
   // Те же соответствия, что и в мобильном нижнем меню (REDESIGN_V3_PLAN.md §3.18/5.17) —
@@ -41,12 +53,26 @@ class SidebarMenu extends StatelessWidget {
     required this.menuItems,
     required this.workspaces,
     required this.tasks,
+    required this.projectIconKeys,
+    required this.onSetProjectIcon,
+    required this.onSetWorkspaceIcon,
     required this.onMenuSelected,
     required this.onAddWorkspace,
     required this.onWorkspaceSelected,
     required this.userAccountBlock,
+    required this.userAccountBlockCollapsed,
     required this.buildGlassContainer,
   }) : super(key: key);
+
+  @override
+  State<SidebarMenu> createState() => _SidebarMenuState();
+}
+
+class _SidebarMenuState extends State<SidebarMenu> {
+  static const double _collapsedWidth = 76;
+  static const double _expandedWidth = 300;
+
+  bool _expanded = false;
 
   List<String> _taskTags(Map<String, dynamic> task) {
     final raw = task['tags'];
@@ -56,11 +82,92 @@ class SidebarMenu extends StatelessWidget {
 
   List<String> get _projectTags {
     final tags = <String>{};
-    for (final task in tasks) {
+    for (final task in widget.tasks) {
       tags.addAll(_taskTags(task));
     }
     final sorted = tags.toList()..sort();
     return sorted;
+  }
+
+  Future<void> _pickProjectIcon(String tag) async {
+    final picked = await showIconPickerDialog(context: context, isDark: widget.isDark, current: widget.projectIconKeys[tag]);
+    if (picked != null) widget.onSetProjectIcon(tag, picked);
+  }
+
+  Future<void> _pickWorkspaceIcon(int wsId, String? current) async {
+    final picked = await showIconPickerDialog(context: context, isDark: widget.isDark, current: current);
+    if (picked != null) widget.onSetWorkspaceIcon(wsId, picked);
+  }
+
+  Widget _row({
+    required IconData icon,
+    required String label,
+    required bool selected,
+    required Color accentColor,
+    required Color textColor,
+    required Color textMuted,
+    required Color highlightColor,
+    required VoidCallback onTap,
+    VoidCallback? onLongPress,
+    Widget? trailing,
+  }) {
+    final s = widget.scale;
+    if (!_expanded) {
+      return Padding(
+        padding: EdgeInsets.symmetric(vertical: 4 * s, horizontal: 12 * s),
+        child: Tooltip(
+          message: label,
+          child: GestureDetector(
+            onLongPress: onLongPress,
+            onSecondaryTap: onLongPress,
+            child: Material(
+              color: selected ? highlightColor : Colors.transparent,
+              borderRadius: BorderRadius.circular(12 * s),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12 * s),
+                onTap: onTap,
+                child: Padding(
+                  padding: EdgeInsets.all(12 * s),
+                  child: Icon(icon, size: 20 * s, color: selected ? accentColor : textMuted),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 16 * s, vertical: 4 * s),
+      child: GestureDetector(
+        onLongPress: onLongPress,
+        onSecondaryTap: onLongPress,
+        child: ListTile(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12 * s)),
+          selected: selected,
+          selectedTileColor: highlightColor,
+          contentPadding: EdgeInsets.symmetric(horizontal: 16 * s),
+          leading: Icon(icon, size: 20 * s, color: selected ? accentColor : textMuted),
+          title: Text(label, style: TextStyle(fontSize: 15 * s, fontWeight: selected ? FontWeight.bold : FontWeight.w600, color: selected ? accentColor : textColor), overflow: TextOverflow.ellipsis),
+          trailing: trailing,
+          onTap: onTap,
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionLabel(String text, Color textMuted, {Widget? trailing}) {
+    if (!_expanded) return SizedBox(height: 16 * widget.scale);
+    final s = widget.scale;
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 24 * s, vertical: 8 * s),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(text.tr(widget.currentLang), style: TextStyle(fontSize: 12 * s, fontWeight: FontWeight.bold, color: textMuted, letterSpacing: 1.2)),
+          if (trailing != null) trailing,
+        ],
+      ),
+    );
   }
 
   @override
@@ -69,108 +176,112 @@ class SidebarMenu extends StatelessWidget {
     final textColor = t.text;
     final textMuted = t.text2;
     final highlightColor = t.accentSoft;
+    final s = widget.scale;
 
-    return buildGlassContainer(
-      borderRadius: const BorderRadius.only(topRight: Radius.circular(24), bottomRight: Radius.circular(24)),
-      margin: EdgeInsets.zero,
-      child: SizedBox(
-        width: 300 * scale,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: EdgeInsets.fromLTRB(28 * scale, 40 * scale, 24 * scale, 32 * scale), 
-              child: Text("Clarify", style: TextStyle(fontSize: 24 * scale, fontWeight: FontWeight.w900, letterSpacing: -0.5, color: textColor))
-            ),
-            Expanded(
-              child: ListView(
-                padding: EdgeInsets.zero,
-                children: [
-                  ...menuItems.map((item) => Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 4 * scale),
-                    child: ListTile(
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12 * scale)),
-                      selected: item == selectedMenu,
-                      selectedTileColor: highlightColor,
-                      leading: Icon(_menuIcons[item] ?? LucideIcons.circle, size: 20 * scale, color: item == selectedMenu ? t.accent : textMuted),
-                      title: Text(item.tr(currentLang), style: TextStyle(fontSize: 16 * scale, fontWeight: item == selectedMenu ? FontWeight.bold : FontWeight.w600, color: item == selectedMenu ? t.accent : textColor)),
-                      onTap: () => onMenuSelected(item),
-                    ),
-                  )),
-
-                  SizedBox(height: 16 * scale),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 8 * scale),
-                    child: Text("ПРОЕКТЫ".tr(currentLang), style: TextStyle(fontSize: 12 * scale, fontWeight: FontWeight.bold, color: textMuted, letterSpacing: 1.2)),
-                  ),
-
-                  // Авто-папки по тегам — не отдельная сущность, которую заводят руками
-                  // (REDESIGN_V3_PLAN.md §3.17/5.16): папка появляется сама, как только
-                  // существует хотя бы одна задача с этим тегом.
-                  ..._projectTags.map((tag) {
-                    final tagColor = t.tagPalette[tag.hashCode.abs() % t.tagPalette.length];
-                    final tagTasks = tasks.where((task) => _taskTags(task).contains(tag) && task['parent_id'] == null).toList();
-                    final total = tagTasks.length;
-                    final done = tagTasks.where((task) => task['is_completed'] == true).length;
-                    final active = tag == selectedMenu;
-
-                    return Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 2 * scale),
-                      child: ListTile(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12 * scale)),
-                        selected: active,
-                        selectedTileColor: tagColor.withValues(alpha: 0.15),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 16 * scale),
-                        leading: Icon(LucideIcons.folder, size: 20 * scale, color: active ? tagColor : textMuted),
-                        title: Text(tag, style: TextStyle(fontSize: 15 * scale, fontWeight: active ? FontWeight.bold : FontWeight.w600, color: active ? tagColor : textColor), overflow: TextOverflow.ellipsis),
-                        trailing: total == 0
-                            ? null
-                            : Text('$done/$total', style: TextStyle(fontSize: 11.5 * scale, fontWeight: FontWeight.w700, color: active ? tagColor : textMuted)),
-                        onTap: () => onMenuSelected(tag),
-                      ),
-                    );
-                  }),
-
-                  SizedBox(height: 16 * scale),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 8 * scale),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text("КОМАНДЫ".tr(currentLang), style: TextStyle(fontSize: 12 * scale, fontWeight: FontWeight.bold, color: textMuted, letterSpacing: 1.2)),
-                        InkWell(
-                          onTap: onAddWorkspace,
-                          child: Icon(LucideIcons.building2, size: 20 * scale, color: textMuted)
+    return MouseRegion(
+      onEnter: (_) => setState(() => _expanded = true),
+      onExit: (_) => setState(() => _expanded = false),
+      child: widget.buildGlassContainer(
+        borderRadius: const BorderRadius.only(topRight: Radius.circular(24), bottomRight: Radius.circular(24)),
+        margin: EdgeInsets.zero,
+        child: AnimatedContainer(
+          duration: ClarifyMotion.base,
+          curve: ClarifyMotion.standard,
+          width: (_expanded ? _expandedWidth : _collapsedWidth) * s,
+          child: ClipRect(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: EdgeInsets.fromLTRB(_expanded ? 28 * s : 0, 40 * s, _expanded ? 24 * s : 0, 32 * s),
+                  child: _expanded
+                      ? Text("Clarify", style: TextStyle(fontSize: 24 * s, fontWeight: FontWeight.w900, letterSpacing: -0.5, color: textColor))
+                      : Center(
+                          child: Container(
+                            width: 32 * s,
+                            height: 32 * s,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(shape: BoxShape.circle, color: t.accent),
+                            child: Text("C", style: TextStyle(fontSize: 16 * s, fontWeight: FontWeight.w900, color: t.onAccent)),
+                          ),
                         ),
-                      ],
-                    ),
-                  ),
+                ),
+                Expanded(
+                  child: ListView(
+                    padding: EdgeInsets.zero,
+                    children: [
+                      ...widget.menuItems.map((item) => _row(
+                            icon: SidebarMenu._menuIcons[item] ?? LucideIcons.circle,
+                            label: item.tr(widget.currentLang),
+                            selected: item == widget.selectedMenu,
+                            accentColor: t.accent,
+                            textColor: textColor,
+                            textMuted: textMuted,
+                            highlightColor: highlightColor,
+                            onTap: () => widget.onMenuSelected(item),
+                          )),
 
-                  ...workspaces.map((ws) {
-                    String wsName = ws['name'].toString();
-                    String wsMenuKey = 'ws_${ws['id']}';
-                    // Метка команды — из назначаемой палитры по id, а не зашитый системный цвет.
-                    final wsColor = t.tagPalette[(ws['id'] as int) % t.tagPalette.length];
+                      // Авто-папки по тегам — не отдельная сущность, которую заводят руками
+                      // (REDESIGN_V3_PLAN.md §3.17/5.16): папка появляется сама, как только
+                      // существует хотя бы одна задача с этим тегом.
+                      _sectionLabel("ПРОЕКТЫ", textMuted),
+                      ..._projectTags.map((tag) {
+                        final tagColor = t.tagPalette[tag.hashCode.abs() % t.tagPalette.length];
+                        final tagTasks = widget.tasks.where((task) => _taskTags(task).contains(tag) && task['parent_id'] == null).toList();
+                        final total = tagTasks.length;
+                        final done = tagTasks.where((task) => task['is_completed'] == true).length;
+                        final active = tag == widget.selectedMenu;
+                        final icon = iconByKey(widget.projectIconKeys[tag]);
 
-                    return Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 2 * scale),
-                      child: ListTile(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12 * scale)),
-                        selected: selectedMenu == wsMenuKey,
-                        selectedTileColor: wsColor.withValues(alpha: 0.15),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 16 * scale),
-                        leading: Icon(LucideIcons.usersRound, size: 20 * scale, color: selectedMenu == wsMenuKey ? wsColor : textMuted),
-                        title: Text(wsName, style: TextStyle(fontSize: 15 * scale, fontWeight: selectedMenu == wsMenuKey ? FontWeight.bold : FontWeight.w600, color: selectedMenu == wsMenuKey ? wsColor : textColor), overflow: TextOverflow.ellipsis),
-                        onTap: () => onWorkspaceSelected(ws['id'] as int, wsMenuKey),
+                        return _row(
+                          icon: icon,
+                          label: tag,
+                          selected: active,
+                          accentColor: tagColor,
+                          textColor: textColor,
+                          textMuted: textMuted,
+                          highlightColor: tagColor.withValues(alpha: 0.15),
+                          onTap: () => widget.onMenuSelected(tag),
+                          onLongPress: () => _pickProjectIcon(tag),
+                          trailing: total == 0 || !_expanded
+                              ? null
+                              : Text('$done/$total', style: TextStyle(fontSize: 11.5 * s, fontWeight: FontWeight.w700, color: active ? tagColor : textMuted)),
+                        );
+                      }),
+
+                      _sectionLabel(
+                        "КОМАНДЫ",
+                        textMuted,
+                        trailing: InkWell(onTap: widget.onAddWorkspace, child: Icon(LucideIcons.building2, size: 20 * s, color: textMuted)),
                       ),
-                    );
-                  }),
-                ],
-              ),
+                      ...widget.workspaces.map((ws) {
+                        final wsId = ws['id'] as int;
+                        String wsName = ws['name'].toString();
+                        String wsMenuKey = 'ws_$wsId';
+                        // Метка команды — из назначаемой палитры по id, а не зашитый системный цвет.
+                        final wsColor = t.tagPalette[wsId % t.tagPalette.length];
+                        final resolvedIcon = ws['icon'] != null ? iconByKey(ws['icon'].toString()) : LucideIcons.usersRound;
+
+                        return _row(
+                          icon: resolvedIcon,
+                          label: wsName,
+                          selected: widget.selectedMenu == wsMenuKey,
+                          accentColor: wsColor,
+                          textColor: textColor,
+                          textMuted: textMuted,
+                          highlightColor: wsColor.withValues(alpha: 0.15),
+                          onTap: () => widget.onWorkspaceSelected(wsId, wsMenuKey),
+                          onLongPress: () => _pickWorkspaceIcon(wsId, ws['icon']?.toString()),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+                _expanded ? widget.userAccountBlock : widget.userAccountBlockCollapsed,
+                SizedBox(height: 24 * s),
+              ],
             ),
-            userAccountBlock,
-            SizedBox(height: 24 * scale), 
-          ], 
+          ),
         ),
       ),
     );
