@@ -3,16 +3,20 @@ import 'package:flutter/material.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
 
+enum _ActivityPeriod { week, month, year }
+
 /// Раздел "Статистика". Вынесено из DesktopPlannerScreen (P3.1,
 /// docs/IMPROVEMENT_PLAN.md) — логика и разметка не менялись, только доступ
 /// к состоянию родителя заменён на явные параметры конструктора.
 class StatisticsDashboard extends StatefulWidget {
   final List<Map<String, dynamic>> tasks;
+  final List<Map<String, dynamic>> workspaces;
   final String currentLang;
   final Color textColor;
   final Color textMuted;
   final bool Function(Map<String, dynamic> task) isOverdue;
   final DateTime? Function(String dateStr) parseDate;
+  final Color Function(String? priority) getPriorityColor;
   final Widget Function({
     required Widget child,
     BorderRadius? borderRadius,
@@ -24,11 +28,13 @@ class StatisticsDashboard extends StatefulWidget {
   const StatisticsDashboard({
     super.key,
     required this.tasks,
+    required this.workspaces,
     required this.currentLang,
     required this.textColor,
     required this.textMuted,
     required this.isOverdue,
     required this.parseDate,
+    required this.getPriorityColor,
     required this.buildGlassContainer,
   });
 
@@ -42,6 +48,12 @@ class _StatisticsDashboardState extends State<StatisticsDashboard> {
   // сайдбара сюда назад), и страница открывается не с верха, а с того места,
   // где был скролл в прошлый раз.
   final _scrollController = ScrollController(keepScrollOffset: false);
+  _ActivityPeriod _period = _ActivityPeriod.week;
+
+  static const _priorityOrder = ['red', 'orange', 'blue', 'gray'];
+  static const _priorityLabelKeys = {'red': 'Срочный', 'orange': 'Важный', 'blue': 'Обычный', 'gray': 'Низкий'};
+  static const _monthShortKeys = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+  static const _weekdayShortKeys = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
   @override
   void dispose() {
@@ -49,19 +61,56 @@ class _StatisticsDashboardState extends State<StatisticsDashboard> {
     super.dispose();
   }
 
+  List<String> _taskTags(Map<String, dynamic> task) {
+    final raw = task['tags'];
+    if (raw == null || raw.toString().trim().isEmpty) return const [];
+    return raw.toString().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+  }
+
+  // Момент фактического выполнения — новый completed_at, если есть; для
+  // задач, отмеченных до появления этой колонки, приближаем по due_date,
+  // чтобы старая история не пропадала из графика активности разом.
+  DateTime? _effectiveCompletionDate(Map<String, dynamic> task) {
+    final raw = task['completed_at'];
+    if (raw != null) {
+      final dt = DateTime.tryParse(raw.toString());
+      if (dt != null) return dt;
+    }
+    if (task['due_date'] != null) return widget.parseDate(task['due_date'].toString());
+    return null;
+  }
+
+  List<int> _activityBuckets(DateTime now) {
+    final bucketCount = switch (_period) { _ActivityPeriod.week => 7, _ActivityPeriod.month => 30, _ActivityPeriod.year => 12 };
+    final buckets = List.filled(bucketCount, 0);
+    for (final task in widget.tasks) {
+      if (task['is_completed'] != true) continue;
+      final date = _effectiveCompletionDate(task);
+      if (date == null) continue;
+      if (_period == _ActivityPeriod.year) {
+        final monthDiff = (now.year - date.year) * 12 + (now.month - date.month);
+        if (monthDiff >= 0 && monthDiff < 12) buckets[11 - monthDiff]++;
+      } else {
+        final diff = DateTime(now.year, now.month, now.day).difference(DateTime(date.year, date.month, date.day)).inDays;
+        if (diff >= 0 && diff < bucketCount) buckets[bucketCount - 1 - diff]++;
+      }
+    }
+    return buckets;
+  }
+
   @override
   Widget build(BuildContext context) {
     final tasks = widget.tasks;
+    final workspaces = widget.workspaces;
     final currentLang = widget.currentLang;
     final textColor = widget.textColor;
     final textMuted = widget.textMuted;
     final isOverdue = widget.isOverdue;
     final parseDate = widget.parseDate;
+    final getPriorityColor = widget.getPriorityColor;
     final buildGlassContainer = widget.buildGlassContainer;
     final t = context.tokens;
     final now = DateTime.now();
-    List<int> weeklyStats = List.filled(7, 0);
-    int totalDone = 0;
 
     int doneCount = 0;
     int pendingCount = 0;
@@ -80,18 +129,102 @@ class _StatisticsDashboardState extends State<StatisticsDashboard> {
           pendingCount++;
         }
       }
+    }
 
-      if (task['is_completed'] == true && task['due_date'] != null) {
-        final date = parseDate(task['due_date']);
-        if (date != null) {
-          final diff = now.difference(date).inDays;
-          if (diff >= 0 && diff < 7) {
-            weeklyStats[6 - diff]++;
-            totalDone++;
-          }
-        }
+    final activityBuckets = _activityBuckets(now);
+    final activityTotal = activityBuckets.fold<int>(0, (a, b) => a + b);
+    final activityLabelKey = switch (_period) {
+      _ActivityPeriod.week => 'Выполнено за 7 дней',
+      _ActivityPeriod.month => 'Выполнено за 30 дней',
+      _ActivityPeriod.year => 'Выполнено за 12 месяцев',
+    };
+
+    // % выполнено в срок — считаем только по задачам, у которых есть и
+    // due_date, и completed_at (старые завершения без completed_at честно
+    // исключаем, а не подставляем произвольный момент).
+    int onTimeDone = 0;
+    int consideredForOnTime = 0;
+    for (final task in tasks) {
+      if (task['is_completed'] != true || task['due_date'] == null) continue;
+      final completedAt = task['completed_at'] != null ? DateTime.tryParse(task['completed_at'].toString()) : null;
+      if (completedAt == null) continue;
+      final dueDate = parseDate(task['due_date'].toString());
+      if (dueDate == null) continue;
+      int hour = 23;
+      int minute = 59;
+      if (task['due_time'] != null && task['due_time'].toString().contains(':')) {
+        final parts = task['due_time'].toString().split(':');
+        hour = int.tryParse(parts[0]) ?? 23;
+        minute = int.tryParse(parts[1]) ?? 59;
+      }
+      final dueDateTime = DateTime(dueDate.year, dueDate.month, dueDate.day, hour, minute);
+      consideredForOnTime++;
+      if (!completedAt.isAfter(dueDateTime)) onTimeDone++;
+    }
+    final int? onTimeRatePercent = consideredForOnTime == 0 ? null : ((onTimeDone / consideredForOnTime) * 100).round();
+
+    // Серия дней подряд — по датам completed_at, допускаем, что сегодняшний
+    // день ещё не закрыт (streak не обнуляется до полуночи, если вчера
+    // что-то было выполнено, а сегодня пока ничего).
+    final completedDays = <DateTime>{};
+    for (final task in tasks) {
+      if (task['is_completed'] != true || task['completed_at'] == null) continue;
+      final dt = DateTime.tryParse(task['completed_at'].toString());
+      if (dt == null) continue;
+      completedDays.add(DateTime(dt.year, dt.month, dt.day));
+    }
+    int streak = 0;
+    DateTime streakCursor = DateTime(now.year, now.month, now.day);
+    if (!completedDays.contains(streakCursor)) streakCursor = streakCursor.subtract(const Duration(days: 1));
+    while (completedDays.contains(streakCursor)) {
+      streak++;
+      streakCursor = streakCursor.subtract(const Duration(days: 1));
+    }
+
+    // Разбивка по проектам — тег может быть у задачи не один, считаем задачу
+    // во всех её тегах сразу (как и ProjectsScreen).
+    final Map<String, int> projectTotal = {};
+    final Map<String, int> projectDone = {};
+    for (final task in tasks) {
+      for (final tag in _taskTags(task)) {
+        projectTotal[tag] = (projectTotal[tag] ?? 0) + 1;
+        if (task['is_completed'] == true) projectDone[tag] = (projectDone[tag] ?? 0) + 1;
       }
     }
+    final sortedProjectTags = projectTotal.keys.toList()..sort((a, b) => projectTotal[b]!.compareTo(projectTotal[a]!));
+
+    // Разбивка по приоритетам.
+    final Map<String, int> priorityCount = {for (final p in _priorityOrder) p: 0};
+    for (final task in tasks) {
+      final p = task['priority']?.toString();
+      if (p != null && priorityCount.containsKey(p)) priorityCount[p] = priorityCount[p]! + 1;
+    }
+    final maxPriorityCount = priorityCount.values.isEmpty ? 0 : priorityCount.values.reduce((a, b) => a > b ? a : b);
+    final totalPrioritized = priorityCount.values.fold<int>(0, (a, b) => a + b);
+
+    // Разбивка по командам.
+    final Map<int, int> teamTotal = {};
+    final Map<int, int> teamDone = {};
+    for (final task in tasks) {
+      final rawWsId = task['workspace_id'];
+      if (rawWsId == null) continue;
+      final wsId = rawWsId is int ? rawWsId : int.tryParse(rawWsId.toString());
+      if (wsId == null) continue;
+      teamTotal[wsId] = (teamTotal[wsId] ?? 0) + 1;
+      if (task['is_completed'] == true) teamDone[wsId] = (teamDone[wsId] ?? 0) + 1;
+    }
+    final sortedWorkspaces = [...workspaces]..sort((a, b) => (teamTotal[b['id']] ?? 0).compareTo(teamTotal[a['id']] ?? 0));
+
+    // Тепловая карта по дням недели (1=Пн..7=Вс → индекс 0..6).
+    final weekdayCounts = List.filled(7, 0);
+    for (final task in tasks) {
+      if (task['is_completed'] != true || task['completed_at'] == null) continue;
+      final dt = DateTime.tryParse(task['completed_at'].toString());
+      if (dt == null) continue;
+      weekdayCounts[dt.weekday - 1]++;
+    }
+    final maxWeekdayCount = weekdayCounts.reduce((a, b) => a > b ? a : b);
+    final totalWeekdayCount = weekdayCounts.fold<int>(0, (a, b) => a + b);
 
     Widget buildLegendItem(String title, Color color, int count) {
       return Padding(
@@ -107,6 +240,108 @@ class _StatisticsDashboardState extends State<StatisticsDashboard> {
       );
     }
 
+    Widget buildKpiCard(String titleKey, String value) {
+      return Expanded(
+        child: buildGlassContainer(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(titleKey.tr(currentLang), style: TextStyle(color: textMuted, fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text(value, style: TextStyle(fontFamily: 'Unbounded', fontSize: 48, fontWeight: FontWeight.w700, color: t.accent, fontFeatures: const [FontFeature.tabularFigures()])),
+            ],
+          ),
+        ),
+      );
+    }
+
+    Widget buildBar(double fraction, Color color) {
+      return Expanded(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(ClarifyRadius.sm),
+          child: Stack(
+            children: [
+              Container(height: 10, color: t.surfaceSunken),
+              FractionallySizedBox(widthFactor: fraction.clamp(0.0, 1.0), child: Container(height: 10, color: color)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    Widget buildCountRow(String label, Color color, int value, int maxValue) {
+      final fraction = maxValue == 0 ? 0.0 : value / maxValue;
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            SizedBox(width: 100, child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.w600))),
+            buildBar(fraction, color),
+            const SizedBox(width: 10),
+            SizedBox(width: 30, child: Text("$value", textAlign: TextAlign.right, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 13))),
+          ],
+        ),
+      );
+    }
+
+    Widget buildProgressRow(String label, Color color, int done, int total) {
+      final fraction = total == 0 ? 0.0 : done / total;
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            SizedBox(width: 100, child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: textColor, fontSize: 13, fontWeight: FontWeight.w600))),
+            buildBar(fraction, color),
+            const SizedBox(width: 10),
+            SizedBox(width: 50, child: Text("$done/$total", textAlign: TextAlign.right, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 13))),
+          ],
+        ),
+      );
+    }
+
+    Widget buildPeriodPill(String labelKey, _ActivityPeriod value) {
+      final selected = _period == value;
+      return InkWell(
+        borderRadius: BorderRadius.circular(ClarifyRadius.pill),
+        onTap: () => setState(() => _period = value),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          decoration: BoxDecoration(
+            color: selected ? t.accentSoft : Colors.transparent,
+            borderRadius: BorderRadius.circular(ClarifyRadius.pill),
+            border: Border.all(color: selected ? t.accent.withValues(alpha: 0.4) : t.border),
+          ),
+          child: Text(labelKey.tr(currentLang), style: TextStyle(color: selected ? t.accent : t.text2, fontSize: 13, fontWeight: selected ? FontWeight.bold : FontWeight.normal)),
+        ),
+      );
+    }
+
+    Widget buildHeatCell(String label, int count, int maxCount) {
+      final intensity = maxCount == 0 ? 0.0 : count / maxCount;
+      final bg = Color.lerp(t.surfaceSunken, t.accent, intensity.clamp(0.0, 1.0))!;
+      final fg = intensity > 0.55 ? t.onAccent : textColor;
+      return Expanded(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Column(
+            children: [
+              Text(label, style: TextStyle(color: textMuted, fontSize: 12, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              AspectRatio(
+                aspectRatio: 1,
+                child: Container(
+                  decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(ClarifyRadius.sm)),
+                  alignment: Alignment.center,
+                  child: Text("$count", style: TextStyle(color: fg, fontWeight: FontWeight.bold, fontSize: 14)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return SingleChildScrollView(
       controller: _scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -115,33 +350,17 @@ class _StatisticsDashboardState extends State<StatisticsDashboard> {
         children: [
           Row(
             children: [
-              Expanded(
-                child: buildGlassContainer(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text("Выполнено за 7 дней".tr(currentLang), style: TextStyle(color: textMuted, fontSize: 16, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 8),
-                      Text("$totalDone", style: TextStyle(fontFamily: 'Unbounded', fontSize: 48, fontWeight: FontWeight.w700, color: t.accent, fontFeatures: const [FontFeature.tabularFigures()])),
-                    ],
-                  ),
-                ),
-              ),
+              buildKpiCard(activityLabelKey, "$activityTotal"),
               const SizedBox(width: 16),
-              Expanded(
-                child: buildGlassContainer(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text("Всего задач в базе".tr(currentLang), style: TextStyle(color: textMuted, fontSize: 16, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 8),
-                      Text("${tasks.length}", style: TextStyle(fontFamily: 'Unbounded', color: textColor, fontSize: 48, fontWeight: FontWeight.w700, fontFeatures: const [FontFeature.tabularFigures()])),
-                    ],
-                  ),
-                ),
-              ),
+              buildKpiCard("Всего задач в базе", "${tasks.length}"),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              buildKpiCard("% выполнено в срок", onTimeRatePercent == null ? "—" : "$onTimeRatePercent%"),
+              const SizedBox(width: 16),
+              buildKpiCard("Серия дней подряд", "$streak"),
             ],
           ),
           const SizedBox(height: 24),
@@ -196,14 +415,28 @@ class _StatisticsDashboardState extends State<StatisticsDashboard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("Активность (последние 7 дней)".tr(currentLang), style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.bold)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text("Активность (последние 7 дней)".tr(currentLang), style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.bold)),
+                    Row(
+                      children: [
+                        buildPeriodPill('Неделя', _ActivityPeriod.week),
+                        const SizedBox(width: 6),
+                        buildPeriodPill('Месяц', _ActivityPeriod.month),
+                        const SizedBox(width: 6),
+                        buildPeriodPill('Год', _ActivityPeriod.year),
+                      ],
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 32),
                 SizedBox(
                   height: 200,
                   child: BarChart(
                     BarChartData(
                       alignment: BarChartAlignment.spaceAround,
-                      maxY: (weeklyStats.reduce((a, b) => a > b ? a : b) + 2).toDouble(),
+                      maxY: (activityBuckets.reduce((a, b) => a > b ? a : b) + 2).toDouble(),
                       barTouchData: BarTouchData(enabled: false),
                       titlesData: FlTitlesData(
                         show: true,
@@ -211,12 +444,21 @@ class _StatisticsDashboardState extends State<StatisticsDashboard> {
                           sideTitles: SideTitles(
                             showTitles: true,
                             getTitlesWidget: (double value, TitleMeta meta) {
-                              final date = now.subtract(Duration(days: 6 - value.toInt()));
-                              final dayStr = date.day.toString().padLeft(2, '0');
-                              final monthStr = date.month.toString().padLeft(2, '0');
+                              final idx = value.toInt();
+                              String label;
+                              if (_period == _ActivityPeriod.year) {
+                                final monthOffset = 11 - idx;
+                                final monthIndex0 = (((now.month - 1) - monthOffset) % 12 + 12) % 12;
+                                label = _monthShortKeys[monthIndex0].tr(currentLang);
+                              } else {
+                                final bucketCount = activityBuckets.length;
+                                if (_period == _ActivityPeriod.month && idx % 5 != 0) return const SizedBox.shrink();
+                                final date = now.subtract(Duration(days: bucketCount - 1 - idx));
+                                label = "${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}";
+                              }
                               return Padding(
                                 padding: const EdgeInsets.only(top: 8.0),
-                                child: Text("$dayStr.$monthStr", style: TextStyle(color: textMuted, fontSize: 12, fontWeight: FontWeight.bold)),
+                                child: Text(label, style: TextStyle(color: textMuted, fontSize: 11, fontWeight: FontWeight.bold)),
                               );
                             },
                           ),
@@ -227,14 +469,14 @@ class _StatisticsDashboardState extends State<StatisticsDashboard> {
                       ),
                       gridData: FlGridData(show: false),
                       borderData: FlBorderData(show: false),
-                      barGroups: List.generate(7, (index) {
+                      barGroups: List.generate(activityBuckets.length, (index) {
                         return BarChartGroupData(
                           x: index,
                           barRods: [
                             BarChartRodData(
-                              toY: weeklyStats[index].toDouble(),
-                              color: index == 6 ? t.accent : t.accent.withValues(alpha: 0.4),
-                              width: 22,
+                              toY: activityBuckets[index].toDouble(),
+                              color: index == activityBuckets.length - 1 ? t.accent : t.accent.withValues(alpha: 0.4),
+                              width: _period == _ActivityPeriod.week ? 22 : (_period == _ActivityPeriod.month ? 7 : 16),
                               borderRadius: BorderRadius.circular(6),
                             ),
                           ],
@@ -246,6 +488,69 @@ class _StatisticsDashboardState extends State<StatisticsDashboard> {
               ],
             ),
           ),
+
+          if (sortedProjectTags.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            buildGlassContainer(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("Активность по проектам".tr(currentLang), style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+                  ...sortedProjectTags.map((tag) => buildProgressRow(tag, t.tagPalette[tag.hashCode.abs() % t.tagPalette.length], projectDone[tag] ?? 0, projectTotal[tag]!)),
+                ],
+              ),
+            ),
+          ],
+
+          if (totalPrioritized > 0) ...[
+            const SizedBox(height: 24),
+            buildGlassContainer(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("По приоритетам".tr(currentLang), style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+                  ..._priorityOrder.map((p) => buildCountRow(_priorityLabelKeys[p]!.tr(currentLang), getPriorityColor(p), priorityCount[p]!, maxPriorityCount)),
+                ],
+              ),
+            ),
+          ],
+
+          if (sortedWorkspaces.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            buildGlassContainer(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("По командам".tr(currentLang), style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+                  ...sortedWorkspaces.map((ws) {
+                    final wsId = ws['id'] as int;
+                    return buildProgressRow(ws['name'].toString(), t.tagPalette[wsId % t.tagPalette.length], teamDone[wsId] ?? 0, teamTotal[wsId] ?? 0);
+                  }),
+                ],
+              ),
+            ),
+          ],
+
+          if (totalWeekdayCount > 0) ...[
+            const SizedBox(height: 24),
+            buildGlassContainer(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("Активность по дням недели".tr(currentLang), style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+                  Row(children: List.generate(7, (i) => buildHeatCell(_weekdayShortKeys[i].tr(currentLang), weekdayCounts[i], maxWeekdayCount))),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

@@ -211,11 +211,13 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
 
   Widget _buildStatisticsDashboardWidget() => StatisticsDashboard(
         tasks: tasks,
+        workspaces: workspaces,
         currentLang: widget.currentLang,
         textColor: textColor,
         textMuted: textMuted,
         isOverdue: _isOverdue,
         parseDate: _parseDate,
+        getPriorityColor: _getPriorityColor,
         buildGlassContainer: _buildGlassContainer,
       );
 
@@ -743,15 +745,18 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
 
     final bool currentStatus = task['is_completed'] == true;
     final bool newStatus = !currentStatus;
+    final currentCompletedAt = task['completed_at'];
+    final String? newCompletedAt = newStatus ? DateTime.now().toIso8601String() : null;
 
     setState(() {
       task['is_completed'] = newStatus;
+      task['completed_at'] = newCompletedAt;
       _applyFilters();
     });
 
     await _guardedAction(actionId, () async {
       try {
-        await _taskService.updateTask(task['id'], {'is_completed': newStatus}); // <--- ИСПОЛЬЗУЕМ СЕРВИС
+        await _taskService.updateTask(task['id'], {'is_completed': newStatus, 'completed_at': newCompletedAt}); // <--- ИСПОЛЬЗУЕМ СЕРВИС
 
         if (newStatus == true && task['recurrence'] != null && task['recurrence'] != 'none') {
           _spawnNextRecurringTask(task);
@@ -773,6 +778,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
       } catch (e) {
         setState(() {
           task['is_completed'] = currentStatus;
+          task['completed_at'] = currentCompletedAt;
           _applyFilters();
         });
         print("Ошибка обновления статуса: $e");
@@ -1500,11 +1506,13 @@ Map<String, dynamic> _parseSmartInput(String text) {
                               onSetLocalKanbanStatus: _setLocalKanbanStatus,
                               buildStatisticsDashboard: () => StatisticsDashboard(
                                 tasks: tasks,
+                                workspaces: workspaces,
                                 currentLang: widget.currentLang,
                                 textColor: textColor,
                                 textMuted: textMuted,
                                 isOverdue: _isOverdue,
                                 parseDate: _parseDate,
+                                getPriorityColor: _getPriorityColor,
                                 buildGlassContainer: _buildGlassContainer,
                               ),
                               );
