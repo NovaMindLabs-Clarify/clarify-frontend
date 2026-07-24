@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/theme/design_tokens.dart';
+import 'clarify_press_glow.dart';
 
 /// Лёгкий tap-фидбек (scale 0.97 на press) для карточек/кнопок, где раньше
 /// не было вообще никакой реакции на нажатие — голый `GestureDetector`
@@ -8,8 +9,14 @@ import '../core/theme/design_tokens.dart';
 class ClarifyPressable extends StatefulWidget {
   final Widget child;
   final VoidCallback? onTap;
+  final Color? glowColor;
 
-  const ClarifyPressable({super.key, required this.child, this.onTap});
+  const ClarifyPressable({
+    super.key,
+    required this.child,
+    this.onTap,
+    this.glowColor,
+  });
 
   @override
   State<ClarifyPressable> createState() => _ClarifyPressableState();
@@ -30,11 +37,22 @@ class _ClarifyPressableState extends State<ClarifyPressable> {
       onTapDown: (_) => _setPressed(true),
       onTapUp: (_) => _setPressed(false),
       onTapCancel: () => _setPressed(false),
-      child: AnimatedScale(
-        scale: _pressed && !reduceMotion ? 0.97 : 1.0,
-        duration: ClarifyMotion.fast,
-        curve: ClarifyMotion.standard,
-        child: widget.child,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          ClarifyGlowLayer(
+            active: _pressed,
+            color: widget.glowColor ?? context.tokens.accent,
+            spread: 16,
+          ),
+          AnimatedScale(
+            scale: _pressed && !reduceMotion ? 0.97 : 1.0,
+            duration: ClarifyMotion.fast,
+            curve: ClarifyMotion.standard,
+            child: widget.child,
+          ),
+        ],
       ),
     );
   }

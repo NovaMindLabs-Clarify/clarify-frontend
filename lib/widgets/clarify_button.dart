@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/theme/design_tokens.dart';
+import 'clarify_press_glow.dart';
 
 /// Один язык кнопок на весь интерфейс — см. docs/DESIGN_SYSTEM.md §3.
 /// Раньше в шапке одновременно уживались стекло/заливка/обводка/голая иконка;
@@ -51,46 +52,72 @@ class ClarifyButton extends StatelessWidget {
         break;
     }
 
-    final style = ElevatedButton.styleFrom(
-      backgroundColor: bg,
-      foregroundColor: fg,
-      disabledBackgroundColor: bg,
-      disabledForegroundColor: fg.withValues(alpha: 0.4),
-      elevation: 0,
-      padding: EdgeInsets.symmetric(horizontal: 18 * scale, vertical: 11 * scale),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(ClarifyRadius.pill),
-        side: BorderSide(color: borderColor),
-      ),
-      textStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: 14 * scale),
-      // Явный hover/press overlay акцентным цветом — без него Material сам
-      // берёт цвет из foregroundColor (t.text: почти чёрный в светлой теме,
-      // почти белый в тёмной), и на прозрачном фоне outline-кнопки в светлой
-      // теме это давало низкоконтрастную мутную заливку поверх и без того
-      // полупрозрачной обводки (t.borderStrong: ~18% альфы) — контур на
-      // hover визуально "плыл". Акцентный оттенок с фиксированной альфой
-      // одинаково читаем в обеих темах.
-    ).copyWith(
-      overlayColor: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.pressed)) return t.accent.withValues(alpha: 0.16);
-        if (states.contains(WidgetState.hovered)) return t.accent.withValues(alpha: 0.08);
-        if (states.contains(WidgetState.focused)) return t.accent.withValues(alpha: 0.08);
-        return Colors.transparent;
-      }),
-    );
+    final style =
+        ElevatedButton.styleFrom(
+          backgroundColor: bg,
+          foregroundColor: fg,
+          disabledBackgroundColor: bg,
+          disabledForegroundColor: fg.withValues(alpha: 0.4),
+          elevation: 0,
+          padding: EdgeInsets.symmetric(
+            horizontal: 18 * scale,
+            vertical: 11 * scale,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(ClarifyRadius.pill),
+            side: BorderSide(color: borderColor),
+          ),
+          textStyle: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 14 * scale,
+          ),
+          // Явный hover/press overlay акцентным цветом — без него Material сам
+          // берёт цвет из foregroundColor (t.text: почти чёрный в светлой теме,
+          // почти белый в тёмной), и на прозрачном фоне outline-кнопки в светлой
+          // теме это давало низкоконтрастную мутную заливку поверх и без того
+          // полупрозрачной обводки (t.borderStrong: ~18% альфы) — контур на
+          // hover визуально "плыл". Акцентный оттенок с фиксированной альфой
+          // одинаково читаем в обеих темах.
+        ).copyWith(
+          overlayColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.pressed))
+              return t.accent.withValues(alpha: 0.16);
+            if (states.contains(WidgetState.hovered))
+              return t.accent.withValues(alpha: 0.08);
+            if (states.contains(WidgetState.focused))
+              return t.accent.withValues(alpha: 0.08);
+            return Colors.transparent;
+          }),
+        );
 
     // clipBehavior: без него hover/pressed-заливка ElevatedButton иногда не
     // обрезается по скруглению pill-формы и на границе видны острые углы —
     // баг именно в этом, не в цветах/форме самой кнопки.
+    final glowColor = variant == ClarifyButtonVariant.danger
+        ? t.danger
+        : t.accent;
     if (icon == null) {
-      return ElevatedButton(style: style, clipBehavior: Clip.antiAlias, onPressed: onPressed, child: Text(label));
+      return ClarifyPressGlow(
+        color: glowColor,
+        spread: 14 * scale,
+        child: ElevatedButton(
+          style: style,
+          clipBehavior: Clip.antiAlias,
+          onPressed: onPressed,
+          child: Text(label),
+        ),
+      );
     }
-    return ElevatedButton.icon(
-      style: style,
-      clipBehavior: Clip.antiAlias,
-      onPressed: onPressed,
-      icon: Icon(icon, size: 18 * scale),
-      label: Text(label, overflow: TextOverflow.ellipsis),
+    return ClarifyPressGlow(
+      color: glowColor,
+      spread: 14 * scale,
+      child: ElevatedButton.icon(
+        style: style,
+        clipBehavior: Clip.antiAlias,
+        onPressed: onPressed,
+        icon: Icon(icon, size: 18 * scale),
+        label: Text(label, overflow: TextOverflow.ellipsis),
+      ),
     );
   }
 }
@@ -117,10 +144,14 @@ class ClarifyIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    final button = IconButton(
-      icon: Icon(icon, size: 22 * scale, color: color ?? t.text2),
-      onPressed: onPressed,
-      splashRadius: 20 * scale,
+    final button = ClarifyPressGlow(
+      color: color ?? t.accent,
+      spread: 10 * scale,
+      child: IconButton(
+        icon: Icon(icon, size: 22 * scale, color: color ?? t.text2),
+        onPressed: onPressed,
+        splashRadius: 20 * scale,
+      ),
     );
     if (tooltip == null) return button;
     return Tooltip(message: tooltip!, child: button);

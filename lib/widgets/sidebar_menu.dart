@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
+import 'clarify_press_glow.dart';
 import 'icon_picker_dialog.dart';
 
 /// Сайдбар: по умолчанию свёрнут в узкую полосу с иконками, разворачивается
@@ -41,7 +42,13 @@ class SidebarMenu extends StatefulWidget {
 
   final Widget userAccountBlock;
   final Widget userAccountBlockCollapsed;
-  final Widget Function({required Widget child, BorderRadius? borderRadius, EdgeInsetsGeometry? margin, Color? customColor}) buildGlassContainer;
+  final Widget Function({
+    required Widget child,
+    BorderRadius? borderRadius,
+    EdgeInsetsGeometry? margin,
+    Color? customColor,
+  })
+  buildGlassContainer;
 
   // Те же соответствия, что и в мобильном нижнем меню (REDESIGN_V3_PLAN.md §3.18/5.17) —
   // не изобретаем новый набор для десктопа.
@@ -89,7 +96,12 @@ class _SidebarMenuState extends State<SidebarMenu> {
   List<String> _taskTags(Map<String, dynamic> task) {
     final raw = task['tags'];
     if (raw == null || raw.toString().trim().isEmpty) return const [];
-    return raw.toString().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    return raw
+        .toString()
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
   }
 
   List<String> get _projectTags {
@@ -102,12 +114,20 @@ class _SidebarMenuState extends State<SidebarMenu> {
   }
 
   Future<void> _pickProjectIcon(String tag) async {
-    final picked = await showIconPickerDialog(context: context, isDark: widget.isDark, current: widget.projectIconKeys[tag]);
+    final picked = await showIconPickerDialog(
+      context: context,
+      isDark: widget.isDark,
+      current: widget.projectIconKeys[tag],
+    );
     if (picked != null) widget.onSetProjectIcon(tag, picked);
   }
 
   Future<void> _pickWorkspaceIcon(int wsId, String? current) async {
-    final picked = await showIconPickerDialog(context: context, isDark: widget.isDark, current: current);
+    final picked = await showIconPickerDialog(
+      context: context,
+      isDark: widget.isDark,
+      current: current,
+    );
     if (picked != null) widget.onSetWorkspaceIcon(wsId, picked);
   }
 
@@ -139,34 +159,54 @@ class _SidebarMenuState extends State<SidebarMenu> {
       padding: EdgeInsets.symmetric(horizontal: 12 * s, vertical: 4 * s),
       child: Tooltip(
         message: label,
-        child: GestureDetector(
-          onLongPress: onLongPress,
-          onSecondaryTap: onLongPress,
-          child: Material(
-            color: selected ? highlightColor : Colors.transparent,
-            borderRadius: BorderRadius.circular(12 * s),
-            child: InkWell(
+        child: ClarifyPressGlow(
+          color: accentColor,
+          spread: 14 * s,
+          child: GestureDetector(
+            onLongPress: onLongPress,
+            onSecondaryTap: onLongPress,
+            child: Material(
+              color: selected ? highlightColor : Colors.transparent,
               borderRadius: BorderRadius.circular(12 * s),
-              onTap: onTap,
-              child: SizedBox(
-                height: 44 * s,
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: (_collapsedWidth - 24) * s,
-                      child: Center(child: Icon(icon, size: 20 * s, color: selected ? accentColor : textMuted)),
-                    ),
-                    Expanded(
-                      child: Text(
-                        label,
-                        maxLines: 1,
-                        softWrap: false,
-                        overflow: TextOverflow.clip,
-                        style: TextStyle(fontSize: 15 * s, fontWeight: selected ? FontWeight.bold : FontWeight.w600, color: selected ? accentColor : textColor),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12 * s),
+                onTap: onTap,
+                child: SizedBox(
+                  height: 44 * s,
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: (_collapsedWidth - 24) * s,
+                        child: Center(
+                          child: Icon(
+                            icon,
+                            size: 20 * s,
+                            color: selected ? accentColor : textMuted,
+                          ),
+                        ),
                       ),
-                    ),
-                    if (trailing != null) Padding(padding: EdgeInsets.only(right: 12 * s), child: trailing),
-                  ],
+                      Expanded(
+                        child: Text(
+                          label,
+                          maxLines: 1,
+                          softWrap: false,
+                          overflow: TextOverflow.clip,
+                          style: TextStyle(
+                            fontSize: 15 * s,
+                            fontWeight: selected
+                                ? FontWeight.bold
+                                : FontWeight.w600,
+                            color: selected ? accentColor : textColor,
+                          ),
+                        ),
+                      ),
+                      if (trailing != null)
+                        Padding(
+                          padding: EdgeInsets.only(right: 12 * s),
+                          child: trailing,
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -184,7 +224,15 @@ class _SidebarMenuState extends State<SidebarMenu> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(text.tr(widget.currentLang), style: TextStyle(fontSize: 12 * s, fontWeight: FontWeight.bold, color: textMuted, letterSpacing: 1.2)),
+          Text(
+            text.tr(widget.currentLang),
+            style: TextStyle(
+              fontSize: 12 * s,
+              fontWeight: FontWeight.bold,
+              color: textMuted,
+              letterSpacing: 1.2,
+            ),
+          ),
           if (trailing != null) trailing,
         ],
       ),
@@ -200,34 +248,61 @@ class _SidebarMenuState extends State<SidebarMenu> {
     final s = widget.scale;
 
     return widget.buildGlassContainer(
-        borderRadius: const BorderRadius.only(topRight: Radius.circular(24), bottomRight: Radius.circular(24)),
-        margin: EdgeInsets.zero,
-        child: AnimatedContainer(
-          duration: ClarifyMotion.slow,
-          curve: ClarifyMotion.standard,
-          width: (_expanded ? _expandedWidth : _collapsedWidth) * s,
-          child: ClipRect(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: EdgeInsets.fromLTRB(_expanded ? 28 * s : 0, 40 * s, _expanded ? 20 * s : 0, 32 * s),
-                  child: _expanded
-                      ? Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text("Clarify", style: TextStyle(fontSize: 24 * s, fontWeight: FontWeight.w900, letterSpacing: -0.5, color: textColor)),
-                            InkWell(
+      borderRadius: const BorderRadius.only(
+        topRight: Radius.circular(24),
+        bottomRight: Radius.circular(24),
+      ),
+      margin: EdgeInsets.zero,
+      child: AnimatedContainer(
+        duration: ClarifyMotion.slow,
+        curve: ClarifyMotion.standard,
+        width: (_expanded ? _expandedWidth : _collapsedWidth) * s,
+        child: ClipRect(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  _expanded ? 28 * s : 0,
+                  40 * s,
+                  _expanded ? 20 * s : 0,
+                  32 * s,
+                ),
+                child: _expanded
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Clarify",
+                            style: TextStyle(
+                              fontSize: 24 * s,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.5,
+                              color: textColor,
+                            ),
+                          ),
+                          ClarifyPressGlow(
+                            color: t.accent,
+                            spread: 10 * s,
+                            child: InkWell(
                               borderRadius: BorderRadius.circular(8 * s),
                               onTap: () => setState(() => _expanded = false),
                               child: Padding(
                                 padding: EdgeInsets.all(4 * s),
-                                child: Icon(LucideIcons.chevronsLeft, size: 20 * s, color: textMuted),
+                                child: Icon(
+                                  LucideIcons.chevronsLeft,
+                                  size: 20 * s,
+                                  color: textMuted,
+                                ),
                               ),
                             ),
-                          ],
-                        )
-                      : Center(
+                          ),
+                        ],
+                      )
+                    : Center(
+                        child: ClarifyPressGlow(
+                          color: t.accent,
+                          spread: 12 * s,
                           child: InkWell(
                             borderRadius: BorderRadius.circular(16 * s),
                             onTap: () => setState(() => _expanded = true),
@@ -235,89 +310,132 @@ class _SidebarMenuState extends State<SidebarMenu> {
                               width: 32 * s,
                               height: 32 * s,
                               alignment: Alignment.center,
-                              decoration: BoxDecoration(shape: BoxShape.circle, color: t.accent),
-                              child: Text("C", style: TextStyle(fontSize: 16 * s, fontWeight: FontWeight.w900, color: t.onAccent)),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: t.accent,
+                              ),
+                              child: Text(
+                                "C",
+                                style: TextStyle(
+                                  fontSize: 16 * s,
+                                  fontWeight: FontWeight.w900,
+                                  color: t.onAccent,
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                ),
-                Expanded(
-                  child: ListView(
-                    padding: EdgeInsets.zero,
-                    children: [
-                      ...widget.menuItems.map((item) => _row(
-                            icon: SidebarMenu._menuIcons[item] ?? LucideIcons.circle,
-                            label: item.tr(widget.currentLang),
-                            selected: item == widget.selectedMenu,
-                            accentColor: t.accent,
-                            textColor: textColor,
-                            textMuted: textMuted,
-                            highlightColor: highlightColor,
-                            onTap: () => widget.onMenuSelected(item),
-                          )),
-
-                      // Авто-папки по тегам — не отдельная сущность, которую заводят руками
-                      // (REDESIGN_V3_PLAN.md §3.17/5.16): папка появляется сама, как только
-                      // существует хотя бы одна задача с этим тегом.
-                      _sectionLabel("ПРОЕКТЫ", textMuted),
-                      ..._projectTags.map((tag) {
-                        final tagColor = t.tagPalette[tag.hashCode.abs() % t.tagPalette.length];
-                        final tagTasks = widget.tasks.where((task) => _taskTags(task).contains(tag) && task['parent_id'] == null).toList();
-                        final total = tagTasks.length;
-                        final done = tagTasks.where((task) => task['is_completed'] == true).length;
-                        final active = tag == widget.selectedMenu;
-                        final icon = iconByKey(widget.projectIconKeys[tag]);
-
-                        return _row(
-                          icon: icon,
-                          label: tag,
-                          selected: active,
-                          accentColor: tagColor,
-                          textColor: textColor,
-                          textMuted: textMuted,
-                          highlightColor: tagColor.withValues(alpha: 0.15),
-                          onTap: () => widget.onMenuSelected(tag),
-                          onLongPress: () => _pickProjectIcon(tag),
-                          trailing: total == 0 || !_expanded
-                              ? null
-                              : Text('$done/$total', style: TextStyle(fontSize: 11.5 * s, fontWeight: FontWeight.w700, color: active ? tagColor : textMuted)),
-                        );
-                      }),
-
-                      _sectionLabel(
-                        "КОМАНДЫ",
-                        textMuted,
-                        trailing: InkWell(onTap: widget.onAddWorkspace, child: Icon(LucideIcons.building2, size: 20 * s, color: textMuted)),
                       ),
-                      ...widget.workspaces.map((ws) {
-                        final wsId = ws['id'] as int;
-                        String wsName = ws['name'].toString();
-                        String wsMenuKey = 'ws_$wsId';
-                        // Метка команды — из назначаемой палитры по id, а не зашитый системный цвет.
-                        final wsColor = t.tagPalette[wsId % t.tagPalette.length];
-                        final resolvedIcon = ws['icon'] != null ? iconByKey(ws['icon'].toString()) : LucideIcons.usersRound;
+              ),
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    ...widget.menuItems.map(
+                      (item) => _row(
+                        icon:
+                            SidebarMenu._menuIcons[item] ?? LucideIcons.circle,
+                        label: item.tr(widget.currentLang),
+                        selected: item == widget.selectedMenu,
+                        accentColor: t.accent,
+                        textColor: textColor,
+                        textMuted: textMuted,
+                        highlightColor: highlightColor,
+                        onTap: () => widget.onMenuSelected(item),
+                      ),
+                    ),
 
-                        return _row(
-                          icon: resolvedIcon,
-                          label: wsName,
-                          selected: widget.selectedMenu == wsMenuKey,
-                          accentColor: wsColor,
-                          textColor: textColor,
-                          textMuted: textMuted,
-                          highlightColor: wsColor.withValues(alpha: 0.15),
-                          onTap: () => widget.onWorkspaceSelected(wsId, wsMenuKey),
-                          onLongPress: () => _pickWorkspaceIcon(wsId, ws['icon']?.toString()),
-                        );
-                      }),
-                    ],
-                  ),
+                    // Авто-папки по тегам — не отдельная сущность, которую заводят руками
+                    // (REDESIGN_V3_PLAN.md §3.17/5.16): папка появляется сама, как только
+                    // существует хотя бы одна задача с этим тегом.
+                    _sectionLabel("ПРОЕКТЫ", textMuted),
+                    ..._projectTags.map((tag) {
+                      final tagColor = t
+                          .tagPalette[tag.hashCode.abs() % t.tagPalette.length];
+                      final tagTasks = widget.tasks
+                          .where(
+                            (task) =>
+                                _taskTags(task).contains(tag) &&
+                                task['parent_id'] == null,
+                          )
+                          .toList();
+                      final total = tagTasks.length;
+                      final done = tagTasks
+                          .where((task) => task['is_completed'] == true)
+                          .length;
+                      final active = tag == widget.selectedMenu;
+                      final icon = iconByKey(widget.projectIconKeys[tag]);
+
+                      return _row(
+                        icon: icon,
+                        label: tag,
+                        selected: active,
+                        accentColor: tagColor,
+                        textColor: textColor,
+                        textMuted: textMuted,
+                        highlightColor: tagColor.withValues(alpha: 0.15),
+                        onTap: () => widget.onMenuSelected(tag),
+                        onLongPress: () => _pickProjectIcon(tag),
+                        trailing: total == 0 || !_expanded
+                            ? null
+                            : Text(
+                                '$done/$total',
+                                style: TextStyle(
+                                  fontSize: 11.5 * s,
+                                  fontWeight: FontWeight.w700,
+                                  color: active ? tagColor : textMuted,
+                                ),
+                              ),
+                      );
+                    }),
+
+                    _sectionLabel(
+                      "КОМАНДЫ",
+                      textMuted,
+                      trailing: InkWell(
+                        onTap: widget.onAddWorkspace,
+                        child: Icon(
+                          LucideIcons.building2,
+                          size: 20 * s,
+                          color: textMuted,
+                        ),
+                      ),
+                    ),
+                    ...widget.workspaces.map((ws) {
+                      final wsId = ws['id'] as int;
+                      String wsName = ws['name'].toString();
+                      String wsMenuKey = 'ws_$wsId';
+                      // Метка команды — из назначаемой палитры по id, а не зашитый системный цвет.
+                      final wsColor = t.tagPalette[wsId % t.tagPalette.length];
+                      final resolvedIcon = ws['icon'] != null
+                          ? iconByKey(ws['icon'].toString())
+                          : LucideIcons.usersRound;
+
+                      return _row(
+                        icon: resolvedIcon,
+                        label: wsName,
+                        selected: widget.selectedMenu == wsMenuKey,
+                        accentColor: wsColor,
+                        textColor: textColor,
+                        textMuted: textMuted,
+                        highlightColor: wsColor.withValues(alpha: 0.15),
+                        onTap: () =>
+                            widget.onWorkspaceSelected(wsId, wsMenuKey),
+                        onLongPress: () =>
+                            _pickWorkspaceIcon(wsId, ws['icon']?.toString()),
+                      );
+                    }),
+                  ],
                 ),
-                _expanded ? widget.userAccountBlock : widget.userAccountBlockCollapsed,
-                SizedBox(height: 24 * s),
-              ],
-            ),
+              ),
+              _expanded
+                  ? widget.userAccountBlock
+                  : widget.userAccountBlockCollapsed,
+              SizedBox(height: 24 * s),
+            ],
           ),
         ),
-      );
+      ),
+    );
   }
 }
