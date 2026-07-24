@@ -111,6 +111,17 @@ class _SidebarMenuState extends State<SidebarMenu> {
     if (picked != null) widget.onSetWorkspaceIcon(wsId, picked);
   }
 
+  // Один и тот же виджет для свёрнутого и развёрнутого состояния — раньше
+  // это были две РАЗНЫЕ ветки (Icon-only vs ListTile), переключавшиеся
+  // мгновенно по булеву _expanded, пока ширина контейнера ещё анимировалась.
+  // На сворачивании это было незаметно (узкий контент и так уже стоял на
+  // своём месте, контейнер просто сжимался вокруг него), а на разворачивании
+  // подпись целиком появлялась в дереве за один кадр и "выскакивала" из-под
+  // ещё не доросшего clip'а. Здесь иконка всегда в одной и той же
+  // фиксированной колонке слева, подпись — Expanded с overflow: clip;
+  // ширина контейнера при каждом кадре анимации даёт Row ровно столько
+  // места, сколько есть в этот момент — подпись естественно "вырастает"
+  // вместе с шириной без скачка, одинаково в обе стороны.
   Widget _row({
     required IconData icon,
     required String label,
@@ -124,44 +135,42 @@ class _SidebarMenuState extends State<SidebarMenu> {
     Widget? trailing,
   }) {
     final s = widget.scale;
-    if (!_expanded) {
-      return Padding(
-        padding: EdgeInsets.symmetric(vertical: 4 * s, horizontal: 12 * s),
-        child: Tooltip(
-          message: label,
-          child: GestureDetector(
-            onLongPress: onLongPress,
-            onSecondaryTap: onLongPress,
-            child: Material(
-              color: selected ? highlightColor : Colors.transparent,
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 12 * s, vertical: 4 * s),
+      child: Tooltip(
+        message: label,
+        child: GestureDetector(
+          onLongPress: onLongPress,
+          onSecondaryTap: onLongPress,
+          child: Material(
+            color: selected ? highlightColor : Colors.transparent,
+            borderRadius: BorderRadius.circular(12 * s),
+            child: InkWell(
               borderRadius: BorderRadius.circular(12 * s),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(12 * s),
-                onTap: onTap,
-                child: Padding(
-                  padding: EdgeInsets.all(12 * s),
-                  child: Icon(icon, size: 20 * s, color: selected ? accentColor : textMuted),
+              onTap: onTap,
+              child: SizedBox(
+                height: 44 * s,
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: (_collapsedWidth - 24) * s,
+                      child: Center(child: Icon(icon, size: 20 * s, color: selected ? accentColor : textMuted)),
+                    ),
+                    Expanded(
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        softWrap: false,
+                        overflow: TextOverflow.clip,
+                        style: TextStyle(fontSize: 15 * s, fontWeight: selected ? FontWeight.bold : FontWeight.w600, color: selected ? accentColor : textColor),
+                      ),
+                    ),
+                    if (trailing != null) Padding(padding: EdgeInsets.only(right: 12 * s), child: trailing),
+                  ],
                 ),
               ),
             ),
           ),
-        ),
-      );
-    }
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 16 * s, vertical: 4 * s),
-      child: GestureDetector(
-        onLongPress: onLongPress,
-        onSecondaryTap: onLongPress,
-        child: ListTile(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12 * s)),
-          selected: selected,
-          selectedTileColor: highlightColor,
-          contentPadding: EdgeInsets.symmetric(horizontal: 16 * s),
-          leading: Icon(icon, size: 20 * s, color: selected ? accentColor : textMuted),
-          title: Text(label, style: TextStyle(fontSize: 15 * s, fontWeight: selected ? FontWeight.bold : FontWeight.w600, color: selected ? accentColor : textColor), overflow: TextOverflow.ellipsis),
-          trailing: trailing,
-          onTap: onTap,
         ),
       ),
     );
