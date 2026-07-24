@@ -155,64 +155,62 @@ class _SidebarMenuState extends State<SidebarMenu> {
     Widget? trailing,
   }) {
     final s = widget.scale;
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 12 * s, vertical: 4 * s),
-      child: Tooltip(
-        message: label,
-        child: ClarifyPressGlow(
-          color: accentColor,
-          spread: 14 * s,
-          child: GestureDetector(
-            onLongPress: onLongPress,
-            onSecondaryTap: onLongPress,
-            child: Material(
-              color: selected ? highlightColor : Colors.transparent,
-              borderRadius: BorderRadius.circular(12 * s),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(12 * s),
-                onTap: onTap,
-                child: SizedBox(
-                  height: 44 * s,
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: (_collapsedWidth - 24) * s,
-                        child: Center(
-                          child: Icon(
-                            icon,
-                            size: 20 * s,
-                            color: selected ? accentColor : textMuted,
-                          ),
-                        ),
+    final content = ClarifyPressGlow(
+      color: accentColor,
+      spread: 14 * s,
+      child: GestureDetector(
+        onLongPress: onLongPress,
+        onSecondaryTap: onLongPress,
+        child: Material(
+          color: selected ? highlightColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(12 * s),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12 * s),
+            onTap: onTap,
+            child: SizedBox(
+              height: 44 * s,
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: (_collapsedWidth - 24) * s,
+                    child: Center(
+                      child: Icon(
+                        icon,
+                        size: 20 * s,
+                        color: selected ? accentColor : textMuted,
                       ),
-                      Expanded(
-                        child: Text(
-                          label,
-                          maxLines: 1,
-                          softWrap: false,
-                          overflow: TextOverflow.clip,
-                          style: TextStyle(
-                            fontSize: 15 * s,
-                            fontWeight: selected
-                                ? FontWeight.bold
-                                : FontWeight.w600,
-                            color: selected ? accentColor : textColor,
-                          ),
-                        ),
-                      ),
-                      if (trailing != null)
-                        Padding(
-                          padding: EdgeInsets.only(right: 12 * s),
-                          child: trailing,
-                        ),
-                    ],
+                    ),
                   ),
-                ),
+                  Expanded(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      softWrap: false,
+                      overflow: TextOverflow.clip,
+                      style: TextStyle(
+                        fontSize: 15 * s,
+                        fontWeight: selected
+                            ? FontWeight.bold
+                            : FontWeight.w600,
+                        color: selected ? accentColor : textColor,
+                      ),
+                    ),
+                  ),
+                  if (trailing != null)
+                    Padding(
+                      padding: EdgeInsets.only(right: 12 * s),
+                      child: trailing,
+                    ),
+                ],
               ),
             ),
           ),
         ),
       ),
+    );
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 12 * s, vertical: 4 * s),
+      child: _expanded ? content : Tooltip(message: label, child: content),
     );
   }
 
