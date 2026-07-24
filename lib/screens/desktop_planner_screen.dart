@@ -187,7 +187,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   List<Map<String, String>> chatMessages = [
     {'role': 'ai', 'text': 'Привет! Вставь текст, напиши руками или нажми на микрофон и надиктуй задачи голосом! 🔥'}
   ];
-  final List<String> menuItems = ['Мой день', 'Следующие 7 дней', 'Все задачи', 'Календарь', 'Входящие', 'Друзья', 'Сообщения', 'Статистика'];
+  final List<String> menuItems = ['Мой день', 'Следующие 7 дней', 'Все задачи', 'Календарь', 'Входящие', 'Проекты', 'Друзья', 'Сообщения', 'Статистика'];
   final List<String> weekdaysRu = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
 
   bool get isDark => widget.isDark;
@@ -1181,9 +1181,6 @@ Map<String, dynamic> _parseSmartInput(String text) {
                       selectedMenu: selectedMenu,
                       menuItems: menuItems,
                       workspaces: workspaces,
-                      tasks: tasks,
-                      projectIconKeys: _readProjectIconKeys(),
-                      onSetProjectIcon: _setProjectIcon,
                       onSetWorkspaceIcon: _setWorkspaceIcon,
                       onMenuSelected: (menu) => setState(() => selectedMenu = menu),
                       onAddWorkspace: () => showCreateWorkspaceDialog(
@@ -1472,7 +1469,10 @@ Map<String, dynamic> _parseSmartInput(String text) {
                               currentLang: widget.currentLang,
                               filteredTasks: filteredTasks,
                               isDark: widget.isDark,
-                              scale: _s, 
+                              scale: _s,
+                              onMenuSelected: (menu) => setState(() => selectedMenu = menu),
+                              projectIconKeys: _readProjectIconKeys(),
+                              onSetProjectIcon: _setProjectIcon,
                               currentCalendarDate: _currentCalendarDate,
                               onCalendarDateChanged: (newDate) {
                                 setState(() {

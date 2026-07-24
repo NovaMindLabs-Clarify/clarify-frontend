@@ -28,12 +28,9 @@ class SidebarMenu extends StatefulWidget {
   final String selectedMenu;
   final List<String> menuItems;
   final List<dynamic> workspaces;
-  final List<Map<String, dynamic>> tasks;
 
   // Ключ (см. kPickableProjectIcons в icon_picker_dialog.dart) — не сама
   // IconData, её нельзя хранить произвольно из-за @mustBeConst codePoint.
-  final Map<String, String> projectIconKeys;
-  final void Function(String tag, String iconKey) onSetProjectIcon;
   final void Function(int workspaceId, String iconKey) onSetWorkspaceIcon;
 
   final Function(String) onMenuSelected;
@@ -58,6 +55,7 @@ class SidebarMenu extends StatefulWidget {
     'Все задачи': LucideIcons.listChecks,
     'Календарь': LucideIcons.calendar,
     'Входящие': LucideIcons.inbox,
+    'Проекты': LucideIcons.folderKanban,
     'Друзья': LucideIcons.userRound,
     'Сообщения': LucideIcons.messageCircle,
     'Статистика': LucideIcons.chartNoAxesColumn,
@@ -71,9 +69,6 @@ class SidebarMenu extends StatefulWidget {
     required this.selectedMenu,
     required this.menuItems,
     required this.workspaces,
-    required this.tasks,
-    required this.projectIconKeys,
-    required this.onSetProjectIcon,
     required this.onSetWorkspaceIcon,
     required this.onMenuSelected,
     required this.onAddWorkspace,
@@ -92,36 +87,6 @@ class _SidebarMenuState extends State<SidebarMenu> {
   static const double _expandedWidth = 300;
 
   bool _expanded = false;
-
-  List<String> _taskTags(Map<String, dynamic> task) {
-    final raw = task['tags'];
-    if (raw == null || raw.toString().trim().isEmpty) return const [];
-    return raw
-        .toString()
-        .split(',')
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
-  }
-
-  List<String> get _projectTags {
-    final tags = <String>{};
-    for (final task in widget.tasks) {
-      tags.addAll(_taskTags(task));
-    }
-    final sorted = tags.toList()..sort();
-    return sorted;
-  }
-
-  Future<void> _pickProjectIcon(String tag) async {
-    final picked = await showIconPickerDialog(
-      context: context,
-      isDark: widget.isDark,
-      currentLang: widget.currentLang,
-      current: widget.projectIconKeys[tag],
-    );
-    if (picked != null) widget.onSetProjectIcon(tag, picked);
-  }
 
   Future<void> _pickWorkspaceIcon(int wsId, String? current) async {
     final picked = await showIconPickerDialog(
@@ -324,50 +289,6 @@ class _SidebarMenuState extends State<SidebarMenu> {
                         onTap: () => widget.onMenuSelected(item),
                       ),
                     ),
-
-                    // Авто-папки по тегам — не отдельная сущность, которую заводят руками
-                    // (REDESIGN_V3_PLAN.md §3.17/5.16): папка появляется сама, как только
-                    // существует хотя бы одна задача с этим тегом.
-                    _sectionLabel("ПРОЕКТЫ", textMuted),
-                    ..._projectTags.map((tag) {
-                      final tagColor = t
-                          .tagPalette[tag.hashCode.abs() % t.tagPalette.length];
-                      final tagTasks = widget.tasks
-                          .where(
-                            (task) =>
-                                _taskTags(task).contains(tag) &&
-                                task['parent_id'] == null,
-                          )
-                          .toList();
-                      final total = tagTasks.length;
-                      final done = tagTasks
-                          .where((task) => task['is_completed'] == true)
-                          .length;
-                      final active = tag == widget.selectedMenu;
-                      final icon = iconByKey(widget.projectIconKeys[tag]);
-
-                      return _row(
-                        icon: icon,
-                        label: tag,
-                        selected: active,
-                        accentColor: tagColor,
-                        textColor: textColor,
-                        textMuted: textMuted,
-                        highlightColor: tagColor.withValues(alpha: 0.15),
-                        onTap: () => widget.onMenuSelected(tag),
-                        onLongPress: () => _pickProjectIcon(tag),
-                        trailing: total == 0 || !_expanded
-                            ? null
-                            : Text(
-                                '$done/$total',
-                                style: TextStyle(
-                                  fontSize: 11.5 * s,
-                                  fontWeight: FontWeight.w700,
-                                  color: active ? tagColor : textMuted,
-                                ),
-                              ),
-                      );
-                    }),
 
                     _sectionLabel(
                       "КОМАНДЫ",

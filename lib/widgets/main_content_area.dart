@@ -9,6 +9,7 @@ import 'conversations_screen.dart';
 import 'friends_screen.dart';
 import 'user_profile_modal.dart';
 import 'project_kanban_board.dart';
+import 'projects_screen.dart';
 
 class MainContentArea extends StatelessWidget {
   final String selectedMenu;
@@ -33,6 +34,11 @@ class MainContentArea extends StatelessWidget {
   final DateTime currentCalendarDate;
   final Function(DateTime) onCalendarDateChanged;
 
+  // Экран "Проекты" — список авто-папок по тегам (см. projects_screen.dart).
+  final Function(String) onMenuSelected;
+  final Map<String, String> projectIconKeys;
+  final void Function(String tag, String iconKey) onSetProjectIcon;
+
   const MainContentArea({
     Key? key,
     required this.selectedMenu,
@@ -52,6 +58,9 @@ class MainContentArea extends StatelessWidget {
     required this.onSetLocalKanbanStatus,
     required this.currentCalendarDate,
     required this.onCalendarDateChanged,
+    required this.onMenuSelected,
+    required this.projectIconKeys,
+    required this.onSetProjectIcon,
   }) : super(key: key);
 
   String _formatDate(DateTime date) {
@@ -75,7 +84,7 @@ class MainContentArea extends StatelessWidget {
     
     final List<String> weekdaysRu = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
 
-    const reservedMenuKeys = {'Мой день', 'Следующие 7 дней', 'Все задачи', 'Календарь', 'Входящие', 'Друзья', 'Сообщения', 'Статистика'};
+    const reservedMenuKeys = {'Мой день', 'Следующие 7 дней', 'Все задачи', 'Календарь', 'Входящие', 'Проекты', 'Друзья', 'Сообщения', 'Статистика'};
     final isTagProject = !reservedMenuKeys.contains(selectedMenu) && !selectedMenu.startsWith('ws_');
 
     if (isTagProject) {
@@ -397,6 +406,17 @@ class MainContentArea extends StatelessWidget {
     }
     else if (selectedMenu == 'Статистика') {
       return buildStatisticsDashboard();
+    }
+    else if (selectedMenu == 'Проекты') {
+      return ProjectsScreen(
+        isDark: isDark,
+        currentLang: currentLang,
+        scale: scale,
+        tasks: filteredTasks,
+        projectIconKeys: projectIconKeys,
+        onSetProjectIcon: onSetProjectIcon,
+        onOpenProject: onMenuSelected,
+      );
     }
     return const SizedBox.shrink();
   }

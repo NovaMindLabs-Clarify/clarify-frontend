@@ -1,0 +1,152 @@
+import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../core/localization.dart';
+import '../core/theme/design_tokens.dart';
+import 'icon_picker_dialog.dart';
+
+/// "Проекты" — отдельный полноэкранный раздел вместо инлайн-списка тег-папок
+/// прямо в сайдбаре (тот разрастался вместе с числом проектов). Сами
+/// авто-папки — как и раньше, значение поля tags у задачи, не отдельная
+/// сущность (см. sidebar_menu.dart, ProjectKanbanBoard).
+class ProjectsScreen extends StatelessWidget {
+  final bool isDark;
+  final String currentLang;
+  final double scale;
+  final List<Map<String, dynamic>> tasks;
+  final Map<String, String> projectIconKeys;
+  final void Function(String tag, String iconKey) onSetProjectIcon;
+  final void Function(String tag) onOpenProject;
+
+  const ProjectsScreen({
+    super.key,
+    required this.isDark,
+    required this.currentLang,
+    required this.scale,
+    required this.tasks,
+    required this.projectIconKeys,
+    required this.onSetProjectIcon,
+    required this.onOpenProject,
+  });
+
+  List<String> _taskTags(Map<String, dynamic> task) {
+    final raw = task['tags'];
+    if (raw == null || raw.toString().trim().isEmpty) return const [];
+    return raw
+        .toString()
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+  }
+
+  Future<void> _pickIcon(BuildContext context, String tag) async {
+    final picked = await showIconPickerDialog(
+      context: context,
+      isDark: isDark,
+      currentLang: currentLang,
+      current: projectIconKeys[tag],
+    );
+    if (picked != null) onSetProjectIcon(tag, picked);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final s = scale;
+
+    final tags = <String>{};
+    for (final task in tasks) {
+      tags.addAll(_taskTags(task));
+    }
+    final sortedTags = tags.toList()..sort();
+
+    if (sortedTags.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.all(32 * s),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(LucideIcons.folderKanban, size: 40 * s, color: t.text3),
+              SizedBox(height: 16 * s),
+              Text(
+                'Проектов пока нет'.tr(currentLang),
+                style: TextStyle(fontSize: 15 * s, fontWeight: FontWeight.w600, color: t.text2),
+              ),
+              SizedBox(height: 6 * s),
+              Text(
+                'Добавьте тег к задаче — папка появится автоматически'.tr(currentLang),
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13 * s, color: t.text3),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return GridView.builder(
+      padding: EdgeInsets.only(bottom: 24 * s),
+      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 280 * s,
+        mainAxisExtent: 76 * s,
+        crossAxisSpacing: 16 * s,
+        mainAxisSpacing: 16 * s,
+      ),
+      itemCount: sortedTags.length,
+      itemBuilder: (context, index) {
+        final tag = sortedTags[index];
+        final tagColor = t.tagPalette[tag.hashCode.abs() % t.tagPalette.length];
+        final tagTasks = tasks
+            .where((task) => _taskTags(task).contains(tag) && task['parent_id'] == null)
+            .toList();
+        final total = tagTasks.length;
+        final done = tagTasks.where((task) => task['is_completed'] == true).length;
+        final icon = iconByKey(projectIconKeys[tag]);
+
+        return Material(
+          color: t.surface,
+          borderRadius: BorderRadius.circular(ClarifyRadius.md),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(ClarifyRadius.md),
+            onTap: () => onOpenProject(tag),
+            onLongPress: () => _pickIcon(context, tag),
+            onSecondaryTap: () => _pickIcon(context, tag),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(ClarifyRadius.md),
+                border: Border(left: BorderSide(color: tagColor, width: 3)),
+              ),
+              padding: EdgeInsets.symmetric(horizontal: 16 * s, vertical: 14 * s),
+              child: Row(
+                children: [
+                  Icon(icon, color: tagColor, size: 24 * s),
+                  SizedBox(width: 12 * s),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          tag,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 15 * s, fontWeight: FontWeight.w700, color: t.text),
+                        ),
+                        SizedBox(height: 2 * s),
+                        Text(
+                          '$done/$total ${'задач'.tr(currentLang)}',
+                          style: TextStyle(fontSize: 12.5 * s, color: t.text3),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}

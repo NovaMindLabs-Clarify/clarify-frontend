@@ -5,6 +5,9 @@ class T {
     'Все задачи': {'ru': 'Все задачи', 'en': 'All Tasks'},
     'Календарь': {'ru': 'Календарь', 'en': 'Calendar'},
     'Входящие': {'ru': 'Входящие', 'en': 'Inbox'},
+    'Проекты': {'ru': 'Проекты', 'en': 'Projects'},
+    'Проектов пока нет': {'ru': 'Проектов пока нет', 'en': 'No projects yet'},
+    'Добавьте тег к задаче — папка появится автоматически': {'ru': 'Добавьте тег к задаче — папка появится автоматически', 'en': 'Add a tag to a task — the folder appears automatically'},
     'Настройки': {'ru': 'Настройки', 'en': 'Settings'},
     'Автозапуск с Windows': {'ru': 'Автозапуск с Windows', 'en': 'Autostart with Windows'}, // НОВОЕ
     'Язык': {'ru': 'Язык', 'en': 'Language'},

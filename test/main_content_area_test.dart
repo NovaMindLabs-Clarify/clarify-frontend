@@ -29,6 +29,9 @@ Widget _harness({
         onCalendarDateChanged: (_) {},
         getLocalKanbanStatus: (_) => 'todo',
         onSetLocalKanbanStatus: (_, _) {},
+        onMenuSelected: (_) {},
+        projectIconKeys: const {},
+        onSetProjectIcon: (_, _) {},
       ),
     ),
   );
