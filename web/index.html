@@ -20,7 +20,8 @@
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="Планировщик задач с AI-ассистентом и командной работой.">
-  <meta name="theme-color" content="#4F46E5">
+  <meta name="theme-color" content="#F6F6FB" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0A0A10" media="(prefers-color-scheme: dark)">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
@@ -33,6 +34,21 @@
 
   <title>Clarify</title>
   <link rel="manifest" href="manifest.json">
+
+  <style>
+    /* Без этого сброса body сохраняет UA-дефолтный margin (обычно 8px) —
+       на мобильном это видно как белую плашку сверху под статус-баром,
+       т.к. Flutter не рисует в safe-area, а под ней остаётся голый body. */
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background-color: #F6F6FB;
+    }
+    @media (prefers-color-scheme: dark) {
+      html, body { background-color: #0A0A10; }
+    }
+  </style>
 </head>
 <body>
   <!--
