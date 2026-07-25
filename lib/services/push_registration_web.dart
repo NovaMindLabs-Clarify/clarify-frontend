@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'dart:html' as html;
+import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -8,10 +10,15 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// `push_subscriptions` (сама таблица применяется вручную,
 /// backend/clarify-backend/sql/push_subscriptions.sql).
 ///
-/// НЕПРОВЕРЕННОЕ: API dart:html (ServiceWorkerContainer.register,
-/// PushManager.subscribe, PushSubscription.getKey) сверены с официальной
-/// документацией api.dart.dev, но сам код не запускался в браузере — нет
-/// инструмента для этого в среде выполнения, где написан.
+/// PushManager.subscribe() вызывается через dart:js_interop
+/// (dart:js_util в этой версии Dart SDK удалён), а не через Map-based
+/// dart:html API: dart:html конвертирует Map в JS-объект через
+/// structured-clone сериализацию, которая не сохраняет applicationServerKey
+/// как настоящий Uint8Array — браузер получал не-BufferSource и падал с
+/// "applicationServerKey is not properly base64url-encoded".
+///
+/// НЕПРОВЕРЕННОЕ: код не запускался в браузере вживую после этого фикса —
+/// нет инструмента для этого в среде выполнения, где написан.
 class PushRegistrationWeb {
   static Future<String?> register(String vapidPublicKeyBase64Url) async {
     try {
@@ -32,15 +39,29 @@ class PushRegistrationWeb {
         return 'Push API не поддерживается этим браузером';
       }
 
-      final applicationServerKey = _urlBase64ToUint8List(vapidPublicKeyBase64Url);
-      final subscription = await pushManager.subscribe({
-        'userVisibleOnly': true,
-        'applicationServerKey': applicationServerKey,
-      });
+      final applicationServerKey = _urlBase64ToUint8List(
+        vapidPublicKeyBase64Url,
+      );
+      final options = JSObject();
+      options.setProperty('userVisibleOnly'.toJS, true.toJS);
+      options.setProperty(
+        'applicationServerKey'.toJS,
+        applicationServerKey.toJS,
+      );
 
-      final endpoint = subscription.endpoint;
-      final p256dhBuffer = subscription.getKey('p256dh');
-      final authBuffer = subscription.getKey('auth');
+      final subscriptionPromise = (pushManager as JSObject)
+          .callMethod<JSPromise<JSObject>>('subscribe'.toJS, options);
+      final subscription = await subscriptionPromise.toDart;
+
+      final endpoint = subscription
+          .getProperty<JSString?>('endpoint'.toJS)
+          ?.toDart;
+      final p256dhBuffer = subscription
+          .callMethod<JSArrayBuffer?>('getKey'.toJS, 'p256dh'.toJS)
+          ?.toDart;
+      final authBuffer = subscription
+          .callMethod<JSArrayBuffer?>('getKey'.toJS, 'auth'.toJS)
+          ?.toDart;
       if (endpoint == null || p256dhBuffer == null || authBuffer == null) {
         return 'Не удалось получить ключи подписки';
       }
@@ -51,8 +72,8 @@ class PushRegistrationWeb {
       await Supabase.instance.client.from('push_subscriptions').upsert({
         'user_id': user.id,
         'endpoint': endpoint,
-        'p256dh': _base64UrlEncode(p256dhBuffer.asUint8List()),
-        'auth_key': _base64UrlEncode(authBuffer.asUint8List()),
+        'p256dh': _base64UrlEncode(Uint8List.view(p256dhBuffer)),
+        'auth_key': _base64UrlEncode(Uint8List.view(authBuffer)),
       }, onConflict: 'endpoint');
 
       return null; // успех
@@ -63,7 +84,9 @@ class PushRegistrationWeb {
 
   static Uint8List _urlBase64ToUint8List(String base64String) {
     final padding = '=' * ((4 - base64String.length % 4) % 4);
-    final normalized = (base64String + padding).replaceAll('-', '+').replaceAll('_', '/');
+    final normalized = (base64String + padding)
+        .replaceAll('-', '+')
+        .replaceAll('_', '/');
     return base64Decode(normalized);
   }
 
