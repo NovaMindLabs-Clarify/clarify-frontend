@@ -7,6 +7,7 @@ import '../core/config.dart';
 import '../core/localization.dart';
 import '../core/tags.dart';
 import '../core/priority.dart';
+import '../core/checklist.dart';
 import '../core/theme/design_tokens.dart';
 
 /// Диалог редактирования существующей задачи. Вынесено из
@@ -39,6 +40,8 @@ void showEditTaskDialog({
   final TextEditingController titleController = TextEditingController(text: task['title']);
   final TextEditingController noteController = TextEditingController(text: task['note'] ?? '');
   final TextEditingController tagsController = TextEditingController(text: task['tags'] ?? '');
+  final TextEditingController checklistInputController = TextEditingController();
+  List<ChecklistItem> checklistItems = parseChecklist(task['checklist']);
   String selectedPriority = task['priority'] ?? 'none';
   String selectedRecurrence = task['recurrence'] ?? 'none';
   int selectedRecurrenceInterval = (task['recurrence_interval'] as int?) ?? 2;
@@ -220,6 +223,98 @@ void showEditTaskDialog({
                           ],
                         ),
                       ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(color: t.surfaceSunken, borderRadius: BorderRadius.circular(ClarifyRadius.md), border: Border.all(color: t.border)),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text("Чек-лист".tr(currentLang), style: TextStyle(color: textMuted, fontSize: 14)),
+                                if (checklistItems.isNotEmpty)
+                                  Text('${checklistItems.where((e) => e.done).length}/${checklistItems.length}', style: TextStyle(color: textMuted, fontSize: 13)),
+                              ],
+                            ),
+                            if (checklistItems.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: LinearProgressIndicator(
+                                  value: checklistItems.where((e) => e.done).length / checklistItems.length,
+                                  backgroundColor: t.border,
+                                  color: t.accent,
+                                  minHeight: 4,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              ...checklistItems.map((item) {
+                                final index = checklistItems.indexOf(item);
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 2),
+                                  child: Row(
+                                    children: [
+                                      GestureDetector(
+                                        onTap: () => setStateDialog(() => checklistItems[index] = ChecklistItem(text: item.text, done: !item.done)),
+                                        child: Icon(item.done ? LucideIcons.checkSquare : LucideIcons.square, size: 18, color: item.done ? t.accent : textMuted),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          item.text,
+                                          style: TextStyle(
+                                            color: item.done ? textMuted : textColor,
+                                            decoration: item.done ? TextDecoration.lineThrough : TextDecoration.none,
+                                          ),
+                                        ),
+                                      ),
+                                      IconButton(
+                                        icon: Icon(LucideIcons.x, size: 16, color: textMuted),
+                                        constraints: const BoxConstraints(),
+                                        padding: EdgeInsets.zero,
+                                        onPressed: () => setStateDialog(() => checklistItems.removeAt(index)),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
+                            ],
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: checklistInputController,
+                                    style: TextStyle(color: textColor, fontSize: 14),
+                                    decoration: InputDecoration(hintText: "Добавить пункт".tr(currentLang), hintStyle: TextStyle(color: textMuted), border: InputBorder.none, isDense: true),
+                                    onSubmitted: (val) {
+                                      final text = val.trim();
+                                      if (text.isEmpty) return;
+                                      setStateDialog(() {
+                                        checklistItems.add(ChecklistItem(text: text, done: false));
+                                        checklistInputController.clear();
+                                      });
+                                    },
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: Icon(LucideIcons.plus, size: 18, color: t.accent),
+                                  onPressed: () {
+                                    final text = checklistInputController.text.trim();
+                                    if (text.isEmpty) return;
+                                    setStateDialog(() {
+                                      checklistItems.add(ChecklistItem(text: text, done: false));
+                                      checklistInputController.clear();
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
 
                       if (task['workspace_id'] != null) ...[
                         const SizedBox(height: 12),
@@ -279,6 +374,7 @@ void showEditTaskDialog({
                                 "is_completed": task['is_completed'] ?? false,
                                 "parent_id": task['parent_id'],
                                 "assigned_to": selectedAssigneeId,
+                                "checklist": checklistItems.isEmpty ? null : encodeChecklist(checklistItems),
                               });
 
                               if (context.mounted) Navigator.of(context).pop();

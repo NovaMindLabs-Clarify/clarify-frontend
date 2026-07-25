@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../../../core/checklist.dart';
 import '../../../core/theme/design_tokens.dart';
 import '../../../widgets/clarify_task_checkbox.dart';
 
@@ -34,6 +35,8 @@ class MobileTaskRow extends StatelessWidget {
     final t = context.tokens;
     final bool isDone = task['is_completed'] == true;
     final bool hasSubtasks = subtaskStats['total']! > 0;
+    final cStats = checklistStats(task['checklist']);
+    final bool hasChecklist = cStats['total']! > 0;
     final String? tag = (task['tags'] as String?)?.split(',').first.trim();
 
     return Padding(
@@ -78,7 +81,7 @@ class MobileTaskRow extends StatelessWidget {
                             color: isDone ? t.text3 : t.text,
                           ),
                         ),
-                        if (showDate && task['due_date'] != null || task['due_time'] != null || hasSubtasks || tag != null) ...[
+                        if (showDate && task['due_date'] != null || task['due_time'] != null || hasSubtasks || hasChecklist || tag != null) ...[
                           const SizedBox(height: 4),
                           Wrap(
                             spacing: 8,
@@ -90,6 +93,8 @@ class MobileTaskRow extends StatelessWidget {
                                 Text(task['due_time'], style: TextStyle(fontSize: 12, color: overdue && !isDone ? t.danger : t.text3, fontWeight: FontWeight.w600)),
                               if (hasSubtasks)
                                 ClarifySubtaskBadge(done: subtaskStats['done']!, total: subtaskStats['total']!, tokens: t),
+                              if (hasChecklist)
+                                ClarifySubtaskBadge(done: cStats['done']!, total: cStats['total']!, tokens: t, icon: LucideIcons.listTodo),
                               if (tag != null && tag.isNotEmpty)
                                 Text('#$tag', style: TextStyle(fontSize: 12, color: t.accent, fontWeight: FontWeight.w600)),
                             ],

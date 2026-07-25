@@ -209,8 +209,9 @@ class ClarifySubtaskBadge extends StatelessWidget {
   final int total;
   final ClarifyTokens tokens;
   final double scale;
+  final IconData icon;
 
-  const ClarifySubtaskBadge({super.key, required this.done, required this.total, required this.tokens, this.scale = 1.0});
+  const ClarifySubtaskBadge({super.key, required this.done, required this.total, required this.tokens, this.scale = 1.0, this.icon = LucideIcons.listChecks});
 
   @override
   Widget build(BuildContext context) {
@@ -223,7 +224,7 @@ class ClarifySubtaskBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(LucideIcons.listChecks, size: 12 * scale, color: fg),
+          Icon(icon, size: 12 * scale, color: fg),
           SizedBox(width: 3 * scale),
           Text('$done/$total', style: TextStyle(fontSize: 11.5 * scale, fontWeight: FontWeight.bold, color: fg)),
         ],

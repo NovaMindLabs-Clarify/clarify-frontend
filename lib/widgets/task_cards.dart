@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../core/theme/design_tokens.dart';
 import '../core/priority.dart';
+import '../core/checklist.dart';
 import 'clarify_collapsing_task_row.dart';
 import 'clarify_pressable.dart';
 import 'clarify_task_checkbox.dart';
@@ -189,6 +190,8 @@ class TaskCardBuilders {
         task['recurrence'] != null && task['recurrence'] != 'none';
     final stats = getSubtaskStats(task['id']);
     final bool hasSubtasks = stats['total']! > 0;
+    final cStats = checklistStats(task['checklist']);
+    final bool hasChecklist = cStats['total']! > 0;
 
     final bool overdue = isOverdue(task);
 
@@ -287,6 +290,7 @@ class TaskCardBuilders {
                             ),
                             if (hasRecurrence ||
                                 hasSubtasks ||
+                                hasChecklist ||
                                 (task['tags'] != null &&
                                     task['tags'].toString().trim().isNotEmpty))
                               Padding(
@@ -308,6 +312,14 @@ class TaskCardBuilders {
                                         total: stats['total']!,
                                         tokens: _t,
                                         scale: _s,
+                                      ),
+                                    if (hasChecklist)
+                                      ClarifySubtaskBadge(
+                                        done: cStats['done']!,
+                                        total: cStats['total']!,
+                                        tokens: _t,
+                                        scale: _s,
+                                        icon: LucideIcons.listTodo,
                                       ),
                                     if (task['tags'] != null &&
                                         task['tags']
@@ -365,6 +377,8 @@ class TaskCardBuilders {
 
   Widget buildListTaskCard(Map<String, dynamic> task) {
     final bool isDone = task['is_completed'] == true;
+    final cStats = checklistStats(task['checklist']);
+    final bool hasChecklist = cStats['total']! > 0;
     bool hasPriority = task['priority'] != null && task['priority'] != 'none';
     bool hasRecurrence =
         task['recurrence'] != null && task['recurrence'] != 'none';
@@ -438,6 +452,16 @@ class TaskCardBuilders {
                               done: stats['done']!,
                               total: stats['total']!,
                               tokens: _t,
+                            ),
+                          ),
+                        if (hasChecklist)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 12),
+                            child: ClarifySubtaskBadge(
+                              done: cStats['done']!,
+                              total: cStats['total']!,
+                              tokens: _t,
+                              icon: LucideIcons.listTodo,
                             ),
                           ),
                       ],
