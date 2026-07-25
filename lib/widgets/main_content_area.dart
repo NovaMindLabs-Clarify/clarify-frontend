@@ -160,7 +160,19 @@ class MainContentArea extends StatelessWidget {
       } else {
         targetTasks.sort((a, b) => (a['due_time'] ?? '23:59').compareTo(b['due_time'] ?? '23:59'));
       }
-      if (targetTasks.isEmpty) return Center(child: Text("Пусто. Отдыхаем!".tr(currentLang), style: TextStyle(color: textMuted, fontSize: 18)));
+      if (targetTasks.isEmpty) {
+        final String emptyKey;
+        if (selectedMenu == 'Мой день') {
+          emptyKey = 'На сегодня ничего не запланировано';
+        } else if (selectedMenu == 'Входящие') {
+          emptyKey = 'Во входящих пока пусто';
+        } else if (selectedMenu.startsWith('ws_')) {
+          emptyKey = 'В этой команде пока нет задач';
+        } else {
+          emptyKey = 'Задач пока нет';
+        }
+        return Center(child: Text(emptyKey.tr(currentLang), style: TextStyle(color: textMuted, fontSize: 18)));
+      }
 
       final sortToggle = selectedMenu == 'Входящие'
           ? null

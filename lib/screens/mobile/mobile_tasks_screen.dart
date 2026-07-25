@@ -45,6 +45,20 @@ class _MobileTasksScreenState extends State<MobileTasksScreen> {
 
   String _formatDate(DateTime d) => '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
 
+  String get _emptyStateKey {
+    if (_calendarDate != null) return 'На эту дату ничего не запланировано';
+    switch (_filter) {
+      case _TaskFilter.today:
+        return 'На сегодня ничего не запланировано';
+      case _TaskFilter.upcoming:
+        return 'На ближайшие 7 дней ничего не запланировано';
+      case _TaskFilter.inbox:
+        return 'Во входящих пока пусто';
+      case _TaskFilter.all:
+        return 'Задач пока нет';
+    }
+  }
+
   List<Map<String, dynamic>> get _filtered {
     final base = widget.tasks.where((t) => t['parent_id'] == null).toList();
     if (_calendarDate != null) {
@@ -104,7 +118,7 @@ class _MobileTasksScreenState extends State<MobileTasksScreen> {
         Expanded(
           child: tasks.isEmpty
               ? Center(
-                  child: Text('Пусто. Отдыхаем!'.tr(widget.currentLang), style: TextStyle(fontSize: 15, color: t.text3)),
+                  child: Text(_emptyStateKey.tr(widget.currentLang), style: TextStyle(fontSize: 15, color: t.text3)),
                 )
               // Long-press drag-handle для переупорядочивания — тот же жест, что и
               // в десктопном «Мой день» (REDESIGN_V3_PLAN.md §3.13/5.13). Свайп

@@ -63,7 +63,7 @@ void main() {
     testWidgets('показывает пустое состояние, если задач на сегодня нет', (tester) async {
       await tester.pumpWidget(_harness(selectedMenu: 'Мой день', tasks: const []));
 
-      expect(find.text('Пусто. Отдыхаем!'), findsOneWidget);
+      expect(find.text('На сегодня ничего не запланировано'), findsOneWidget);
     });
   });
 

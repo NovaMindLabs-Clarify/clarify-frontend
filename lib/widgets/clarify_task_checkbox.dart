@@ -46,7 +46,8 @@ class _ClarifyCheckCircleState extends State<ClarifyCheckCircle> with SingleTick
   void didUpdateWidget(covariant ClarifyCheckCircle oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.value != widget.value) {
-      widget.value ? _controller.forward() : _controller.reverse();
+      final duration = MediaQuery.of(context).disableAnimations ? Duration.zero : ClarifyMotion.base;
+      _controller.animateTo(widget.value ? 1 : 0, duration: duration);
     }
   }
 
@@ -132,11 +133,14 @@ class _ClarifyStrikeTextState extends State<ClarifyStrikeText> with TickerProvid
   void didUpdateWidget(covariant ClarifyStrikeText oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.isDone != widget.isDone) {
+      final duration = MediaQuery.of(context).disableAnimations ? Duration.zero : ClarifyMotion.base;
       if (widget.isDone) {
         _fade.value = 1;
-        _draw.forward(from: 0);
+        _draw.value = 0;
+        _draw.animateTo(1, duration: duration);
       } else {
-        _fade.reverse(from: 1).whenCompleteOrCancel(() {
+        _fade.value = 1;
+        _fade.animateTo(0, duration: duration).whenCompleteOrCancel(() {
           if (!mounted) return;
           _draw.value = 0;
           _fade.value = 1;

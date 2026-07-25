@@ -30,6 +30,7 @@ Future<T?> showClarifySurface<T>({
 }) {
   final effectiveOrigin = originOffset ?? LastTapTracker.position;
   final collapseOnClose = _CollapseFlag();
+  final reduceMotion = MediaQuery.of(context).disableAnimations;
   return Navigator.of(context, rootNavigator: true).push<T>(
     RawDialogRoute<T>(
       barrierDismissible: barrierDismissible,
@@ -40,7 +41,8 @@ Future<T?> showClarifySurface<T>({
       // дистанция — это читалось как рывок/скачок, а не плавный перелёт.
       // deliberate (420мс) только когда реально летим из точки; обычный
       // fallback-диалог (без известной точки клика) остаётся на прежней длительности.
-      transitionDuration: effectiveOrigin == null ? ClarifyMotion.base : ClarifyMotion.deliberate,
+      // При "Меньше анимаций" — мгновенно, без перелёта/масштабирования.
+      transitionDuration: reduceMotion ? Duration.zero : (effectiveOrigin == null ? ClarifyMotion.base : ClarifyMotion.deliberate),
       pageBuilder: (context, animation, secondaryAnimation) {
         return Semantics(
           hitTestBehavior: SemanticsHitTestBehavior.opaque,

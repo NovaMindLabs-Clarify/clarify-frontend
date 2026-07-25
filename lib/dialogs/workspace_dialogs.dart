@@ -103,7 +103,7 @@ void showInviteMemberDialog({
   required String currentLang,
 }) {
   final t = context.tokens;
-  final emailCtrl = TextEditingController();
+  final codeCtrl = TextEditingController();
   bool isSending = false;
   final s = scale;
 
@@ -118,15 +118,15 @@ void showInviteMemberDialog({
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text("Введите Email пользователя. Он уже должен быть зарегистрирован в Clarify.".tr(currentLang), style: TextStyle(color: textMuted, fontSize: 13 * s)),
+            Text("Введите код друга пользователя. Найти его можно в профиле пользователя в Clarify.".tr(currentLang), style: TextStyle(color: textMuted, fontSize: 13 * s)),
             SizedBox(height: 16 * s),
             TextField(
-              controller: emailCtrl,
+              controller: codeCtrl,
               style: TextStyle(color: textColor),
               autofocus: true,
-              keyboardType: TextInputType.emailAddress,
+              textCapitalization: TextCapitalization.characters,
               decoration: InputDecoration(
-                hintText: "email@example.com",
+                hintText: "Например, AB12CD",
                 hintStyle: TextStyle(color: textMuted),
                 enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: glassBorderColor)),
               ),
@@ -141,20 +141,16 @@ void showInviteMemberDialog({
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent),
             onPressed: isSending ? null : () async {
-              if (emailCtrl.text.trim().isEmpty) return;
-              if (!emailCtrl.text.contains('@')) {
-                ClarifyToast.show(context, 'Введите корректный Email', variant: ClarifyToastVariant.warning);
-                return;
-              }
+              if (codeCtrl.text.trim().isEmpty) return;
 
               setStateDialog(() => isSending = true);
 
               try {
                 // Вызываем нашу SQL функцию через RPC
                 final response = await Supabase.instance.client.rpc(
-                  'invite_user_by_email',
+                  'invite_user_by_code',
                   params: {
-                    'invitee_email': emailCtrl.text.trim(),
+                    'target_code': codeCtrl.text.trim(),
                     'ws_id': workspaceId,
                   },
                 );

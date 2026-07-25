@@ -525,6 +525,11 @@ void showAccountSettingsDialog({
               const SizedBox(height: 12),
             ],
 
+            // --- Общие настройки приложения (язык..поддержка) — на мобильном
+            // не дублируются здесь: перенесены в единый экран "Настройки"
+            // (MobileSettingsScreen), эта страница на мобильном — только
+            // профиль (аватар/имя/код друга/email/пароль/выход).
+            if (!isMobileContext) ...[
             ClarifySettingsCard(
               icon: LucideIcons.globe,
               title: "Язык".tr(currentLang),
@@ -1098,6 +1103,7 @@ void showAccountSettingsDialog({
             ),
 
             const SizedBox(height: 16),
+            ], // if (!isMobileContext) — общие настройки приложения
 
             TextField(
               controller: TextEditingController(text: email),
@@ -1430,7 +1436,7 @@ void showAccountSettingsDialog({
             elevation: 0,
             foregroundColor: t.text,
             title: Text(
-              "Настройки".tr(currentLang),
+              "Профиль".tr(currentLang),
               style: const TextStyle(
                 fontFamily: 'Golos Text',
                 fontWeight: FontWeight.w700,

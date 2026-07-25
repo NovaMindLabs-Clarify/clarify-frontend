@@ -1,17 +1,31 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../core/app_settings.dart';
 import '../../core/config.dart';
 import '../../core/localization.dart';
 import '../../core/theme/design_tokens.dart';
 import '../../services/push_registration.dart';
+import '../../widgets/clarify_settings_card.dart';
 import '../../widgets/clarify_toast.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// "Настройки" — по образцу Structured: сгруппированный список, а не
 /// свалка "Ещё". Статистика — внутри, отдельным пунктом, не в нижней
 /// навигации (там ей не хватило бы места среди 4 основных назначений).
-class MobileSettingsScreen extends StatelessWidget {
+///
+/// Единственный экран общих настроек приложения на мобильном — раньше часть
+/// этих же настроек (уведомления, акцент, "меньше анимаций", быстрое
+/// добавление, кэш, экспорт, поддержка) дублировалась в мобильной версии
+/// showAccountSettingsDialog; та страница теперь на мобильном — только
+/// профиль (аватар/имя/код друга/email/пароль/выход), см. onOpenAccountSettings.
+class MobileSettingsScreen extends StatefulWidget {
   final String currentLang;
   final String userInitial;
   final String userFullName;
@@ -38,6 +52,73 @@ class MobileSettingsScreen extends StatelessWidget {
   });
 
   @override
+  State<MobileSettingsScreen> createState() => _MobileSettingsScreenState();
+}
+
+class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
+  bool showAccentPicker = false;
+  bool showQuickAddDefaults = false;
+  bool showCacheDetails = false;
+
+  String get currentLang => widget.currentLang;
+
+  String _cacheSizeLabel() {
+    final raw = Hive.box('tasks_cache').get('all_tasks') as String?;
+    final bytes = raw == null ? 0 : utf8.encode(raw).length;
+    if (bytes < 1024) return '$bytes Б';
+    return '${(bytes / 1024).toStringAsFixed(1)} КБ';
+  }
+
+  void _clearCache() {
+    Hive.box('tasks_cache').delete('all_tasks');
+    setState(() {});
+    ClarifyToast.show(context, 'Кэш очищен'.tr(currentLang), variant: ClarifyToastVariant.success);
+  }
+
+  Future<void> _exportTasksCsv() async {
+    final raw = Hive.box('tasks_cache').get('all_tasks') as String?;
+    final tasks = raw == null ? const [] : (json.decode(raw) as List);
+    if (tasks.isEmpty) {
+      ClarifyToast.show(context, 'Задач нет — нечего экспортировать'.tr(currentLang), variant: ClarifyToastVariant.info);
+      return;
+    }
+
+    String esc(dynamic value) {
+      final s = (value ?? '').toString();
+      if (s.contains(',') || s.contains('"') || s.contains('\n')) {
+        return '"${s.replaceAll('"', '""')}"';
+      }
+      return s;
+    }
+
+    final buffer = StringBuffer('﻿');
+    buffer.writeln('title,due_date,due_time,priority,recurrence,is_completed,folder,note');
+    for (final item in tasks) {
+      final task = Map<String, dynamic>.from(item as Map);
+      buffer.writeln([
+        esc(task['title']),
+        esc(task['due_date']),
+        esc(task['due_time']),
+        esc(task['priority']),
+        esc(task['recurrence']),
+        esc(task['is_completed']),
+        esc(task['folder']),
+        esc(task['note']),
+      ].join(','));
+    }
+
+    final path = await FilePicker.platform.saveFile(
+      dialogTitle: 'Экспорт задач в CSV'.tr(currentLang),
+      fileName: 'clarify_tasks_${DateTime.now().millisecondsSinceEpoch}.csv',
+      type: FileType.custom,
+      allowedExtensions: ['csv'],
+    );
+    if (path == null) return;
+    await File(path).writeAsBytes(utf8.encode(buffer.toString()));
+    if (mounted) ClarifyToast.show(context, 'Файл сохранён'.tr(currentLang), variant: ClarifyToastVariant.success);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final t = context.tokens;
     final email = Supabase.instance.client.auth.currentUser?.email ?? '';
@@ -53,18 +134,18 @@ class MobileSettingsScreen extends StatelessWidget {
           borderRadius: BorderRadius.circular(ClarifyRadius.md),
           child: InkWell(
             borderRadius: BorderRadius.circular(ClarifyRadius.md),
-            onTap: onOpenAccountSettings,
+            onTap: widget.onOpenAccountSettings,
             child: Padding(
               padding: const EdgeInsets.all(14),
               child: Row(
                 children: [
-                  CircleAvatar(radius: 24, backgroundColor: t.accentSoft, child: Text(userInitial, style: TextStyle(color: t.accent, fontWeight: FontWeight.bold, fontSize: 18))),
+                  CircleAvatar(radius: 24, backgroundColor: t.accentSoft, child: Text(widget.userInitial, style: TextStyle(color: t.accent, fontWeight: FontWeight.bold, fontSize: 18))),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(userFullName.isNotEmpty ? userFullName : 'Без имени'.tr(currentLang), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: t.text)),
+                        Text(widget.userFullName.isNotEmpty ? widget.userFullName : 'Без имени'.tr(currentLang), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: t.text)),
                         if (email.isNotEmpty) ...[
                           const SizedBox(height: 2),
                           Text(email, style: TextStyle(fontSize: 12.5, color: t.text3)),
@@ -81,13 +162,33 @@ class MobileSettingsScreen extends StatelessWidget {
         const SizedBox(height: 20),
 
         _SectionLabel(text: 'Обзор'.tr(currentLang)),
-        _SettingsTile(icon: LucideIcons.userRound, label: 'Друзья'.tr(currentLang), onTap: onOpenFriends),
-        _SettingsTile(icon: LucideIcons.messageCircle, label: 'Сообщения'.tr(currentLang), onTap: onOpenMessages),
-        _SettingsTile(icon: LucideIcons.chartBar, label: 'Статистика'.tr(currentLang), onTap: onOpenStatistics),
+        _SettingsTile(icon: LucideIcons.userRound, label: 'Друзья'.tr(currentLang), onTap: widget.onOpenFriends),
+        _SettingsTile(icon: LucideIcons.messageCircle, label: 'Сообщения'.tr(currentLang), onTap: widget.onOpenMessages),
+        _SettingsTile(icon: LucideIcons.chartBar, label: 'Статистика'.tr(currentLang), onTap: widget.onOpenStatistics),
 
+        const SizedBox(height: 20),
+        _SectionLabel(text: 'Уведомления'.tr(currentLang)),
+        ClarifySettingsCard(
+          icon: LucideIcons.bell,
+          title: 'Уведомления'.tr(currentLang),
+          trailing: Switch(
+            value: AppSettings.notificationsEnabled,
+            activeColor: t.accent,
+            onChanged: (val) => setState(() => AppSettings.notificationsEnabled = val),
+          ),
+        ),
+        const SizedBox(height: 12),
+        ClarifySettingsCard(
+          icon: LucideIcons.calendarCheck,
+          title: 'Ежедневный обзор'.tr(currentLang),
+          trailing: Switch(
+            value: AppSettings.dailyReviewEnabled,
+            activeColor: t.accent,
+            onChanged: (val) => setState(() => AppSettings.dailyReviewEnabled = val),
+          ),
+        ),
         if (kIsWeb) ...[
-          const SizedBox(height: 20),
-          _SectionLabel(text: 'Уведомления'.tr(currentLang)),
+          const SizedBox(height: 12),
           _SettingsTile(
             icon: LucideIcons.bellRing,
             label: 'Включить push-уведомления'.tr(currentLang),
@@ -103,6 +204,23 @@ class MobileSettingsScreen extends StatelessWidget {
             },
           ),
         ],
+
+        const SizedBox(height: 20),
+        _SectionLabel(text: 'Фокус-режим'.tr(currentLang)),
+        ClarifySettingsCard(
+          icon: LucideIcons.timer,
+          title: 'Длительность фокус-режима'.tr(currentLang),
+          trailing: DropdownButton<int>(
+            value: AppSettings.zenDurationMinutes,
+            dropdownColor: t.surface2,
+            underline: const SizedBox(),
+            style: TextStyle(fontSize: 14, color: t.text),
+            items: [15, 25, 45, 60, 90]
+                .map((m) => DropdownMenuItem(value: m, child: Text('$m ${"мин".tr(currentLang)}', style: TextStyle(color: t.text))))
+                .toList(),
+            onChanged: (val) => setState(() => AppSettings.zenDurationMinutes = val!),
+          ),
+        ),
 
         const SizedBox(height: 20),
         _SectionLabel(text: 'Тариф'.tr(currentLang)),
@@ -123,12 +241,196 @@ class MobileSettingsScreen extends StatelessWidget {
         const SizedBox(height: 20),
         _SectionLabel(text: 'Оформление'.tr(currentLang)),
         _SettingsSwitchTile(
-          icon: isDark ? LucideIcons.moon : LucideIcons.sun,
+          icon: widget.isDark ? LucideIcons.moon : LucideIcons.sun,
           label: 'Тёмная тема'.tr(currentLang),
-          value: isDark,
-          onChanged: (_) => toggleTheme(),
+          value: widget.isDark,
+          onChanged: (_) => widget.toggleTheme(),
         ),
-        _LanguageTile(currentLang: currentLang, changeLang: changeLang),
+        const SizedBox(height: 8),
+        ClarifySettingsCard(
+          icon: LucideIcons.palette,
+          title: 'Акцентный цвет'.tr(currentLang),
+          onTap: () => setState(() => showAccentPicker = !showAccentPicker),
+          isExpanded: showAccentPicker,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(width: 18, height: 18, decoration: BoxDecoration(color: ClarifyAccentPresets.values[AppSettings.accentPresetIndex.value], shape: BoxShape.circle)),
+              const SizedBox(width: 6),
+              Icon(showAccentPicker ? LucideIcons.chevronUp : LucideIcons.chevronDown, color: t.text3, size: 18),
+            ],
+          ),
+          expandedChild: Column(
+            children: [
+              Divider(color: t.border, height: 17),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: List.generate(ClarifyAccentPresets.values.length, (i) {
+                  final color = ClarifyAccentPresets.values[i];
+                  final isSelected = AppSettings.accentPresetIndex.value == i;
+                  return GestureDetector(
+                    onTap: () => setState(() => AppSettings.setAccentPresetIndex(i)),
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(color: color, shape: BoxShape.circle, border: isSelected ? Border.all(color: t.text, width: 2) : null),
+                      child: isSelected ? const Icon(LucideIcons.check, size: 16, color: Colors.white) : null,
+                    ),
+                  );
+                }),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        ClarifySettingsCard(
+          icon: LucideIcons.zapOff,
+          title: 'Меньше анимаций'.tr(currentLang),
+          trailing: Switch(
+            value: AppSettings.reducedMotionOverride.value,
+            activeColor: t.accent,
+            onChanged: (val) => setState(() => AppSettings.setReducedMotionOverride(val)),
+          ),
+        ),
+        const SizedBox(height: 8),
+        _LanguageTile(currentLang: currentLang, changeLang: widget.changeLang),
+
+        const SizedBox(height: 20),
+        _SectionLabel(text: 'Быстрое добавление'.tr(currentLang)),
+        ClarifySettingsCard(
+          icon: LucideIcons.listPlus,
+          title: 'Быстрое добавление'.tr(currentLang),
+          onTap: () => setState(() => showQuickAddDefaults = !showQuickAddDefaults),
+          isExpanded: showQuickAddDefaults,
+          trailing: Icon(showQuickAddDefaults ? LucideIcons.chevronUp : LucideIcons.chevronDown, color: t.text3, size: 18),
+          expandedChild: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Divider(color: t.border, height: 17),
+              Text('Приоритет по умолчанию'.tr(currentLang), style: TextStyle(color: t.text3, fontSize: 12.5)),
+              const SizedBox(height: 8),
+              Row(
+                children: ['none', 'red', 'orange', 'blue', 'gray'].map((pVal) {
+                  Color dotColor;
+                  switch (pVal) {
+                    case 'red':
+                      dotColor = t.danger;
+                      break;
+                    case 'orange':
+                      dotColor = t.warning;
+                      break;
+                    case 'blue':
+                      dotColor = t.accent;
+                      break;
+                    case 'gray':
+                      dotColor = t.text3;
+                      break;
+                    default:
+                      dotColor = Colors.transparent;
+                  }
+                  final isSelected = AppSettings.quickAddDefaultPriority == pVal;
+                  return GestureDetector(
+                    onTap: () => setState(() => AppSettings.quickAddDefaultPriority = pVal),
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(
+                        color: dotColor,
+                        shape: BoxShape.circle,
+                        border: isSelected ? Border.all(color: t.text, width: 2) : Border.all(color: t.border, width: 1),
+                      ),
+                      child: isSelected && pVal == 'none' ? Icon(LucideIcons.x, size: 14, color: t.text3) : null,
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 16),
+              Text('Повтор по умолчанию'.tr(currentLang), style: TextStyle(color: t.text3, fontSize: 12.5)),
+              const SizedBox(height: 8),
+              DropdownButton<String>(
+                value: AppSettings.quickAddDefaultRecurrence,
+                dropdownColor: t.surface2,
+                underline: const SizedBox(),
+                style: TextStyle(fontSize: 14, color: t.text),
+                items: [
+                  DropdownMenuItem(value: 'none', child: Text('Без повтора'.tr(currentLang), style: TextStyle(color: t.text))),
+                  DropdownMenuItem(value: 'daily', child: Text('Каждый день'.tr(currentLang), style: TextStyle(color: t.text))),
+                  DropdownMenuItem(value: 'weekdays', child: Text('По будням'.tr(currentLang), style: TextStyle(color: t.text))),
+                  DropdownMenuItem(value: 'weekly', child: Text('Каждую неделю'.tr(currentLang), style: TextStyle(color: t.text))),
+                  DropdownMenuItem(value: 'monthly', child: Text('Каждый месяц'.tr(currentLang), style: TextStyle(color: t.text))),
+                ],
+                onChanged: (val) => setState(() => AppSettings.quickAddDefaultRecurrence = val!),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 20),
+        _SectionLabel(text: 'Данные'.tr(currentLang)),
+        ClarifySettingsCard(
+          icon: LucideIcons.database,
+          title: 'Локальный кэш'.tr(currentLang),
+          onTap: () => setState(() => showCacheDetails = !showCacheDetails),
+          isExpanded: showCacheDetails,
+          trailing: Icon(showCacheDetails ? LucideIcons.chevronUp : LucideIcons.chevronDown, color: t.text3, size: 18),
+          expandedChild: Column(
+            children: [
+              Divider(color: t.border, height: 17),
+              Row(
+                children: [
+                  Icon(LucideIcons.hardDrive, color: t.text, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text('Размер кэша'.tr(currentLang), style: TextStyle(color: t.text, fontSize: 13))),
+                  Text(_cacheSizeLabel(), style: TextStyle(color: t.text3, fontSize: 13)),
+                ],
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(side: BorderSide(color: t.danger), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ClarifyRadius.sm))),
+                  onPressed: _clearCache,
+                  child: Text('Очистить кэш'.tr(currentLang), style: TextStyle(color: t.danger)),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        ClarifySettingsCard(
+          icon: LucideIcons.fileDown,
+          title: 'Экспорт задач в CSV'.tr(currentLang),
+          trailing: OutlinedButton(
+            style: OutlinedButton.styleFrom(side: BorderSide(color: t.border), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999))),
+            onPressed: _exportTasksCsv,
+            child: Text('Экспортировать'.tr(currentLang), style: TextStyle(color: t.text)),
+          ),
+        ),
+
+        const SizedBox(height: 20),
+        _SectionLabel(text: 'Поддержка'.tr(currentLang)),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              side: BorderSide(color: t.accent.withValues(alpha: 0.5)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md)),
+            ),
+            icon: Icon(LucideIcons.send, color: t.accent, size: 20),
+            label: Text('Поддержка'.tr(currentLang), style: TextStyle(color: t.accent, fontWeight: FontWeight.bold)),
+            onPressed: () async {
+              final url = Uri.parse(AppConfig.telegramSupportUrl);
+              if (await canLaunchUrl(url)) {
+                await launchUrl(url, mode: LaunchMode.externalApplication);
+              } else if (context.mounted) {
+                ClarifyToast.show(context, 'Не удалось открыть Telegram'.tr(currentLang), variant: ClarifyToastVariant.danger);
+              }
+            },
+          ),
+        ),
       ],
     );
   }
