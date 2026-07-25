@@ -228,7 +228,9 @@ class _StatisticsDashboardState extends State<StatisticsDashboard> {
           children: [
             Container(width: 14, height: 14, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
             const SizedBox(width: 8),
-            Text("${title.tr(currentLang)}: ", style: TextStyle(color: textMuted, fontSize: 14)),
+            Expanded(
+              child: Text("${title.tr(currentLang)}: ", maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: textMuted, fontSize: 14)),
+            ),
             Text("$count", style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16)),
           ],
         ),
@@ -242,9 +244,9 @@ class _StatisticsDashboardState extends State<StatisticsDashboard> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(titleKey.tr(currentLang), style: TextStyle(color: textMuted, fontSize: 16, fontWeight: FontWeight.bold)),
+              Text(titleKey.tr(currentLang), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: textMuted, fontSize: 16, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              Text(value, style: TextStyle(fontFamily: 'Unbounded', fontSize: 48, fontWeight: FontWeight.w700, color: t.accent, fontFeatures: const [FontFeature.tabularFigures()])),
+              Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontFamily: 'Unbounded', fontSize: 48, fontWeight: FontWeight.w700, color: t.accent, fontFeatures: const [FontFeature.tabularFigures()])),
             ],
           ),
         ),
@@ -367,15 +369,20 @@ class _StatisticsDashboardState extends State<StatisticsDashboard> {
               children: [
                 Text("Статус задач".tr(currentLang), style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 24),
-                Row(
-                  children: [
-                    SizedBox(
-                      height: 180,
-                      width: 180,
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    // На узких телефонных экранах пирог+легенда в один Row не
+                    // помещаются (150-180px на легенду не хватает даже с
+                    // эллипсисом) — переключаемся на вертикальную раскладку.
+                    final narrow = constraints.maxWidth < 360;
+                    final pieSize = narrow ? 150.0 : 180.0;
+                    final chart = SizedBox(
+                      height: pieSize,
+                      width: pieSize,
                       child: PieChart(
                         PieChartData(
                           sectionsSpace: 4,
-                          centerSpaceRadius: 50,
+                          centerSpaceRadius: narrow ? 40 : 50,
                           sections: [
                             if (doneCount > 0) PieChartSectionData(color: t.success, value: doneCount.toDouble(), title: '$doneCount', radius: 40, titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18, shadows: [Shadow(color: Colors.black45, blurRadius: 4)])),
                             if (pendingCount > 0) PieChartSectionData(color: t.accent, value: pendingCount.toDouble(), title: '$pendingCount', radius: 40, titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18, shadows: [Shadow(color: Colors.black45, blurRadius: 4)])),
@@ -384,21 +391,35 @@ class _StatisticsDashboardState extends State<StatisticsDashboard> {
                           ],
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 40),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
+                    );
+                    final legend = Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        buildLegendItem('Сделано', t.success, doneCount),
+                        buildLegendItem('В процессе', t.accent, pendingCount),
+                        buildLegendItem('Просрочено', t.danger, overdueCount),
+                        buildLegendItem('Без срока', Colors.grey.shade500, noDateCount),
+                      ],
+                    );
+                    if (narrow) {
+                      return Column(
                         children: [
-                          buildLegendItem('Сделано', t.success, doneCount),
-                          buildLegendItem('В процессе', t.accent, pendingCount),
-                          buildLegendItem('Просрочено', t.danger, overdueCount),
-                          buildLegendItem('Без срока', Colors.grey.shade500, noDateCount),
+                          Center(child: chart),
+                          const SizedBox(height: 20),
+                          legend,
                         ],
-                      ),
-                    ),
-                  ],
+                      );
+                    }
+                    return Row(
+                      children: [
+                        chart,
+                        const SizedBox(width: 40),
+                        Expanded(child: legend),
+                      ],
+                    );
+                  },
                 ),
               ],
             ),
@@ -410,11 +431,11 @@ class _StatisticsDashboardState extends State<StatisticsDashboard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text("Активность (последние 7 дней)".tr(currentLang), style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.bold)),
-                    Row(
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final title = Text("Активность (последние 7 дней)".tr(currentLang), style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.bold));
+                    final pills = Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         buildPeriodPill('Неделя', _ActivityPeriod.week),
                         const SizedBox(width: 6),
@@ -422,8 +443,25 @@ class _StatisticsDashboardState extends State<StatisticsDashboard> {
                         const SizedBox(width: 6),
                         buildPeriodPill('Год', _ActivityPeriod.year),
                       ],
-                    ),
-                  ],
+                    );
+                    // Заголовок + переключатель периода в один Row не
+                    // помещаются на узких телефонах — переносим переключатель
+                    // на отдельную строку.
+                    if (constraints.maxWidth < 360) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          title,
+                          const SizedBox(height: 12),
+                          pills,
+                        ],
+                      );
+                    }
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [title, pills],
+                    );
+                  },
                 ),
                 const SizedBox(height: 32),
                 SizedBox(

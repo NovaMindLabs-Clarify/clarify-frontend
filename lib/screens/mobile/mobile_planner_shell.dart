@@ -185,7 +185,7 @@ class _MobilePlannerShellState extends State<MobilePlannerShell> {
         // сдержанный переход между вкладками нижней навигации (REDESIGN_V3_PLAN.md
         // §3.6/5.6, эталон движения — Structured).
         child: PageTransitionSwitcher(
-          duration: ClarifyMotion.slow,
+          duration: MediaQuery.of(context).disableAnimations ? Duration.zero : ClarifyMotion.slow,
           transitionBuilder: (child, primaryAnimation, secondaryAnimation) => FadeThroughTransition(
             animation: primaryAnimation,
             secondaryAnimation: secondaryAnimation,
@@ -225,10 +225,18 @@ class _MobileBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClarifyGlass(
-      borderRadius: BorderRadius.zero,
-      showHighlight: false,
+    final t = context.tokens;
+    // Статичный полупрозрачный фон вместо ClarifyGlass/BackdropFilter —
+    // блюр этой панели тикает на каждый кадр скролла списков над ней и
+    // заметно проседает на слабых телефонах; тут это не критично для
+    // дизайна (узкая панель у самого низа экрана), а не только на десктопном
+    // сайдбаре/панелях, где блюр остаётся.
+    return Container(
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+      decoration: BoxDecoration(
+        color: t.surface.withValues(alpha: 0.92),
+        border: Border(top: BorderSide(color: t.border, width: 1)),
+      ),
       child: SafeArea(
         top: false,
         child: Row(
