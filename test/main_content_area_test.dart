@@ -32,6 +32,8 @@ Widget _harness({
         onMenuSelected: (_) {},
         projectIconKeys: const {},
         onSetProjectIcon: (_, _) {},
+        projectColorKeys: const {},
+        onSetProjectColor: (_, _) {},
       ),
     ),
   );

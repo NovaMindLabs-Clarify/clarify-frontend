@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../core/localization.dart';
+import '../core/tags.dart';
 import '../core/theme/design_tokens.dart';
 import 'clarify_glass.dart';
 import 'clarify_list_entrance.dart';
@@ -38,6 +39,8 @@ class MainContentArea extends StatelessWidget {
   final Function(String) onMenuSelected;
   final Map<String, String> projectIconKeys;
   final void Function(String tag, String iconKey) onSetProjectIcon;
+  final Map<String, int> projectColorKeys;
+  final void Function(String tag, int colorIndex) onSetProjectColor;
 
   // Открыть личный чат в мессенджере (из карточки друга/профиля) — вместо
   // Navigator.push поверх всего шелла (тогда пропадали бы сайдбар и список
@@ -69,6 +72,8 @@ class MainContentArea extends StatelessWidget {
     required this.onMenuSelected,
     required this.projectIconKeys,
     required this.onSetProjectIcon,
+    required this.projectColorKeys,
+    required this.onSetProjectColor,
     this.pendingChatPartnerId,
     this.pendingChatPartnerName,
     this.onOpenDirectChat,
@@ -101,9 +106,12 @@ class MainContentArea extends StatelessWidget {
     if (isTagProject) {
       // Проект — авто-папка по тегу, доска (Не начато/В работе/Готово), а не
       // плоский список. См. REDESIGN_V2_PLAN.md §3.5, REDESIGN_V3_PLAN.md §3.17/5.16.
-      final projectColor = t.tagPalette[selectedMenu.hashCode.abs() % t.tagPalette.length];
+      final storedColorIndex = projectColorKeys[selectedMenu];
+      final projectColor = storedColorIndex != null && storedColorIndex < t.tagPalette.length
+          ? t.tagPalette[storedColorIndex]
+          : t.tagPalette[selectedMenu.hashCode.abs() % t.tagPalette.length];
       final projectTasks = filteredTasks.where((task) {
-        final tags = (task['tags']?.toString() ?? '').split(',').map((e) => e.trim());
+        final tags = parseTagsString(task['tags']);
         return tags.contains(selectedMenu) && task['parent_id'] == null;
       }).toList();
       return ProjectKanbanBoard(
@@ -421,6 +429,8 @@ class MainContentArea extends StatelessWidget {
         tasks: filteredTasks,
         projectIconKeys: projectIconKeys,
         onSetProjectIcon: onSetProjectIcon,
+        projectColorKeys: projectColorKeys,
+        onSetProjectColor: onSetProjectColor,
         onOpenProject: onMenuSelected,
       );
     }

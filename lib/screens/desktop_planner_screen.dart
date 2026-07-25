@@ -16,6 +16,7 @@ import 'package:local_notifier/local_notifier.dart';
 import '../core/app_settings.dart';
 import '../core/config.dart';
 import '../core/localization.dart';
+import '../core/tags.dart';
 import '../core/theme/design_tokens.dart';
 import '../services/task_service.dart';
 import '../widgets/clarify_button.dart';
@@ -422,6 +423,22 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     });
   }
 
+  // Цвет авто-папок проектов (тег → индекс в ClarifyTokens.tagPalette) —
+  // тем же способом, что и иконки: локально в Hive, без Supabase.
+  Map<String, int> _readProjectColorKeys() {
+    final raw = _settingsBox.get('project_colors');
+    if (raw == null) return {};
+    return Map<String, int>.from(json.decode(raw));
+  }
+
+  void _setProjectColor(String tag, int colorIndex) {
+    setState(() {
+      final map = _readProjectColorKeys();
+      map[tag] = colorIndex;
+      _settingsBox.put('project_colors', json.encode(map));
+    });
+  }
+
   Future<void> _setWorkspaceIcon(int workspaceId, String iconKey) async {
     setState(() {
       final idx = workspaces.indexWhere((w) => w['id'] == workspaceId);
@@ -591,7 +608,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   // 'red'/'orange'/'blue'/'gray' — исторические имена цвета в БД, семантически urgent/important/normal/low.
   Color _getPriorityColor(String? priority) { switch (priority) { case 'red': return _tokens.danger; case 'orange': return _tokens.warning; case 'blue': return _tokens.accent; case 'gray': return textMuted; default: return borderStrong; } }
 
-  List<Map<String, dynamic>> get filteredTasks { if (activeTagFilter == null) return tasks; return tasks.where((t) { if (t['tags'] == null) return false; List<String> tTags = t['tags'].toString().split(',').map((e) => e.trim()).toList(); return tTags.contains(activeTagFilter); }).toList(); }
+  List<Map<String, dynamic>> get filteredTasks { if (activeTagFilter == null) return tasks; return tasks.where((t) => parseTagsString(t['tags']).contains(activeTagFilter)).toList(); }
   Map<String, int> _getSubtaskStats(dynamic parentId) { final subtasks = tasks.where((t) => t['parent_id'] == parentId).toList(); if (subtasks.isEmpty) return {'total': 0, 'done': 0}; return {'total': subtasks.length, 'done': subtasks.where((t) => t['is_completed'] == true).length}; }
 
   Future<void> _fetchTasks() async {
@@ -1505,6 +1522,8 @@ Map<String, dynamic> _parseSmartInput(String text) {
                               onMenuSelected: (menu) => setState(() => selectedMenu = menu),
                               projectIconKeys: _readProjectIconKeys(),
                               onSetProjectIcon: _setProjectIcon,
+                              projectColorKeys: _readProjectColorKeys(),
+                              onSetProjectColor: _setProjectColor,
                               pendingChatPartnerId: _pendingChatPartnerId,
                               pendingChatPartnerName: _pendingChatPartnerName,
                               onOpenDirectChat: (partnerId, name) => setState(() {

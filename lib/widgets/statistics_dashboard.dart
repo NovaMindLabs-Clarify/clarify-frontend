@@ -1,6 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import '../core/localization.dart';
+import '../core/tags.dart';
 import '../core/theme/design_tokens.dart';
 
 enum _ActivityPeriod { week, month, year }
@@ -59,12 +60,6 @@ class _StatisticsDashboardState extends State<StatisticsDashboard> {
   void dispose() {
     _scrollController.dispose();
     super.dispose();
-  }
-
-  List<String> _taskTags(Map<String, dynamic> task) {
-    final raw = task['tags'];
-    if (raw == null || raw.toString().trim().isEmpty) return const [];
-    return raw.toString().split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
   }
 
   // Момент фактического выполнения — новый completed_at, если есть; для
@@ -186,7 +181,7 @@ class _StatisticsDashboardState extends State<StatisticsDashboard> {
     final Map<String, int> projectTotal = {};
     final Map<String, int> projectDone = {};
     for (final task in tasks) {
-      for (final tag in _taskTags(task)) {
+      for (final tag in parseTagsString(task['tags'])) {
         projectTotal[tag] = (projectTotal[tag] ?? 0) + 1;
         if (task['is_completed'] == true) projectDone[tag] = (projectDone[tag] ?? 0) + 1;
       }

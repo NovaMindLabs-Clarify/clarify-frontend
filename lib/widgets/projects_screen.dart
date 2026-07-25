@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
+import '../core/tags.dart';
 import 'icon_picker_dialog.dart';
 
 /// "Проекты" — отдельный полноэкранный раздел вместо инлайн-списка тег-папок
@@ -15,6 +16,8 @@ class ProjectsScreen extends StatelessWidget {
   final List<Map<String, dynamic>> tasks;
   final Map<String, String> projectIconKeys;
   final void Function(String tag, String iconKey) onSetProjectIcon;
+  final Map<String, int> projectColorKeys;
+  final void Function(String tag, int colorIndex) onSetProjectColor;
   final void Function(String tag) onOpenProject;
 
   const ProjectsScreen({
@@ -25,28 +28,23 @@ class ProjectsScreen extends StatelessWidget {
     required this.tasks,
     required this.projectIconKeys,
     required this.onSetProjectIcon,
+    required this.projectColorKeys,
+    required this.onSetProjectColor,
     required this.onOpenProject,
   });
 
-  List<String> _taskTags(Map<String, dynamic> task) {
-    final raw = task['tags'];
-    if (raw == null || raw.toString().trim().isEmpty) return const [];
-    return raw
-        .toString()
-        .split(',')
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
-  }
-
-  Future<void> _pickIcon(BuildContext context, String tag) async {
-    final picked = await showIconPickerDialog(
+  Future<void> _customize(BuildContext context, String tag, int fallbackColorIndex) async {
+    final picked = await showProjectCustomizeDialog(
       context: context,
       isDark: isDark,
       currentLang: currentLang,
-      current: projectIconKeys[tag],
+      currentIcon: projectIconKeys[tag],
+      currentColorIndex: projectColorKeys[tag] ?? fallbackColorIndex,
     );
-    if (picked != null) onSetProjectIcon(tag, picked);
+    if (picked != null) {
+      onSetProjectIcon(tag, picked['icon']!);
+      onSetProjectColor(tag, int.parse(picked['color']!));
+    }
   }
 
   @override
@@ -54,11 +52,7 @@ class ProjectsScreen extends StatelessWidget {
     final t = context.tokens;
     final s = scale;
 
-    final tags = <String>{};
-    for (final task in tasks) {
-      tags.addAll(_taskTags(task));
-    }
-    final sortedTags = tags.toList()..sort();
+    final sortedTags = collectAllTags(tasks);
 
     if (sortedTags.isEmpty) {
       return Center(
@@ -96,9 +90,13 @@ class ProjectsScreen extends StatelessWidget {
       itemCount: sortedTags.length,
       itemBuilder: (context, index) {
         final tag = sortedTags[index];
-        final tagColor = t.tagPalette[tag.hashCode.abs() % t.tagPalette.length];
+        final fallbackColorIndex = tag.hashCode.abs() % t.tagPalette.length;
+        final storedColorIndex = projectColorKeys[tag];
+        final tagColor = storedColorIndex != null && storedColorIndex < t.tagPalette.length
+            ? t.tagPalette[storedColorIndex]
+            : t.tagPalette[fallbackColorIndex];
         final tagTasks = tasks
-            .where((task) => _taskTags(task).contains(tag) && task['parent_id'] == null)
+            .where((task) => parseTagsString(task['tags']).contains(tag) && task['parent_id'] == null)
             .toList();
         final total = tagTasks.length;
         final done = tagTasks.where((task) => task['is_completed'] == true).length;
@@ -110,8 +108,8 @@ class ProjectsScreen extends StatelessWidget {
           child: InkWell(
             borderRadius: BorderRadius.circular(ClarifyRadius.md),
             onTap: () => onOpenProject(tag),
-            onLongPress: () => _pickIcon(context, tag),
-            onSecondaryTap: () => _pickIcon(context, tag),
+            onLongPress: () => _customize(context, tag, fallbackColorIndex),
+            onSecondaryTap: () => _customize(context, tag, fallbackColorIndex),
             child: Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(ClarifyRadius.md),

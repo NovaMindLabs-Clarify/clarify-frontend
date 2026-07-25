@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../core/tags.dart';
 import 'clarify_bottom_sheet.dart';
 import 'clarify_date_time_picker.dart';
 import '../core/localization.dart';
@@ -13,6 +14,7 @@ import '../core/theme/design_tokens.dart';
 Future<void> showMobileQuickAddSheet({
   required BuildContext context,
   required String currentLang,
+  required List<Map<String, dynamic>> tasks,
   required Future<int?> Function(Map<String, dynamic> taskData) createTaskManually,
   required void Function(String dateStr) checkBurnoutWarning,
   required Color Function(String? priority) getPriorityColor,
@@ -23,6 +25,7 @@ Future<void> showMobileQuickAddSheet({
     context: context,
     builder: (sheetContext) => _MobileQuickAddForm(
       currentLang: currentLang,
+      tasks: tasks,
       createTaskManually: createTaskManually,
       checkBurnoutWarning: checkBurnoutWarning,
       getPriorityColor: getPriorityColor,
@@ -34,6 +37,7 @@ Future<void> showMobileQuickAddSheet({
 
 class _MobileQuickAddForm extends StatefulWidget {
   final String currentLang;
+  final List<Map<String, dynamic>> tasks;
   final Future<int?> Function(Map<String, dynamic> taskData) createTaskManually;
   final void Function(String dateStr) checkBurnoutWarning;
   final Color Function(String? priority) getPriorityColor;
@@ -42,6 +46,7 @@ class _MobileQuickAddForm extends StatefulWidget {
 
   const _MobileQuickAddForm({
     required this.currentLang,
+    required this.tasks,
     required this.createTaskManually,
     required this.checkBurnoutWarning,
     required this.getPriorityColor,
@@ -71,6 +76,25 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
   void initState() {
     super.initState();
     _date = widget.preselectedDate ?? DateTime.now();
+  }
+
+  List<String> get _tagSuggestions {
+    final segments = _tagsController.text.split(',').map((e) => e.trim()).toList();
+    final fragment = segments.isEmpty ? '' : segments.last;
+    if (fragment.isEmpty) return const [];
+    final existing = segments.take(segments.length - 1).toSet();
+    final knownTags = collectAllTags(widget.tasks);
+    return knownTags.where((tag) => tag.toLowerCase().contains(fragment.toLowerCase()) && tag.toLowerCase() != fragment.toLowerCase() && !existing.contains(tag)).take(5).toList();
+  }
+
+  void _applyTagSuggestion(String tag) {
+    final segments = _tagsController.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    if (segments.isNotEmpty) segments.removeLast();
+    segments.add(tag);
+    setState(() {
+      _tagsController.text = '${segments.join(', ')}, ';
+      _tagsController.selection = TextSelection.collapsed(offset: _tagsController.text.length);
+    });
   }
 
   @override
@@ -268,6 +292,7 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
                       TextField(
                         controller: _tagsController,
                         style: TextStyle(color: t.text),
+                        onChanged: (_) => setState(() {}),
                         decoration: InputDecoration(
                           labelText: 'Теги (через запятую)'.tr(widget.currentLang),
                           labelStyle: TextStyle(color: t.text3),
@@ -276,6 +301,19 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
                           isDense: true,
                         ),
                       ),
+                      if (_tagSuggestions.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: _tagSuggestions.map((tag) => ActionChip(
+                              label: Text(tag, style: TextStyle(color: t.text, fontSize: 12)),
+                              backgroundColor: t.accentSoft,
+                              onPressed: () => _applyTagSuggestion(tag),
+                            )).toList(),
+                          ),
+                        ),
                       const SizedBox(height: 12),
                       TextField(
                         controller: _noteController,

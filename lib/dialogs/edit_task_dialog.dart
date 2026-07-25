@@ -5,6 +5,7 @@ import '../widgets/clarify_toast.dart';
 import '../widgets/clarify_date_time_picker.dart';
 import '../core/config.dart';
 import '../core/localization.dart';
+import '../core/tags.dart';
 import '../core/theme/design_tokens.dart';
 
 /// Диалог редактирования существующей задачи. Вынесено из
@@ -50,6 +51,24 @@ void showEditTaskDialog({
   void localShiftDate(int days, int months, StateSetter setStateDialog) {
     DateTime baseDate = selectedDate ?? DateTime.now();
     setStateDialog(() => selectedDate = DateTime(baseDate.year, baseDate.month + months, baseDate.day + days));
+  }
+
+  final List<String> knownTags = collectAllTags(tasks);
+  List<String> tagSuggestions() {
+    final segments = tagsController.text.split(',').map((e) => e.trim()).toList();
+    final fragment = segments.isEmpty ? '' : segments.last;
+    if (fragment.isEmpty) return const [];
+    final existing = segments.take(segments.length - 1).toSet();
+    return knownTags.where((tag) => tag.toLowerCase().contains(fragment.toLowerCase()) && tag.toLowerCase() != fragment.toLowerCase() && !existing.contains(tag)).take(5).toList();
+  }
+  void applyTagSuggestion(String tag, StateSetter setStateDialog) {
+    final segments = tagsController.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    if (segments.isNotEmpty) segments.removeLast();
+    segments.add(tag);
+    setStateDialog(() {
+      tagsController.text = '${segments.join(', ')}, ';
+      tagsController.selection = TextSelection.collapsed(offset: tagsController.text.length);
+    });
   }
 
   bool isSaving = false;
@@ -171,7 +190,20 @@ void showEditTaskDialog({
                         decoration: BoxDecoration(color: t.surfaceSunken, borderRadius: BorderRadius.circular(ClarifyRadius.md), border: Border.all(color: t.border)),
                         child: Column(
                           children: [
-                            TextField(controller: tagsController, style: TextStyle(color: textColor), decoration: InputDecoration(labelText: "Теги".tr(currentLang), labelStyle: TextStyle(color: textMuted), border: InputBorder.none, isDense: true)),
+                            TextField(controller: tagsController, style: TextStyle(color: textColor), onChanged: (_) => setStateDialog(() {}), decoration: InputDecoration(labelText: "Теги".tr(currentLang), labelStyle: TextStyle(color: textMuted), border: InputBorder.none, isDense: true)),
+                            if (tagSuggestions().isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: Wrap(
+                                  spacing: 6,
+                                  runSpacing: 6,
+                                  children: tagSuggestions().map((tag) => ActionChip(
+                                    label: Text(tag, style: TextStyle(color: textColor, fontSize: 12)),
+                                    backgroundColor: t.accentSoft,
+                                    onPressed: () => applyTagSuggestion(tag, setStateDialog),
+                                  )).toList(),
+                                ),
+                              ),
                             Divider(color: t.border, height: 1),
                             TextField(controller: noteController, style: TextStyle(color: textColor), maxLines: 2, decoration: InputDecoration(labelText: "Заметка".tr(currentLang), labelStyle: TextStyle(color: textMuted), alignLabelWithHint: true, border: InputBorder.none)),
                           ],

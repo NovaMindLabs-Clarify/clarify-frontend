@@ -204,6 +204,7 @@ class _MobilePlannerShellState extends State<MobilePlannerShell> {
         onAdd: () => showMobileQuickAddSheet(
           context: context,
           currentLang: widget.currentLang,
+          tasks: widget.tasks,
           createTaskManually: widget.createTaskManually,
           checkBurnoutWarning: widget.checkBurnoutWarning,
           getPriorityColor: widget.getPriorityColor,
