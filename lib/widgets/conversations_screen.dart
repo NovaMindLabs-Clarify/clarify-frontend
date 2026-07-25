@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
+import 'chat_message_widgets.dart';
 import 'clarify_toast.dart';
 
 /// Личные сообщения — список диалогов + чат (SOCIAL_PLAN.md §2.3/4.3). Реалтайм
@@ -125,11 +125,11 @@ class ConversationScreen extends StatefulWidget {
 }
 
 class _ConversationScreenState extends State<ConversationScreen> {
-  final _controller = TextEditingController();
   final _scrollController = ScrollController();
   List<Map<String, dynamic>>? _messages;
   RealtimeChannel? _channel;
-  bool _isSending = false;
+  Map<String, dynamic>? _replyingTo;
+  Map<String, dynamic>? _editingMessage;
 
   String get _myId => Supabase.instance.client.auth.currentUser!.id;
 
@@ -139,14 +139,13 @@ class _ConversationScreenState extends State<ConversationScreen> {
     _load();
     Supabase.instance.client.rpc('mark_conversation_read', params: {'partner_id': widget.partnerId}).catchError((_) => null);
     _channel = Supabase.instance.client.channel('conversation_${widget.partnerId}')
-      ..onPostgresChanges(event: PostgresChangeEvent.insert, schema: 'public', table: 'messages', callback: (_) => _load())
+      ..onPostgresChanges(event: PostgresChangeEvent.all, schema: 'public', table: 'messages', callback: (_) => _load())
       ..subscribe();
   }
 
   @override
   void dispose() {
     _channel?.unsubscribe();
-    _controller.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -164,29 +163,97 @@ class _ConversationScreenState extends State<ConversationScreen> {
           if (_scrollController.hasClients) _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
         });
       }
-    } catch (e) {
+    } on PostgrestException {
       if (mounted) setState(() => _messages = []);
     }
   }
 
-  Future<void> _send() async {
-    final text = _controller.text.trim();
-    if (text.isEmpty || _isSending) return;
-    setState(() => _isSending = true);
-    _controller.clear();
-    try {
-      await Supabase.instance.client.from('messages').insert({'from_id': _myId, 'to_id': widget.partnerId, 'text': text});
-      await _load();
-    } catch (e) {
-      if (mounted) ClarifyToast.show(context, 'Ошибка отправки: $e', variant: ClarifyToastVariant.danger);
-    } finally {
-      if (mounted) setState(() => _isSending = false);
+  Future<void> _submit(String text) async {
+    if (_editingMessage != null) {
+      await _editMessage((_editingMessage!['id'] as num).toInt(), text);
+    } else {
+      await _sendMessage(text);
     }
+  }
+
+  Future<void> _sendMessage(String text) async {
+    try {
+      await Supabase.instance.client.from('messages').insert({
+        'from_id': _myId,
+        'to_id': widget.partnerId,
+        'text': text,
+        if (_replyingTo != null) 'reply_to_id': _replyingTo!['id'],
+      });
+      if (mounted) setState(() => _replyingTo = null);
+      await _load();
+    } on PostgrestException catch (e) {
+      if (mounted) ClarifyToast.show(context, 'Ошибка отправки: ${e.message}', variant: ClarifyToastVariant.danger);
+    }
+  }
+
+  Future<void> _editMessage(int id, String text) async {
+    try {
+      await Supabase.instance.client.rpc('edit_message', params: {'message_id': id, 'new_text': text});
+      if (mounted) setState(() => _editingMessage = null);
+      await _load();
+    } on PostgrestException catch (e) {
+      if (mounted) ClarifyToast.show(context, 'Ошибка редактирования: ${e.message}', variant: ClarifyToastVariant.danger);
+    }
+  }
+
+  Future<void> _deleteMessage(int id) async {
+    try {
+      await Supabase.instance.client.rpc('delete_message', params: {'message_id': id});
+      await _load();
+    } on PostgrestException catch (e) {
+      if (mounted) ClarifyToast.show(context, 'Ошибка удаления: ${e.message}', variant: ClarifyToastVariant.danger);
+    }
+  }
+
+  Future<void> _togglePin(int id) async {
+    try {
+      await Supabase.instance.client.rpc('toggle_pin_message', params: {'message_id': id});
+      await _load();
+    } on PostgrestException catch (e) {
+      if (mounted) ClarifyToast.show(context, 'Ошибка: ${e.message}', variant: ClarifyToastVariant.danger);
+    }
+  }
+
+  void _openActions(Map<String, dynamic> m) {
+    final isMine = m['from_id'] == _myId;
+    final id = (m['id'] as num).toInt();
+    showMessageActions(
+      context: context,
+      isMobile: true,
+      isMine: isMine,
+      isPinned: m['pinned'] as bool? ?? false,
+      currentLang: widget.currentLang,
+      onReply: () => setState(() {
+        _replyingTo = m;
+        _editingMessage = null;
+      }),
+      onForward: () => forwardMessage(
+        context: context,
+        isMobile: true,
+        currentLang: widget.currentLang,
+        text: m['text'] as String,
+        forwardedFromName: isMine ? 'Вы'.tr(widget.currentLang) : widget.partnerName,
+      ),
+      onTogglePin: () => _togglePin(id),
+      onEdit: isMine
+          ? () => setState(() {
+                _editingMessage = m;
+                _replyingTo = null;
+              })
+          : null,
+      onDelete: isMine ? () => _deleteMessage(id) : null,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
+    final byId = _messages == null ? <dynamic, Map<String, dynamic>>{} : {for (final m in _messages!) m['id']: m};
 
     return Scaffold(
       backgroundColor: t.bg,
@@ -208,50 +275,30 @@ class _ConversationScreenState extends State<ConversationScreen> {
                     itemBuilder: (context, index) {
                       final m = _messages![index];
                       final isMine = m['from_id'] == _myId;
-                      return Align(
-                        alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          constraints: const BoxConstraints(maxWidth: 320),
-                          decoration: BoxDecoration(
-                            color: isMine ? t.accent : t.surface2,
-                            borderRadius: BorderRadius.circular(ClarifyRadius.lg),
-                          ),
-                          child: Text(m['text'] as String, style: TextStyle(color: isMine ? t.onAccent : t.text)),
-                        ),
+                      final replyTo = byId[m['reply_to_id']];
+                      return ChatMessageBubble(
+                        currentLang: widget.currentLang,
+                        message: m,
+                        isMine: isMine,
+                        showReadTicks: true,
+                        replyToMessage: replyTo,
+                        replyToSenderLabel: replyTo == null ? '' : (replyTo['from_id'] == _myId ? 'Вы'.tr(widget.currentLang) : widget.partnerName),
+                        onOpenActions: () => _openActions(m),
                       );
                     },
                   ),
           ),
           SafeArea(
             top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      style: TextStyle(color: t.text),
-                      decoration: InputDecoration(
-                        hintText: 'Сообщение...'.tr(widget.currentLang),
-                        hintStyle: TextStyle(color: t.text3),
-                        filled: true,
-                        fillColor: t.surface2,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(ClarifyRadius.pill), borderSide: BorderSide.none),
-                      ),
-                      onSubmitted: (_) => _send(),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: Icon(LucideIcons.send, color: t.accent),
-                    onPressed: _isSending ? null : _send,
-                  ),
-                ],
-              ),
+            child: ChatComposer(
+              currentLang: widget.currentLang,
+              onSubmit: _submit,
+              replyPreviewLabel: _replyingTo == null ? null : (_replyingTo!['from_id'] == _myId ? 'Вы'.tr(widget.currentLang) : widget.partnerName),
+              replyPreviewText: _replyingTo == null ? null : _replyingTo!['text'] as String,
+              onCancelReply: () => setState(() => _replyingTo = null),
+              isEditing: _editingMessage != null,
+              editingInitialText: _editingMessage?['text'] as String?,
+              onCancelEdit: () => setState(() => _editingMessage = null),
             ),
           ),
         ],

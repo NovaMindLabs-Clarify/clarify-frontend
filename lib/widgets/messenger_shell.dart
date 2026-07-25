@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
+import 'chat_message_widgets.dart';
 import 'clarify_toast.dart';
 import 'icon_picker_dialog.dart';
 
@@ -362,99 +363,6 @@ class _ChatPaneHeader extends StatelessWidget {
   }
 }
 
-class _MessageBubble extends StatelessWidget {
-  final bool isMine;
-  final String text;
-  final String? senderLabel;
-
-  const _MessageBubble({required this.isMine, required this.text, this.senderLabel});
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-    return Align(
-      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        constraints: const BoxConstraints(maxWidth: 320),
-        decoration: BoxDecoration(color: isMine ? t.accent : t.surface2, borderRadius: BorderRadius.circular(ClarifyRadius.lg)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (senderLabel != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 3),
-                child: Text(senderLabel!, style: TextStyle(color: t.accent, fontSize: 12, fontWeight: FontWeight.bold)),
-              ),
-            Text(text, style: TextStyle(color: isMine ? t.onAccent : t.text)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ChatInputRow extends StatefulWidget {
-  final String currentLang;
-  final Future<void> Function(String text) onSend;
-
-  const _ChatInputRow({required this.currentLang, required this.onSend});
-
-  @override
-  State<_ChatInputRow> createState() => _ChatInputRowState();
-}
-
-class _ChatInputRowState extends State<_ChatInputRow> {
-  final _controller = TextEditingController();
-  bool _isSending = false;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  Future<void> _send() async {
-    final text = _controller.text.trim();
-    if (text.isEmpty || _isSending) return;
-    setState(() => _isSending = true);
-    _controller.clear();
-    await widget.onSend(text);
-    if (mounted) setState(() => _isSending = false);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _controller,
-              style: TextStyle(color: t.text),
-              decoration: InputDecoration(
-                hintText: 'Сообщение...'.tr(widget.currentLang),
-                hintStyle: TextStyle(color: t.text3),
-                filled: true,
-                fillColor: t.surface2,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(ClarifyRadius.pill), borderSide: BorderSide.none),
-              ),
-              onSubmitted: (_) => _send(),
-            ),
-          ),
-          const SizedBox(width: 8),
-          IconButton(icon: Icon(LucideIcons.send, color: t.accent), onPressed: _isSending ? null : _send),
-        ],
-      ),
-    );
-  }
-}
-
 class _DirectChatPane extends StatefulWidget {
   final String currentLang;
   final double scale;
@@ -471,6 +379,8 @@ class _DirectChatPaneState extends State<_DirectChatPane> {
   final _scrollController = ScrollController();
   List<Map<String, dynamic>>? _messages;
   RealtimeChannel? _channel;
+  Map<String, dynamic>? _replyingTo;
+  Map<String, dynamic>? _editingMessage;
 
   String get _myId => Supabase.instance.client.auth.currentUser!.id;
 
@@ -480,7 +390,7 @@ class _DirectChatPaneState extends State<_DirectChatPane> {
     _load();
     Supabase.instance.client.rpc('mark_conversation_read', params: {'partner_id': widget.partnerId}).catchError((_) => null);
     _channel = Supabase.instance.client.channel('messenger_dm_pane_${widget.partnerId}')
-      ..onPostgresChanges(event: PostgresChangeEvent.insert, schema: 'public', table: 'messages', callback: (_) => _load())
+      ..onPostgresChanges(event: PostgresChangeEvent.all, schema: 'public', table: 'messages', callback: (_) => _load())
       ..subscribe();
   }
 
@@ -504,22 +414,97 @@ class _DirectChatPaneState extends State<_DirectChatPane> {
           if (_scrollController.hasClients) _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
         });
       }
-    } catch (e) {
+    } on PostgrestException {
       if (mounted) setState(() => _messages = []);
     }
   }
 
-  Future<void> _send(String text) async {
-    try {
-      await Supabase.instance.client.from('messages').insert({'from_id': _myId, 'to_id': widget.partnerId, 'text': text});
-      await _load();
-    } catch (e) {
-      if (mounted) ClarifyToast.show(context, 'Ошибка отправки: $e', variant: ClarifyToastVariant.danger);
+  Future<void> _submit(String text) async {
+    if (_editingMessage != null) {
+      await _editMessage((_editingMessage!['id'] as num).toInt(), text);
+    } else {
+      await _sendMessage(text);
     }
+  }
+
+  Future<void> _sendMessage(String text) async {
+    try {
+      await Supabase.instance.client.from('messages').insert({
+        'from_id': _myId,
+        'to_id': widget.partnerId,
+        'text': text,
+        if (_replyingTo != null) 'reply_to_id': _replyingTo!['id'],
+      });
+      if (mounted) setState(() => _replyingTo = null);
+      await _load();
+    } on PostgrestException catch (e) {
+      if (mounted) ClarifyToast.show(context, 'Ошибка отправки: ${e.message}', variant: ClarifyToastVariant.danger);
+    }
+  }
+
+  Future<void> _editMessage(int id, String text) async {
+    try {
+      await Supabase.instance.client.rpc('edit_message', params: {'message_id': id, 'new_text': text});
+      if (mounted) setState(() => _editingMessage = null);
+      await _load();
+    } on PostgrestException catch (e) {
+      if (mounted) ClarifyToast.show(context, 'Ошибка редактирования: ${e.message}', variant: ClarifyToastVariant.danger);
+    }
+  }
+
+  Future<void> _deleteMessage(int id) async {
+    try {
+      await Supabase.instance.client.rpc('delete_message', params: {'message_id': id});
+      await _load();
+    } on PostgrestException catch (e) {
+      if (mounted) ClarifyToast.show(context, 'Ошибка удаления: ${e.message}', variant: ClarifyToastVariant.danger);
+    }
+  }
+
+  Future<void> _togglePin(int id) async {
+    try {
+      await Supabase.instance.client.rpc('toggle_pin_message', params: {'message_id': id});
+      await _load();
+    } on PostgrestException catch (e) {
+      if (mounted) ClarifyToast.show(context, 'Ошибка: ${e.message}', variant: ClarifyToastVariant.danger);
+    }
+  }
+
+  void _openActions(Map<String, dynamic> m) {
+    final isMine = m['from_id'] == _myId;
+    final id = (m['id'] as num).toInt();
+    showMessageActions(
+      context: context,
+      isMobile: false,
+      isMine: isMine,
+      isPinned: m['pinned'] as bool? ?? false,
+      currentLang: widget.currentLang,
+      onReply: () => setState(() {
+        _replyingTo = m;
+        _editingMessage = null;
+      }),
+      onForward: () => forwardMessage(
+        context: context,
+        isMobile: false,
+        currentLang: widget.currentLang,
+        text: m['text'] as String,
+        forwardedFromName: isMine ? 'Вы'.tr(widget.currentLang) : widget.partnerName,
+      ),
+      onTogglePin: () => _togglePin(id),
+      onEdit: isMine
+          ? () => setState(() {
+                _editingMessage = m;
+                _replyingTo = null;
+              })
+          : null,
+      onDelete: isMine ? () => _deleteMessage(id) : null,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final byId = _messages == null ? <dynamic, Map<String, dynamic>>{} : {for (final m in _messages!) m['id']: m};
+
     return Column(
       children: [
         _ChatPaneHeader(title: widget.partnerName, icon: LucideIcons.user, iconColor: context.tokens.accent),
@@ -532,11 +517,30 @@ class _DirectChatPaneState extends State<_DirectChatPane> {
                   itemCount: _messages!.length,
                   itemBuilder: (context, index) {
                     final m = _messages![index];
-                    return _MessageBubble(isMine: m['from_id'] == _myId, text: m['text'] as String);
+                    final isMine = m['from_id'] == _myId;
+                    final replyTo = byId[m['reply_to_id']];
+                    return ChatMessageBubble(
+                      currentLang: widget.currentLang,
+                      message: m,
+                      isMine: isMine,
+                      showReadTicks: true,
+                      replyToMessage: replyTo,
+                      replyToSenderLabel: replyTo == null ? '' : (replyTo['from_id'] == _myId ? 'Вы'.tr(widget.currentLang) : widget.partnerName),
+                      onOpenActions: () => _openActions(m),
+                    );
                   },
                 ),
         ),
-        _ChatInputRow(currentLang: widget.currentLang, onSend: _send),
+        ChatComposer(
+          currentLang: widget.currentLang,
+          onSubmit: _submit,
+          replyPreviewLabel: _replyingTo == null ? null : (_replyingTo!['from_id'] == _myId ? 'Вы'.tr(widget.currentLang) : widget.partnerName),
+          replyPreviewText: _replyingTo == null ? null : _replyingTo!['text'] as String,
+          onCancelReply: () => setState(() => _replyingTo = null),
+          isEditing: _editingMessage != null,
+          editingInitialText: _editingMessage?['text'] as String?,
+          onCancelEdit: () => setState(() => _editingMessage = null),
+        ),
       ],
     );
   }
@@ -558,6 +562,8 @@ class _TeamChatPaneState extends State<_TeamChatPane> {
   final _scrollController = ScrollController();
   List<Map<String, dynamic>>? _messages;
   RealtimeChannel? _channel;
+  Map<String, dynamic>? _replyingTo;
+  Map<String, dynamic>? _editingMessage;
 
   String get _myId => Supabase.instance.client.auth.currentUser!.id;
 
@@ -567,7 +573,7 @@ class _TeamChatPaneState extends State<_TeamChatPane> {
     _load();
     Supabase.instance.client.rpc('mark_workspace_read', params: {'ws_id': widget.workspaceId}).catchError((_) => null);
     _channel = Supabase.instance.client.channel('messenger_team_pane_${widget.workspaceId}')
-      ..onPostgresChanges(event: PostgresChangeEvent.insert, schema: 'public', table: 'workspace_messages', callback: (_) => _load())
+      ..onPostgresChanges(event: PostgresChangeEvent.all, schema: 'public', table: 'workspace_messages', callback: (_) => _load())
       ..subscribe();
   }
 
@@ -587,24 +593,104 @@ class _TeamChatPaneState extends State<_TeamChatPane> {
           if (_scrollController.hasClients) _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
         });
       }
-    } catch (e) {
+    } on PostgrestException {
       if (mounted) setState(() => _messages = []);
     }
   }
 
-  Future<void> _send(String text) async {
-    try {
-      await Supabase.instance.client.from('workspace_messages').insert({'workspace_id': widget.workspaceId, 'from_id': _myId, 'text': text});
-      await _load();
-    } catch (e) {
-      if (mounted) ClarifyToast.show(context, 'Ошибка отправки: $e', variant: ClarifyToastVariant.danger);
+  String _senderLabel(Map<String, dynamic> m) {
+    if (m['from_id'] == _myId) return 'Вы'.tr(widget.currentLang);
+    final name = (m['full_name'] as String?)?.trim();
+    return (name == null || name.isEmpty) ? 'Без имени'.tr(widget.currentLang) : name;
+  }
+
+  Future<void> _submit(String text) async {
+    if (_editingMessage != null) {
+      await _editMessage((_editingMessage!['id'] as num).toInt(), text);
+    } else {
+      await _sendMessage(text);
     }
+  }
+
+  Future<void> _sendMessage(String text) async {
+    try {
+      await Supabase.instance.client.from('workspace_messages').insert({
+        'workspace_id': widget.workspaceId,
+        'from_id': _myId,
+        'text': text,
+        if (_replyingTo != null) 'reply_to_id': _replyingTo!['id'],
+      });
+      if (mounted) setState(() => _replyingTo = null);
+      await _load();
+    } on PostgrestException catch (e) {
+      if (mounted) ClarifyToast.show(context, 'Ошибка отправки: ${e.message}', variant: ClarifyToastVariant.danger);
+    }
+  }
+
+  Future<void> _editMessage(int id, String text) async {
+    try {
+      await Supabase.instance.client.rpc('edit_workspace_message', params: {'message_id': id, 'new_text': text});
+      if (mounted) setState(() => _editingMessage = null);
+      await _load();
+    } on PostgrestException catch (e) {
+      if (mounted) ClarifyToast.show(context, 'Ошибка редактирования: ${e.message}', variant: ClarifyToastVariant.danger);
+    }
+  }
+
+  Future<void> _deleteMessage(int id) async {
+    try {
+      await Supabase.instance.client.rpc('delete_workspace_message', params: {'message_id': id});
+      await _load();
+    } on PostgrestException catch (e) {
+      if (mounted) ClarifyToast.show(context, 'Ошибка удаления: ${e.message}', variant: ClarifyToastVariant.danger);
+    }
+  }
+
+  Future<void> _togglePin(int id) async {
+    try {
+      await Supabase.instance.client.rpc('toggle_pin_workspace_message', params: {'message_id': id});
+      await _load();
+    } on PostgrestException catch (e) {
+      if (mounted) ClarifyToast.show(context, 'Ошибка: ${e.message}', variant: ClarifyToastVariant.danger);
+    }
+  }
+
+  void _openActions(Map<String, dynamic> m) {
+    final isMine = m['from_id'] == _myId;
+    final id = (m['id'] as num).toInt();
+    showMessageActions(
+      context: context,
+      isMobile: false,
+      isMine: isMine,
+      isPinned: m['pinned'] as bool? ?? false,
+      currentLang: widget.currentLang,
+      onReply: () => setState(() {
+        _replyingTo = m;
+        _editingMessage = null;
+      }),
+      onForward: () => forwardMessage(
+        context: context,
+        isMobile: false,
+        currentLang: widget.currentLang,
+        text: m['text'] as String,
+        forwardedFromName: _senderLabel(m),
+      ),
+      onTogglePin: () => _togglePin(id),
+      onEdit: isMine
+          ? () => setState(() {
+                _editingMessage = m;
+                _replyingTo = null;
+              })
+          : null,
+      onDelete: isMine ? () => _deleteMessage(id) : null,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
     final wsColor = t.tagPalette[widget.workspaceId % t.tagPalette.length];
+    final byId = _messages == null ? <dynamic, Map<String, dynamic>>{} : {for (final m in _messages!) m['id']: m};
 
     return Column(
       children: [
@@ -619,16 +705,29 @@ class _TeamChatPaneState extends State<_TeamChatPane> {
                   itemBuilder: (context, index) {
                     final m = _messages![index];
                     final isMine = m['from_id'] == _myId;
-                    final senderName = (m['full_name'] as String?)?.trim();
-                    return _MessageBubble(
+                    final replyTo = byId[m['reply_to_id']];
+                    return ChatMessageBubble(
+                      currentLang: widget.currentLang,
+                      message: m,
                       isMine: isMine,
-                      text: m['text'] as String,
-                      senderLabel: isMine ? null : (senderName == null || senderName.isEmpty ? 'Без имени'.tr(widget.currentLang) : senderName),
+                      senderLabel: isMine ? null : _senderLabel(m),
+                      replyToMessage: replyTo,
+                      replyToSenderLabel: replyTo == null ? '' : _senderLabel(replyTo),
+                      onOpenActions: () => _openActions(m),
                     );
                   },
                 ),
         ),
-        _ChatInputRow(currentLang: widget.currentLang, onSend: _send),
+        ChatComposer(
+          currentLang: widget.currentLang,
+          onSubmit: _submit,
+          replyPreviewLabel: _replyingTo == null ? null : _senderLabel(_replyingTo!),
+          replyPreviewText: _replyingTo == null ? null : _replyingTo!['text'] as String,
+          onCancelReply: () => setState(() => _replyingTo = null),
+          isEditing: _editingMessage != null,
+          editingInitialText: _editingMessage?['text'] as String?,
+          onCancelEdit: () => setState(() => _editingMessage = null),
+        ),
       ],
     );
   }
