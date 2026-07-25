@@ -705,14 +705,14 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     if (text.trim().isEmpty) return;
     setState(() { chatMessages.add({'role': 'user', 'text': text.trim()}); isAiTyping = true; }); _aiChatController.clear();
     try {
-      final user = Supabase.instance.client.auth.currentUser;
+      final accessToken = Supabase.instance.client.auth.currentSession?.accessToken;
       final response = await http.post(
-        Uri.parse('$baseUrl/tasks/parse'), 
-        headers: {'Content-Type': 'application/json'}, 
-        body: json.encode({
-          'text': text,
-          'user_id': user?.id 
-        })
+        Uri.parse('$baseUrl/tasks/parse'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (accessToken != null) 'Authorization': 'Bearer $accessToken',
+        },
+        body: json.encode({'text': text})
       );
       
       if (response.statusCode == 200) { 
