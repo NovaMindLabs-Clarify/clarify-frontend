@@ -136,6 +136,7 @@ class TaskService {
       'priority': taskData['priority'] ?? 'none',
       'tags': taskData['tags'],
       'recurrence': taskData['recurrence'],
+      'recurrence_interval': taskData['recurrence_interval'],
       'is_completed': taskData['is_completed'] ?? false,
       'parent_id': taskData['parent_id'],
       'folder': taskData['folder'],

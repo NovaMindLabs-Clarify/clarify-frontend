@@ -39,6 +39,7 @@ void showEditTaskDialog({
   final TextEditingController tagsController = TextEditingController(text: task['tags'] ?? '');
   String selectedPriority = task['priority'] ?? 'none';
   String selectedRecurrence = task['recurrence'] ?? 'none';
+  int selectedRecurrenceInterval = (task['recurrence_interval'] as int?) ?? 2;
   String? selectedAssigneeId = task['assigned_to'];
   DateTime? selectedDate = task['due_date'] != null ? parseDate(task['due_date']) : null;
   TimeOfDay? selectedTime;
@@ -130,13 +131,37 @@ void showEditTaskDialog({
                             items: [
                               DropdownMenuItem(value: 'none', child: Text("Без повтора".tr(currentLang), style: TextStyle(color: textColor))),
                               DropdownMenuItem(value: 'daily', child: Text("Каждый день".tr(currentLang), style: TextStyle(color: textColor))),
+                              DropdownMenuItem(value: 'weekdays', child: Text("По будням".tr(currentLang), style: TextStyle(color: textColor))),
                               DropdownMenuItem(value: 'weekly', child: Text("Каждую неделю".tr(currentLang), style: TextStyle(color: textColor))),
                               DropdownMenuItem(value: 'monthly', child: Text("Каждый месяц".tr(currentLang), style: TextStyle(color: textColor))),
+                              DropdownMenuItem(value: 'custom', child: Text("Кастомно".tr(currentLang), style: TextStyle(color: textColor))),
                             ],
                             onChanged: (val) => setStateDialog(() => selectedRecurrence = val!),
                           )
                         ],
                       ),
+                      if (selectedRecurrence == 'custom') ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            const SizedBox(width: 26),
+                            Text("Каждые".tr(currentLang), style: TextStyle(color: textMuted, fontSize: 14)),
+                            const SizedBox(width: 8),
+                            SizedBox(
+                              width: 56,
+                              child: TextField(
+                                controller: TextEditingController(text: selectedRecurrenceInterval.toString()),
+                                keyboardType: TextInputType.number,
+                                style: TextStyle(color: textColor),
+                                decoration: InputDecoration(isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8), border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: glassBorderColor))),
+                                onChanged: (val) => selectedRecurrenceInterval = int.tryParse(val) ?? 2,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text("дней".tr(currentLang), style: TextStyle(color: textMuted, fontSize: 14)),
+                          ],
+                        ),
+                      ],
                           ],
                         ),
                       ),
@@ -207,6 +232,7 @@ void showEditTaskDialog({
                                 "priority": selectedPriority,
                                 "tags": tagsController.text.trim().isNotEmpty ? tagsController.text.trim() : null,
                                 "recurrence": selectedRecurrence == 'none' ? null : selectedRecurrence,
+                                "recurrence_interval": selectedRecurrence == 'custom' ? selectedRecurrenceInterval : null,
                                 "is_completed": task['is_completed'] ?? false,
                                 "parent_id": task['parent_id'],
                                 "assigned_to": selectedAssigneeId,

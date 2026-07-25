@@ -522,6 +522,7 @@ void showAccountSettingsDialog({
                               items: [
                                 DropdownMenuItem(value: 'none', child: Text("Без повтора".tr(currentLang), style: TextStyle(color: textColor))),
                                 DropdownMenuItem(value: 'daily', child: Text("Каждый день".tr(currentLang), style: TextStyle(color: textColor))),
+                                DropdownMenuItem(value: 'weekdays', child: Text("По будням".tr(currentLang), style: TextStyle(color: textColor))),
                                 DropdownMenuItem(value: 'weekly', child: Text("Каждую неделю".tr(currentLang), style: TextStyle(color: textColor))),
                                 DropdownMenuItem(value: 'monthly', child: Text("Каждый месяц".tr(currentLang), style: TextStyle(color: textColor))),
                               ],

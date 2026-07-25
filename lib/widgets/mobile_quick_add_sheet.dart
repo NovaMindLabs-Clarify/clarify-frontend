@@ -60,6 +60,7 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
   final TextEditingController _subtaskController = TextEditingController();
   String _priority = 'none';
   String _recurrence = 'none';
+  int _recurrenceInterval = 2;
   DateTime? _date;
   TimeOfDay? _time;
   bool _isSaving = false;
@@ -97,6 +98,7 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
       "note": _noteController.text.trim().isNotEmpty ? _noteController.text.trim() : null,
       "tags": _tagsController.text.trim().isNotEmpty ? _tagsController.text.trim() : null,
       "recurrence": _recurrence == 'none' ? null : _recurrence,
+      "recurrence_interval": _recurrence == 'custom' ? _recurrenceInterval : null,
       "is_completed": false,
       "parent_id": null,
     });
@@ -231,13 +233,37 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
                             items: [
                               DropdownMenuItem(value: 'none', child: Text('Без повтора'.tr(widget.currentLang), style: TextStyle(color: t.text))),
                               DropdownMenuItem(value: 'daily', child: Text('Каждый день'.tr(widget.currentLang), style: TextStyle(color: t.text))),
+                              DropdownMenuItem(value: 'weekdays', child: Text('По будням'.tr(widget.currentLang), style: TextStyle(color: t.text))),
                               DropdownMenuItem(value: 'weekly', child: Text('Каждую неделю'.tr(widget.currentLang), style: TextStyle(color: t.text))),
                               DropdownMenuItem(value: 'monthly', child: Text('Каждый месяц'.tr(widget.currentLang), style: TextStyle(color: t.text))),
+                              DropdownMenuItem(value: 'custom', child: Text('Кастомно'.tr(widget.currentLang), style: TextStyle(color: t.text))),
                             ],
                             onChanged: (val) => setState(() => _recurrence = val!),
                           ),
                         ],
                       ),
+                      if (_recurrence == 'custom') ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            const SizedBox(width: 26),
+                            Text('Каждые'.tr(widget.currentLang), style: TextStyle(color: t.text3, fontSize: 14)),
+                            const SizedBox(width: 8),
+                            SizedBox(
+                              width: 56,
+                              child: TextField(
+                                controller: TextEditingController(text: _recurrenceInterval.toString()),
+                                keyboardType: TextInputType.number,
+                                style: TextStyle(color: t.text),
+                                decoration: InputDecoration(isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8), border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: t.border))),
+                                onChanged: (val) => _recurrenceInterval = int.tryParse(val) ?? 2,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text('дней'.tr(widget.currentLang), style: TextStyle(color: t.text3, fontSize: 14)),
+                          ],
+                        ),
+                      ],
                       const SizedBox(height: 12),
                       TextField(
                         controller: _tagsController,

@@ -740,8 +740,26 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
 
   Future<void> _spawnNextRecurringTask(Map<String, dynamic> task) async {
     DateTime? oldDate = _parseDate(task['due_date']); if (oldDate == null) return;
-    DateTime newDate = oldDate; if (task['recurrence'] == 'daily') newDate = oldDate.add(const Duration(days: 1)); else if (task['recurrence'] == 'weekly') newDate = oldDate.add(const Duration(days: 7)); else if (task['recurrence'] == 'monthly') newDate = DateTime(oldDate.year, oldDate.month + 1, oldDate.day);
-    int? newTaskId = await _createTaskManually({"title": task['title'], "due_date": _formatDate(newDate), "due_time": task['due_time'], "note": task['note'], "priority": task['priority'], "tags": task['tags'], "recurrence": task['recurrence'], "parent_id": task['parent_id'], "is_completed": false});
+    DateTime newDate = oldDate;
+    if (task['recurrence'] == 'daily') {
+      newDate = oldDate.add(const Duration(days: 1));
+    } else if (task['recurrence'] == 'weekdays') {
+      int addDays = 1;
+      if (oldDate.weekday == DateTime.friday) {
+        addDays = 3;
+      } else if (oldDate.weekday == DateTime.saturday) {
+        addDays = 2;
+      }
+      newDate = oldDate.add(Duration(days: addDays));
+    } else if (task['recurrence'] == 'weekly') {
+      newDate = oldDate.add(const Duration(days: 7));
+    } else if (task['recurrence'] == 'monthly') {
+      newDate = DateTime(oldDate.year, oldDate.month + 1, oldDate.day);
+    } else if (task['recurrence'] == 'custom') {
+      final interval = (task['recurrence_interval'] as int?) ?? 1;
+      newDate = oldDate.add(Duration(days: interval));
+    }
+    int? newTaskId = await _createTaskManually({"title": task['title'], "due_date": _formatDate(newDate), "due_time": task['due_time'], "note": task['note'], "priority": task['priority'], "tags": task['tags'], "recurrence": task['recurrence'], "recurrence_interval": task['recurrence_interval'], "parent_id": task['parent_id'], "is_completed": false});
     if (newTaskId != null && task['parent_id'] == null) { final subtasks = tasks.where((t) => t['parent_id'] == task['id']).toList(); for (var sub in subtasks) { await _createTaskManually({"title": sub['title'], "parent_id": newTaskId, "is_completed": false}); } }
   }
 
@@ -1052,14 +1070,14 @@ void _checkBurnoutWarning(String dateStr) {
       _checkBurnoutWarning(targetDateStr);
       if (currentTargetTaskCount >= AppConfig.dailyTaskLimit) { ClarifyToast.show(context, "Лимит 100 задач!".tr(widget.currentLang), variant: ClarifyToastVariant.danger); return; }
       if (HardwareKeyboard.instance.isControlPressed) {
-        int? newTaskId = await _createTaskManually({"title": task['title'], "due_date": targetDateStr, "due_time": task['due_time'], "note": task['note'], "priority": task['priority'], "tags": task['tags'], "recurrence": task['recurrence'], "parent_id": task['parent_id'], "is_completed": false});
+        int? newTaskId = await _createTaskManually({"title": task['title'], "due_date": targetDateStr, "due_time": task['due_time'], "note": task['note'], "priority": task['priority'], "tags": task['tags'], "recurrence": task['recurrence'], "recurrence_interval": task['recurrence_interval'], "parent_id": task['parent_id'], "is_completed": false});
         if (newTaskId != null && task['parent_id'] == null) {
           final subtasksToCopy = tasks.where((t) => t['parent_id'] == task['id']).toList();
           for (var sub in subtasksToCopy) { await _createTaskManually({"title": sub['title'], "parent_id": newTaskId, "is_completed": false}); }
         }
         if (mounted) ClarifyToast.show(context, "Скопировано!".tr(widget.currentLang), variant: ClarifyToastVariant.success);
       } else {
-        if (task['due_date'] != targetDateStr) { _updateTaskData(task['id'], {"title": task['title'], "due_date": targetDateStr, "due_time": task['due_time'], "note": task['note'], "priority": task['priority'], "tags": task['tags'], "recurrence": task['recurrence'], "parent_id": task['parent_id'], "is_completed": task['is_completed'] ?? false}); }
+        if (task['due_date'] != targetDateStr) { _updateTaskData(task['id'], {"title": task['title'], "due_date": targetDateStr, "due_time": task['due_time'], "note": task['note'], "priority": task['priority'], "tags": task['tags'], "recurrence": task['recurrence'], "recurrence_interval": task['recurrence_interval'], "parent_id": task['parent_id'], "is_completed": task['is_completed'] ?? false}); }
       }
     });
   }
