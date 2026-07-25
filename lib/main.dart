@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -39,31 +40,39 @@ Future<void> main(List<String> args) async {
   // 2. Загружаем секреты из файла-сейфа
   await dotenv.load(fileName: ".env");
 
-  // Дальше идет твой оригинальный код настройки
-  final dir = await getApplicationDocumentsDirectory();
-  Hive.init(dir.path);
+  // Дальше идет твой оригинальный код настройки — path_provider/local_notifier/
+  // launch_at_startup/hotkey_manager не имеют веб-реализации (MissingPluginException
+  // при вызове на вебе, до runApp() — белый экран без единой прорисовки кадра).
+  if (!kIsWeb) {
+    final dir = await getApplicationDocumentsDirectory();
+    Hive.init(dir.path);
 
-  // --- НАСТРОЙКА WINDOWS УВЕДОМЛЕНИЙ ---
-  await localNotifier.setup(
-    appName: 'Clarify',
-    shortcutPolicy: ShortcutPolicy.requireCreate, // Обязательно для Windows!
-  );
+    // --- НАСТРОЙКА WINDOWS УВЕДОМЛЕНИЙ ---
+    await localNotifier.setup(
+      appName: 'Clarify',
+      shortcutPolicy: ShortcutPolicy.requireCreate, // Обязательно для Windows!
+    );
 
-  // Инициализация автозапуска
-  launchAtStartup.setup(
-    appName: 'Clarify', // <-- ЖЕСТКО ЗАДАЕМ ИМЯ БЕЗ ПРОБЕЛОВ
-    appPath: Platform.resolvedExecutable,
-    args: ['--autostart'], 
-  );
+    // Инициализация автозапуска
+    launchAtStartup.setup(
+      appName: 'Clarify', // <-- ЖЕСТКО ЗАДАЕМ ИМЯ БЕЗ ПРОБЕЛОВ
+      appPath: Platform.resolvedExecutable,
+      args: ['--autostart'],
+    );
+  }
 
   bool isAutostart = args.contains('--autostart');
 
+  // На вебе Hive.initFlutter() сам поднимает IndexedDB-бэкенд — Hive.init(dir.path)
+  // выше для веба не вызывается, отдельного веб-пути тут не нужно.
   await Hive.initFlutter();
   await Hive.openBox('tasks_cache');
   await Hive.openBox('settings');
   await Hive.openBox('pending_ops');
 
-  await hotKeyManager.unregisterAll();
+  if (!kIsWeb) {
+    await hotKeyManager.unregisterAll();
+  }
 
   final appLinks = AppLinks();
   appLinks.uriLinkStream.listen((uri) {
@@ -80,22 +89,26 @@ Future<void> main(List<String> args) async {
 
   runApp(const SmartPlannerApp());
 
-  doWhenWindowReady(() {
-    const initialSize = Size(1000, 700);
-    // Ниже 700 по ширине включается мобильная раскладка (см. DesktopPlannerScreen.build) —
-    // минимум снижен, чтобы её можно было реально достичь сужением окна, а не только на вебе/телефоне.
-    appWindow.minSize = const Size(360, 600);
-    appWindow.size = initialSize;
-    appWindow.alignment = Alignment.center;
-    appWindow.title = "Clarify";
-    
-    // 2. ЕСЛИ ЗАПУСТИЛАСЬ ВМЕСТЕ С WINDOWS - ПРЯЧЕМ ОКНО
-    if (isAutostart) {
-      appWindow.hide();
-    } else {
-      appWindow.show();
-    }
-  });
+  // bitsdojo_window управляет нативным окном — на вебе окна нет, и сам вызов
+  // тоже упал бы с MissingPluginException.
+  if (!kIsWeb) {
+    doWhenWindowReady(() {
+      const initialSize = Size(1000, 700);
+      // Ниже 700 по ширине включается мобильная раскладка (см. DesktopPlannerScreen.build) —
+      // минимум снижен, чтобы её можно было реально достичь сужением окна, а не только на вебе/телефоне.
+      appWindow.minSize = const Size(360, 600);
+      appWindow.size = initialSize;
+      appWindow.alignment = Alignment.center;
+      appWindow.title = "Clarify";
+
+      // 2. ЕСЛИ ЗАПУСТИЛАСЬ ВМЕСТЕ С WINDOWS - ПРЯЧЕМ ОКНО
+      if (isAutostart) {
+        appWindow.hide();
+      } else {
+        appWindow.show();
+      }
+    });
+  }
 }
 // --- КОНЕЦ ЗАМЕНЫ ---
 class NoScrollbarBehavior extends MaterialScrollBehavior {
@@ -124,8 +137,11 @@ class _SmartPlannerAppState extends State<SmartPlannerApp> with TrayListener {
   @override
   void initState() {
     super.initState();
-    trayManager.addListener(this);
-    _initTray();
+    // tray_manager — десктоп-only (нет реализации на вебе).
+    if (!kIsWeb) {
+      trayManager.addListener(this);
+      _initTray();
+    }
 
     _hasSeenOnboarding = Hive.box('settings').get('has_seen_onboarding', defaultValue: false) as bool;
 
@@ -154,7 +170,9 @@ class _SmartPlannerAppState extends State<SmartPlannerApp> with TrayListener {
 
   @override
   void dispose() {
-    trayManager.removeListener(this);
+    if (!kIsWeb) {
+      trayManager.removeListener(this);
+    }
     _authSubscription?.cancel();
     super.dispose();
   }
@@ -328,6 +346,21 @@ class _AuthScreenState extends State<AuthScreen> {
     super.initState();
     _mode = widget.initialMode;
     _initDeepLinks();
+    if (kIsWeb) _tryConsumeYandexRedirectCode();
+  }
+
+  // На вебе Яндекс после согласия редиректит браузер прямо на наш домен
+  // (?code=...) — локальный HttpServer из _loginWithYandex тут невозможен
+  // (недоступен в песочнице браузера), поэтому код приходит через URL при
+  // перезагрузке страницы, а не через ответ сервера.
+  void _tryConsumeYandexRedirectCode() {
+    final code = Uri.base.queryParameters['code'];
+    if (code == null || code.isEmpty) return;
+
+    setState(() { _isAuthInProgress = true; _yandexPhase = 'verifying_backend'; });
+    _sendCodeToFastAPI(code).whenComplete(() {
+      if (mounted) setState(() { _isAuthInProgress = false; _yandexPhase = null; });
+    });
   }
 
   void _initDeepLinks() {
@@ -448,6 +481,31 @@ class _AuthScreenState extends State<AuthScreen> {
     if (_isAuthInProgress) return;
 
     setState(() { _isAuthInProgress = true; _yandexPhase = 'waiting_browser'; });
+
+    // На вебе локальный HttpServer недоступен (песочница браузера) — вместо
+    // перехвата редиректа локальным сервером уводим саму вкладку на Яндекс,
+    // а Яндекс возвращает код прямо на наш домен (?code=...), который читает
+    // _tryConsumeYandexRedirectCode при следующей загрузке страницы.
+    if (kIsWeb) {
+      try {
+        final authUrl = Uri.https('oauth.yandex.ru', '/authorize', {
+          'response_type': 'code',
+          'client_id': AppConfig.yandexClientId,
+          'redirect_uri': Uri.base.origin,
+        });
+        // Полная навигация текущей вкладки на Яндекс — при успехе страница
+        // выгружается и код ниже уже не выполнится, состояние сбрасывать не нужно.
+        await launchUrl(authUrl, webOnlyWindowName: '_self');
+      } catch (e) {
+        debugPrint('!!! ОШИБКА АВТОРИЗАЦИИ (веб): $e');
+        if (mounted) {
+          ClarifyToast.show(context, 'Ошибка авторизации. Попробуйте еще раз.'.tr(widget.currentLang), variant: ClarifyToastVariant.danger);
+          setState(() { _isAuthInProgress = false; _yandexPhase = null; });
+        }
+      }
+      return;
+    }
+
     debugPrint('!!! КНОПКА НАЖАТА, ЗАПУСКАЕМ СЕРВЕР !!!');
 
     try {
