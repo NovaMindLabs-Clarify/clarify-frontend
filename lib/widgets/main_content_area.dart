@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../core/priority.dart';
 import '../core/localization.dart';
 import '../core/tags.dart';
 import '../core/theme/design_tokens.dart';
@@ -42,6 +43,12 @@ class MainContentArea extends StatelessWidget {
   final Map<String, int> projectColorKeys;
   final void Function(String tag, int colorIndex) onSetProjectColor;
 
+  // Сортировка плоских списков — по времени (дефолт) или по приоритету
+  // (MISSING_FEATURES P1.3). Не применяется во "Входящих" — там порядок
+  // задаётся вручную перетаскиванием (см. комментарий у ReorderableListView ниже).
+  final bool sortByPriority;
+  final VoidCallback onToggleSortByPriority;
+
   // Открыть личный чат в мессенджере (из карточки друга/профиля) — вместо
   // Navigator.push поверх всего шелла (тогда пропадали бы сайдбар и список
   // чатов, ломая 3-колоночный макет). Родитель переключает selectedMenu на
@@ -74,6 +81,8 @@ class MainContentArea extends StatelessWidget {
     required this.onSetProjectIcon,
     required this.projectColorKeys,
     required this.onSetProjectColor,
+    required this.sortByPriority,
+    required this.onToggleSortByPriority,
     this.pendingChatPartnerId,
     this.pendingChatPartnerName,
     this.onOpenDirectChat,
@@ -141,8 +150,44 @@ class MainContentArea extends StatelessWidget {
         targetTasks = filteredTasks.where((t) => t['parent_id'] == null).toList();
       }
 
-      targetTasks.sort((a, b) => (a['due_time'] ?? '23:59').compareTo(b['due_time'] ?? '23:59'));
+      final effectiveSortByPriority = sortByPriority && selectedMenu != 'Входящие';
+      if (effectiveSortByPriority) {
+        targetTasks.sort((a, b) {
+          final rankCompare = priorityRank(a['priority']).compareTo(priorityRank(b['priority']));
+          if (rankCompare != 0) return rankCompare;
+          return (a['due_time'] ?? '23:59').compareTo(b['due_time'] ?? '23:59');
+        });
+      } else {
+        targetTasks.sort((a, b) => (a['due_time'] ?? '23:59').compareTo(b['due_time'] ?? '23:59'));
+      }
       if (targetTasks.isEmpty) return Center(child: Text("Пусто. Отдыхаем!".tr(currentLang), style: TextStyle(color: textMuted, fontSize: 18)));
+
+      final sortToggle = selectedMenu == 'Входящие'
+          ? null
+          : Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+              child: Row(
+                children: [
+                  Icon(LucideIcons.arrowUpDown, size: 15, color: textMuted),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: sortByPriority ? onToggleSortByPriority : null,
+                    child: Text(
+                      'По времени'.tr(currentLang),
+                      style: TextStyle(color: sortByPriority ? textMuted : t.accent, fontWeight: sortByPriority ? FontWeight.normal : FontWeight.bold, fontSize: 13),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  GestureDetector(
+                    onTap: sortByPriority ? null : onToggleSortByPriority,
+                    child: Text(
+                      'По приоритету'.tr(currentLang),
+                      style: TextStyle(color: sortByPriority ? t.accent : textMuted, fontWeight: sortByPriority ? FontWeight.bold : FontWeight.normal, fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            );
 
       if (selectedMenu == 'Входящие') {
         // Единственное место, где остаётся drag — здесь у задач нет даты,
@@ -203,9 +248,17 @@ class MainContentArea extends StatelessWidget {
         );
       } else {
         return ClarifyListEntrance(
-          child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            children: targetTasks.map((task) => buildListTaskCard(task)).toList(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (sortToggle != null) sortToggle,
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  children: targetTasks.map((task) => buildListTaskCard(task)).toList(),
+                ),
+              ),
+            ],
           ),
         );
       }

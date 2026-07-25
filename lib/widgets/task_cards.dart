@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../core/theme/design_tokens.dart';
+import '../core/priority.dart';
 import 'clarify_collapsing_task_row.dart';
 import 'clarify_pressable.dart';
 import 'clarify_task_checkbox.dart';
@@ -20,6 +21,7 @@ class TaskCardBuilders {
   final void Function(dynamic taskId) onDelete;
   final void Function(Map<String, dynamic> task) onTap;
   final void Function(String tag) onTagTap;
+  final void Function(String priority) onPriorityTap;
   final Widget Function({
     required Widget child,
     BorderRadius? borderRadius,
@@ -40,6 +42,7 @@ class TaskCardBuilders {
     required this.onDelete,
     required this.onTap,
     required this.onTagTap,
+    required this.onPriorityTap,
     required this.buildGlassContainer,
   });
 
@@ -441,11 +444,38 @@ class TaskCardBuilders {
                     ),
                     if (task['due_time'] != null ||
                         task['note'] != null ||
-                        task['tags'] != null)
+                        task['tags'] != null ||
+                        priorityFlagLabel(task['priority']).isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 8),
                         child: Row(
                           children: [
+                            if (priorityFlagLabel(task['priority']).isNotEmpty)
+                              GestureDetector(
+                                onTap: () => onPriorityTap(task['priority']),
+                                child: Padding(
+                                  padding: const EdgeInsets.only(right: 12),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        LucideIcons.flag,
+                                        size: 14,
+                                        color: getPriorityColor(task['priority']),
+                                      ),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        priorityFlagLabel(task['priority']),
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.bold,
+                                          color: getPriorityColor(task['priority']),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
                             if (task['due_date'] != null ||
                                 task['due_time'] != null) ...[
                               if (overdue)

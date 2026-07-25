@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../core/tags.dart';
+import '../core/priority.dart';
 import 'clarify_bottom_sheet.dart';
 import 'clarify_date_time_picker.dart';
 import '../core/localization.dart';
@@ -172,6 +173,7 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
               ...['none', 'red', 'orange', 'blue', 'gray'].map((pVal) {
                 final color = pVal == 'none' ? Colors.transparent : widget.getPriorityColor(pVal);
                 final isSelected = _priority == pVal;
+                final label = priorityFlagLabel(pVal);
                 return GestureDetector(
                   onTap: () => setState(() => _priority = pVal),
                   child: Container(
@@ -179,14 +181,23 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
                     width: 28,
                     height: 28,
                     decoration: BoxDecoration(
-                      color: color,
+                      color: pVal == 'none' ? Colors.transparent : color.withValues(alpha: 0.16),
                       shape: BoxShape.circle,
                       border: Border.all(color: isSelected ? t.text : t.border, width: isSelected ? 2 : 1),
                     ),
-                    child: isSelected && pVal == 'none' ? Icon(LucideIcons.x, size: 14, color: t.text3) : null,
+                    alignment: Alignment.center,
+                    child: pVal == 'none'
+                        ? Icon(LucideIcons.x, size: 14, color: t.text3)
+                        : label.isEmpty
+                            ? null
+                            : Icon(LucideIcons.flag, size: 14, color: color),
                   ),
                 );
               }),
+              if (_priority != 'none') ...[
+                const SizedBox(width: 4),
+                Text(priorityFlagLabel(_priority), style: TextStyle(color: widget.getPriorityColor(_priority), fontWeight: FontWeight.bold, fontSize: 13)),
+              ],
             ],
           ),
           const SizedBox(height: 16),

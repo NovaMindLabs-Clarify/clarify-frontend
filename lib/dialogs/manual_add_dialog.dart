@@ -6,6 +6,7 @@ import '../widgets/clarify_date_time_picker.dart';
 import '../core/app_settings.dart';
 import '../core/localization.dart';
 import '../core/tags.dart';
+import '../core/priority.dart';
 import '../core/theme/design_tokens.dart';
 
 /// Диалог создания новой задачи (в т.ч. дублирования). Вынесено из
@@ -160,15 +161,25 @@ void showManualAddDialog({
                           ...['none', 'red', 'orange', 'blue', 'gray'].map((pVal) {
                             Color btnColor = pVal == 'none' ? Colors.transparent : getPriorityColor(pVal);
                             bool isSelected = selectedPriority == pVal;
+                            final label = priorityFlagLabel(pVal);
                             return GestureDetector(
                               onTap: () => setStateDialog(() => selectedPriority = pVal),
                               child: Container(
                                 margin: const EdgeInsets.only(right: 8), width: 26, height: 26,
-                                decoration: BoxDecoration(color: btnColor, shape: BoxShape.circle, border: isSelected ? Border.all(color: textColor, width: 2) : Border.all(color: glassBorderColor, width: 1)),
-                                child: isSelected && pVal == 'none' ? Icon(LucideIcons.x, size: 14, color: textMuted) : null,
+                                decoration: BoxDecoration(color: pVal == 'none' ? Colors.transparent : btnColor.withValues(alpha: 0.16), shape: BoxShape.circle, border: isSelected ? Border.all(color: textColor, width: 2) : Border.all(color: glassBorderColor, width: 1)),
+                                alignment: Alignment.center,
+                                child: pVal == 'none'
+                                    ? Icon(LucideIcons.x, size: 14, color: textMuted)
+                                    : label.isEmpty
+                                        ? null
+                                        : Icon(LucideIcons.flag, size: 14, color: btnColor),
                               ),
                             );
                           }),
+                          if (selectedPriority != 'none') ...[
+                            const SizedBox(width: 4),
+                            Text(priorityFlagLabel(selectedPriority), style: TextStyle(color: getPriorityColor(selectedPriority), fontWeight: FontWeight.bold, fontSize: 13)),
+                          ],
                         ],
                       ),
                       const SizedBox(height: 16),

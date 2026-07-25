@@ -21,6 +21,7 @@ TaskCardBuilders _builders({
     onDelete: onDelete ?? (_) {},
     onTap: onTap ?? (_) {},
     onTagTap: onTagTap ?? (_) {},
+    onPriorityTap: (_) {},
     buildGlassContainer: ({required child, borderRadius, padding, margin, customColor}) => child,
   );
 }

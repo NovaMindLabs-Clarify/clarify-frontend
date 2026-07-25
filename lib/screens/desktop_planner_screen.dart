@@ -17,6 +17,7 @@ import '../core/app_settings.dart';
 import '../core/config.dart';
 import '../core/localization.dart';
 import '../core/tags.dart';
+import '../core/priority.dart';
 import '../core/theme/design_tokens.dart';
 import '../services/task_service.dart';
 import '../widgets/clarify_button.dart';
@@ -110,6 +111,8 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   DateTime _currentCalendarDate = DateTime.now();
 
   String? activeTagFilter;
+  String? activePriorityFilter;
+  bool sortByPriority = false;
 
   late Box _settingsBox;
 
@@ -608,7 +611,16 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   // 'red'/'orange'/'blue'/'gray' — исторические имена цвета в БД, семантически urgent/important/normal/low.
   Color _getPriorityColor(String? priority) { switch (priority) { case 'red': return _tokens.danger; case 'orange': return _tokens.warning; case 'blue': return _tokens.accent; case 'gray': return textMuted; default: return borderStrong; } }
 
-  List<Map<String, dynamic>> get filteredTasks { if (activeTagFilter == null) return tasks; return tasks.where((t) => parseTagsString(t['tags']).contains(activeTagFilter)).toList(); }
+  List<Map<String, dynamic>> get filteredTasks {
+    var result = tasks;
+    if (activeTagFilter != null) {
+      result = result.where((t) => parseTagsString(t['tags']).contains(activeTagFilter)).toList();
+    }
+    if (activePriorityFilter != null) {
+      result = result.where((t) => t['priority'] == activePriorityFilter).toList();
+    }
+    return result;
+  }
   Map<String, int> _getSubtaskStats(dynamic parentId) { final subtasks = tasks.where((t) => t['parent_id'] == parentId).toList(); if (subtasks.isEmpty) return {'total': 0, 'done': 0}; return {'total': subtasks.length, 'done': subtasks.where((t) => t['is_completed'] == true).length}; }
 
   Future<void> _fetchTasks() async {
@@ -1455,22 +1467,37 @@ Map<String, dynamic> _parseSmartInput(String text) {
                               ],
                             ),
                           ),
-                          if (activeTagFilter != null)
+                          if (activeTagFilter != null || activePriorityFilter != null)
                             Padding(
                               padding: EdgeInsets.fromLTRB(40 * _s, 0, 40 * _s, 24 * _s),
                               child: Row(
                                 children: [
-                                  Container(
-                                    padding: EdgeInsets.symmetric(horizontal: 16 * _s, vertical: 8 * _s), decoration: BoxDecoration(color: highlightColor, borderRadius: BorderRadius.circular(ClarifyRadius.pill), border: Border.all(color: _tokens.accent.withValues(alpha: 0.4))),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(LucideIcons.funnel, size: 18 * _s, color: _tokens.accent), SizedBox(width: 8 * _s),
-                                        Text("${'Тег: '.tr(widget.currentLang)}#$activeTagFilter", style: TextStyle(color: _tokens.accent, fontWeight: FontWeight.bold, fontSize: 15 * _s)), SizedBox(width: 12 * _s),
-                                        InkWell(onTap: () => setState(() => activeTagFilter = null), child: Container(padding: EdgeInsets.all(4 * _s), decoration: BoxDecoration(shape: BoxShape.circle, color: _tokens.accent.withValues(alpha: 0.6)), child: Icon(LucideIcons.x, size: 14 * _s, color: _tokens.onAccent),))
-                                      ],
-                                    )
-                                  ),
+                                  if (activeTagFilter != null) ...[
+                                    Container(
+                                      padding: EdgeInsets.symmetric(horizontal: 16 * _s, vertical: 8 * _s), decoration: BoxDecoration(color: highlightColor, borderRadius: BorderRadius.circular(ClarifyRadius.pill), border: Border.all(color: _tokens.accent.withValues(alpha: 0.4))),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(LucideIcons.funnel, size: 18 * _s, color: _tokens.accent), SizedBox(width: 8 * _s),
+                                          Text("${'Тег: '.tr(widget.currentLang)}#$activeTagFilter", style: TextStyle(color: _tokens.accent, fontWeight: FontWeight.bold, fontSize: 15 * _s)), SizedBox(width: 12 * _s),
+                                          InkWell(onTap: () => setState(() => activeTagFilter = null), child: Container(padding: EdgeInsets.all(4 * _s), decoration: BoxDecoration(shape: BoxShape.circle, color: _tokens.accent.withValues(alpha: 0.6)), child: Icon(LucideIcons.x, size: 14 * _s, color: _tokens.onAccent),))
+                                        ],
+                                      )
+                                    ),
+                                    SizedBox(width: 12 * _s),
+                                  ],
+                                  if (activePriorityFilter != null)
+                                    Container(
+                                      padding: EdgeInsets.symmetric(horizontal: 16 * _s, vertical: 8 * _s), decoration: BoxDecoration(color: highlightColor, borderRadius: BorderRadius.circular(ClarifyRadius.pill), border: Border.all(color: _getPriorityColor(activePriorityFilter).withValues(alpha: 0.4))),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(LucideIcons.flag, size: 18 * _s, color: _getPriorityColor(activePriorityFilter)), SizedBox(width: 8 * _s),
+                                          Text("${'Приоритет: '.tr(widget.currentLang)}${priorityFlagLabel(activePriorityFilter)}", style: TextStyle(color: _getPriorityColor(activePriorityFilter), fontWeight: FontWeight.bold, fontSize: 15 * _s)), SizedBox(width: 12 * _s),
+                                          InkWell(onTap: () => setState(() => activePriorityFilter = null), child: Container(padding: EdgeInsets.all(4 * _s), decoration: BoxDecoration(shape: BoxShape.circle, color: _getPriorityColor(activePriorityFilter).withValues(alpha: 0.6)), child: Icon(LucideIcons.x, size: 14 * _s, color: _tokens.onAccent),))
+                                        ],
+                                      )
+                                    ),
                                 ],
                               )
                             ),
@@ -1511,6 +1538,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                 onDelete: _deleteTask,
                                 onTap: _handleTaskTap,
                                 onTagTap: (tag) => setState(() => activeTagFilter = tag),
+                                onPriorityTap: (priority) => setState(() => activePriorityFilter = priority),
                                 buildGlassContainer: _buildGlassContainer,
                               );
                               return MainContentArea(
@@ -1524,6 +1552,8 @@ Map<String, dynamic> _parseSmartInput(String text) {
                               onSetProjectIcon: _setProjectIcon,
                               projectColorKeys: _readProjectColorKeys(),
                               onSetProjectColor: _setProjectColor,
+                              sortByPriority: sortByPriority,
+                              onToggleSortByPriority: () => setState(() => sortByPriority = !sortByPriority),
                               pendingChatPartnerId: _pendingChatPartnerId,
                               pendingChatPartnerName: _pendingChatPartnerName,
                               onOpenDirectChat: (partnerId, name) => setState(() {

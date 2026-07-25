@@ -34,6 +34,8 @@ Widget _harness({
         onSetProjectIcon: (_, _) {},
         projectColorKeys: const {},
         onSetProjectColor: (_, _) {},
+        sortByPriority: false,
+        onToggleSortByPriority: () {},
       ),
     ),
   );
