@@ -13,6 +13,7 @@ import 'mobile_today_screen.dart';
 import 'mobile_tasks_screen.dart';
 import 'mobile_teams_screen.dart';
 import 'mobile_settings_screen.dart';
+import 'mobile_ai_screen.dart';
 
 enum MobileTab { today, tasks, teams, settings }
 
@@ -37,6 +38,7 @@ class MobilePlannerShell extends StatefulWidget {
   final void Function(Map<String, dynamic> task) onTaskTap;
   final void Function({DateTime? preselectedDate}) onAddTask;
   final Future<int?> Function(Map<String, dynamic> taskData) createTaskManually;
+  final Future<int> Function(String text) onAiParseText;
   final void Function(String dateStr) checkBurnoutWarning;
   final void Function(int workspaceId) onOpenWorkspaceMembers;
   final void Function(int workspaceId) onInviteToWorkspace;
@@ -66,6 +68,7 @@ class MobilePlannerShell extends StatefulWidget {
     required this.onTaskTap,
     required this.onAddTask,
     required this.createTaskManually,
+    required this.onAiParseText,
     required this.checkBurnoutWarning,
     required this.onOpenWorkspaceMembers,
     required this.onInviteToWorkspace,
@@ -209,6 +212,9 @@ class _MobilePlannerShellState extends State<MobilePlannerShell> {
           checkBurnoutWarning: widget.checkBurnoutWarning,
           getPriorityColor: widget.getPriorityColor,
           formatDate: widget.formatDate,
+          onOpenAi: () => Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
+            builder: (_) => MobileAiScreen(currentLang: widget.currentLang, onParseText: widget.onAiParseText),
+          )),
         ),
       ),
     );

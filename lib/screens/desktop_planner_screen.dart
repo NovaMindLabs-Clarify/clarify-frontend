@@ -42,6 +42,14 @@ import '../dialogs/edit_task_dialog.dart';
 import '../dialogs/task_details_dialog.dart';
 import '../dialogs/account_settings_dialog.dart';
 
+/// Бросается _parseTextToTasks, когда /tasks/parse отвечает не-200 —
+/// отдельный тип нужен, чтобы отличать "сервер ответил ошибкой" от
+/// "нет связи" в UI (десктоп и мобильный AI-экран).
+class AiParseHttpException implements Exception {
+  final int statusCode;
+  const AiParseHttpException(this.statusCode);
+}
+
 class DesktopPlannerScreen extends StatefulWidget {
   final bool isDark;
   final VoidCallback toggleTheme;
@@ -701,27 +709,39 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     );
   }
 
+  // Общая логика для десктопной AI-панели и мобильного AI-экрана —
+  // POST /tasks/parse + подтягивание созданных задач. Бросает
+  // AiParseHttpException на не-200 ответ, чтобы вызывающий код мог
+  // показать разные сообщения для "сервер ответил ошибкой" и "нет связи".
+  Future<int> _parseTextToTasks(String text) async {
+    final accessToken = Supabase.instance.client.auth.currentSession?.accessToken;
+    final response = await http.post(
+      Uri.parse('$baseUrl/tasks/parse'),
+      headers: {
+        'Content-Type': 'application/json',
+        if (accessToken != null) 'Authorization': 'Bearer $accessToken',
+      },
+      body: json.encode({'text': text}),
+    );
+    if (response.statusCode != 200) {
+      throw AiParseHttpException(response.statusCode);
+    }
+    final List addedTasks = json.decode(response.body);
+    await _fetchTasks();
+    return addedTasks.length;
+  }
+
   Future<void> _sendTaskToAI(String text) async {
     if (text.trim().isEmpty) return;
     setState(() { chatMessages.add({'role': 'user', 'text': text.trim()}); isAiTyping = true; }); _aiChatController.clear();
     try {
-      final accessToken = Supabase.instance.client.auth.currentSession?.accessToken;
-      final response = await http.post(
-        Uri.parse('$baseUrl/tasks/parse'),
-        headers: {
-          'Content-Type': 'application/json',
-          if (accessToken != null) 'Authorization': 'Bearer $accessToken',
-        },
-        body: json.encode({'text': text})
-      );
-      
-      if (response.statusCode == 200) { 
-        final List addedTasks = json.decode(response.body); 
-        await _fetchTasks(); 
-        setState(() { chatMessages.add({'role': 'ai', 'text': 'Готово! Добавлено задач: ${addedTasks.length}. '.tr(widget.currentLang)}); isAiTyping = false; }); 
-      } 
-      else { setState(() { chatMessages.add({'role': 'ai', 'text': 'Ошибка: сервер вернул ${response.statusCode}'}); isAiTyping = false; }); }
-    } catch (e) { setState(() { chatMessages.add({'role': 'ai', 'text': 'Ошибка связи с ИИ.'.tr(widget.currentLang)}); isAiTyping = false; }); }
+      final count = await _parseTextToTasks(text);
+      setState(() { chatMessages.add({'role': 'ai', 'text': 'Готово! Добавлено задач: $count. '.tr(widget.currentLang)}); isAiTyping = false; });
+    } on AiParseHttpException catch (e) {
+      setState(() { chatMessages.add({'role': 'ai', 'text': 'Ошибка: сервер вернул ${e.statusCode}'}); isAiTyping = false; });
+    } catch (e) {
+      setState(() { chatMessages.add({'role': 'ai', 'text': 'Ошибка связи с ИИ.'.tr(widget.currentLang)}); isAiTyping = false; });
+    }
   }
 
   // Вставь этот блок вместо старой функции _createTaskManually
@@ -1164,6 +1184,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
         onTaskTap: _handleTaskTap,
         onAddTask: ({DateTime? preselectedDate}) => _showManualAddDialog(preselectedDate: preselectedDate),
         createTaskManually: _createTaskManually,
+        onAiParseText: _parseTextToTasks,
         checkBurnoutWarning: _checkBurnoutWarning,
         onOpenWorkspaceMembers: _fetchWorkspaceMembers,
         onInviteToWorkspace: (wsId) => showInviteMemberDialog(

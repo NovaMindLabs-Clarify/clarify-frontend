@@ -20,6 +20,7 @@ Future<void> showMobileQuickAddSheet({
   required void Function(String dateStr) checkBurnoutWarning,
   required Color Function(String? priority) getPriorityColor,
   required String Function(DateTime date) formatDate,
+  required VoidCallback onOpenAi,
   DateTime? preselectedDate,
 }) {
   return showClarifyBottomSheet<void>(
@@ -31,6 +32,7 @@ Future<void> showMobileQuickAddSheet({
       checkBurnoutWarning: checkBurnoutWarning,
       getPriorityColor: getPriorityColor,
       formatDate: formatDate,
+      onOpenAi: onOpenAi,
       preselectedDate: preselectedDate,
     ),
   );
@@ -43,6 +45,7 @@ class _MobileQuickAddForm extends StatefulWidget {
   final void Function(String dateStr) checkBurnoutWarning;
   final Color Function(String? priority) getPriorityColor;
   final String Function(DateTime date) formatDate;
+  final VoidCallback onOpenAi;
   final DateTime? preselectedDate;
 
   const _MobileQuickAddForm({
@@ -52,6 +55,7 @@ class _MobileQuickAddForm extends StatefulWidget {
     required this.checkBurnoutWarning,
     required this.getPriorityColor,
     required this.formatDate,
+    required this.onOpenAi,
     this.preselectedDate,
   });
 
@@ -147,9 +151,24 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Новая задача'.tr(widget.currentLang),
-            style: TextStyle(fontFamily: 'Golos Text', fontSize: 18, fontWeight: FontWeight.w700, color: t.text),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Новая задача'.tr(widget.currentLang),
+                  style: TextStyle(fontFamily: 'Golos Text', fontSize: 18, fontWeight: FontWeight.w700, color: t.text),
+                ),
+              ),
+              IconButton(
+                tooltip: 'AI Ассистент'.tr(widget.currentLang),
+                style: IconButton.styleFrom(backgroundColor: t.accentSoft, padding: const EdgeInsets.all(10)),
+                icon: Icon(LucideIcons.sparkles, color: t.accent, size: 20),
+                onPressed: () {
+                  Navigator.pop(context);
+                  widget.onOpenAi();
+                },
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           TextField(
