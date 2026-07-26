@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/localization.dart';
 import '../../core/theme/design_tokens.dart';
+import '../../widgets/clarify_cascade_item.dart';
+import '../../widgets/clarify_illustrations.dart';
 import 'widgets/mobile_mini_calendar.dart';
 import 'widgets/swipe_to_delete_task_row.dart';
 
@@ -114,38 +116,41 @@ class MobileTodayScreen extends StatelessWidget {
         Expanded(
           child: todayTasks.isEmpty
               ? _EmptyToday(currentLang: currentLang)
-              : ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-                  children: [
-                    if (allDay.isNotEmpty) ...[
-                      _HourLabel(label: 'Весь день'.tr(currentLang)),
-                      ...allDay.map((task) => SwipeToDeleteTaskRow(
-                            task: task,
-                            currentLang: currentLang,
-                            priorityColor: getPriorityColor(task['priority']),
-                            subtaskStats: getSubtaskStats(task['id']),
-                            overdue: isOverdue(task),
-                            onToggle: () => onToggle(task),
-                            onConfirmedDelete: () => onDelete(task['id']),
-                            onTap: () => onTap(task),
-                          )),
-                      const SizedBox(height: 12),
+              : Builder(builder: (context) {
+                  var cascadeIdx = 0;
+                  Widget cascadeRow(Map<String, dynamic> task) {
+                    final index = cascadeIdx++;
+                    return ClarifyCascadeItem(
+                      key: ValueKey('cascade_${task['id']}'),
+                      index: index,
+                      child: SwipeToDeleteTaskRow(
+                        task: task,
+                        currentLang: currentLang,
+                        priorityColor: getPriorityColor(task['priority']),
+                        subtaskStats: getSubtaskStats(task['id']),
+                        overdue: isOverdue(task),
+                        onToggle: () => onToggle(task),
+                        onConfirmedDelete: () => onDelete(task['id']),
+                        onTap: () => onTap(task),
+                      ),
+                    );
+                  }
+
+                  return ListView(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+                    children: [
+                      if (allDay.isNotEmpty) ...[
+                        _HourLabel(label: 'Весь день'.tr(currentLang)),
+                        ...allDay.map(cascadeRow),
+                        const SizedBox(height: 12),
+                      ],
+                      for (final hour in hours) ...[
+                        _HourLabel(label: '$hour:00'),
+                        ...byHour[hour]!.map(cascadeRow),
+                      ],
                     ],
-                    for (final hour in hours) ...[
-                      _HourLabel(label: '$hour:00'),
-                      ...byHour[hour]!.map((task) => SwipeToDeleteTaskRow(
-                            task: task,
-                            currentLang: currentLang,
-                            priorityColor: getPriorityColor(task['priority']),
-                            subtaskStats: getSubtaskStats(task['id']),
-                            overdue: isOverdue(task),
-                            onToggle: () => onToggle(task),
-                            onConfirmedDelete: () => onDelete(task['id']),
-                            onTap: () => onTap(task),
-                          )),
-                    ],
-                  ],
-                ),
+                  );
+                }),
         ),
       ],
     );
@@ -179,7 +184,7 @@ class _EmptyToday extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(LucideIcons.sun, size: 40, color: t.text3),
+            const ClarifyIllustration(type: ClarifyIllustrationType.sunHorizon, size: 72),
             const SizedBox(height: 16),
             Text('На сегодня ничего не запланировано'.tr(currentLang), textAlign: TextAlign.center, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: t.text2)),
             const SizedBox(height: 6),

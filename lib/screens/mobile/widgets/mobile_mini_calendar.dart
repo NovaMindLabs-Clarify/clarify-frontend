@@ -71,7 +71,7 @@ class _MobileMiniCalendarState extends State<MobileMiniCalendar> {
           ),
           AnimatedSize(
             duration: ClarifyMotion.base,
-            curve: ClarifyMotion.standard,
+            curve: ClarifyMotion.spring,
             alignment: Alignment.topCenter,
             child: _expanded ? _buildMonthGrid(t, today) : _buildWeekRow(t, today),
           ),

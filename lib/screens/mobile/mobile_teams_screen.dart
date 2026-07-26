@@ -6,6 +6,7 @@ import '../../widgets/clarify_button.dart';
 import 'widgets/swipe_to_delete_task_row.dart';
 import '../../widgets/user_profile_modal.dart';
 import '../../widgets/conversations_screen.dart';
+import '../../widgets/clarify_illustrations.dart';
 
 /// "Команды" — полный паритет с десктопом: список воркспейсов, участники,
 /// приглашение, «Пульс команды», задачи команды. Раздела не было в первом
@@ -273,7 +274,7 @@ class _EmptyTeams extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(LucideIcons.usersRound, size: 40, color: t.text3),
+            const ClarifyIllustration(type: ClarifyIllustrationType.teamOrbit, size: 72),
             const SizedBox(height: 16),
             Text('Пока нет ни одной команды'.tr(currentLang), textAlign: TextAlign.center, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: t.text2)),
             const SizedBox(height: 16),

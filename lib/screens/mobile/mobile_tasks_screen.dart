@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/localization.dart';
 import '../../core/theme/design_tokens.dart';
+import '../../widgets/clarify_cascade_item.dart';
+import '../../widgets/clarify_illustrations.dart';
 import 'widgets/mobile_mini_calendar.dart';
 import 'widgets/swipe_to_delete_task_row.dart';
 
@@ -56,6 +58,20 @@ class _MobileTasksScreenState extends State<MobileTasksScreen> {
         return 'Во входящих пока пусто';
       case _TaskFilter.all:
         return 'Задач пока нет';
+    }
+  }
+
+  ClarifyIllustrationType get _emptyIllustration {
+    if (_calendarDate != null) return ClarifyIllustrationType.checklistFold;
+    switch (_filter) {
+      case _TaskFilter.today:
+        return ClarifyIllustrationType.sunHorizon;
+      case _TaskFilter.upcoming:
+        return ClarifyIllustrationType.checklistFold;
+      case _TaskFilter.inbox:
+        return ClarifyIllustrationType.inboxEmpty;
+      case _TaskFilter.all:
+        return ClarifyIllustrationType.checklistFold;
     }
   }
 
@@ -118,7 +134,17 @@ class _MobileTasksScreenState extends State<MobileTasksScreen> {
         Expanded(
           child: tasks.isEmpty
               ? Center(
-                  child: Text(_emptyStateKey.tr(widget.currentLang), style: TextStyle(fontSize: 15, color: t.text3)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ClarifyIllustration(type: _emptyIllustration, size: 72),
+                        const SizedBox(height: 16),
+                        Text(_emptyStateKey.tr(widget.currentLang), textAlign: TextAlign.center, style: TextStyle(fontSize: 15, color: t.text3)),
+                      ],
+                    ),
+                  ),
                 )
               // Long-press drag-handle для переупорядочивания — тот же жест, что и
               // в десктопном «Мой день» (REDESIGN_V3_PLAN.md §3.13/5.13). Свайп
@@ -136,31 +162,35 @@ class _MobileTasksScreenState extends State<MobileTasksScreen> {
                   },
                   itemBuilder: (context, index) {
                     final task = tasks[index];
-                    return Row(
-                      key: ValueKey(task['id'].toString()),
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: SwipeToDeleteTaskRow(
-                            task: task,
-                            currentLang: widget.currentLang,
-                            showDate: _filter != _TaskFilter.today,
-                            priorityColor: widget.getPriorityColor(task['priority']),
-                            subtaskStats: widget.getSubtaskStats(task['id']),
-                            overdue: widget.isOverdue(task),
-                            onToggle: () => widget.onToggle(task),
-                            onConfirmedDelete: () => widget.onDelete(task['id']),
-                            onTap: () => widget.onTap(task),
+                    return ClarifyCascadeItem(
+                      key: ValueKey('cascade_${task['id']}'),
+                      index: index,
+                      child: Row(
+                        key: ValueKey(task['id'].toString()),
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: SwipeToDeleteTaskRow(
+                              task: task,
+                              currentLang: widget.currentLang,
+                              showDate: _filter != _TaskFilter.today,
+                              priorityColor: widget.getPriorityColor(task['priority']),
+                              subtaskStats: widget.getSubtaskStats(task['id']),
+                              overdue: widget.isOverdue(task),
+                              onToggle: () => widget.onToggle(task),
+                              onConfirmedDelete: () => widget.onDelete(task['id']),
+                              onTap: () => widget.onTap(task),
+                            ),
                           ),
-                        ),
-                        ReorderableDelayedDragStartListener(
-                          index: index,
-                          child: Padding(
-                            padding: const EdgeInsets.only(left: 4, bottom: 8),
-                            child: Icon(LucideIcons.gripVertical, size: 20, color: t.text3),
+                          ReorderableDelayedDragStartListener(
+                            index: index,
+                            child: Padding(
+                              padding: const EdgeInsets.only(left: 4, bottom: 8),
+                              child: Icon(LucideIcons.gripVertical, size: 20, color: t.text3),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     );
                   },
                 ),

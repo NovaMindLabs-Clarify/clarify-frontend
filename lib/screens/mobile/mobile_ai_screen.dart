@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import '../../core/app_settings.dart';
 import '../../core/localization.dart';
 import '../../core/theme/design_tokens.dart';
+import '../../widgets/clarify_illustrations.dart';
 import '../../widgets/clarify_toast.dart';
 
 /// Полноэкранная мобильная версия AI-ассистента (desktop-аналог —
@@ -30,11 +32,13 @@ class _MobileAiScreenState extends State<MobileAiScreen> {
   bool _speechEnabled = false;
   late stt.SpeechToText _speechToText;
   String _localeId = 'ru_RU';
+  late final bool _showOnboardingTip = !AppSettings.aiOnboardingSeen;
 
   @override
   void initState() {
     super.initState();
     _initSpeech();
+    if (_showOnboardingTip) AppSettings.aiOnboardingSeen = true;
   }
 
   Future<void> _initSpeech() async {
@@ -152,11 +156,24 @@ class _MobileAiScreenState extends State<MobileAiScreen> {
                 ? Center(
                     child: Padding(
                       padding: const EdgeInsets.all(32),
-                      child: Text(
-                        'Опиши задачи текстом или голосом — ИИ сам расставит даты, время и приоритеты.'.tr(widget.currentLang),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: t.text3, fontSize: 15),
-                      ),
+                      child: _showOnboardingTip
+                          ? Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const ClarifyIllustration(type: ClarifyIllustrationType.aiSpark, size: 88),
+                                const SizedBox(height: 20),
+                                Text(
+                                  'Опиши задачи текстом или голосом — ИИ сам расставит даты, время и приоритеты.'.tr(widget.currentLang),
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: t.text3, fontSize: 15),
+                                ),
+                              ],
+                            )
+                          : Text(
+                              'Опиши задачу...'.tr(widget.currentLang),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: t.text3, fontSize: 14),
+                            ),
                     ),
                   )
                 : ListView.builder(

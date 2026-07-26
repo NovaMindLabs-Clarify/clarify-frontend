@@ -37,6 +37,7 @@ import '../widgets/ai_chat_panel.dart';
 import '../dialogs/workspace_dialogs.dart';
 import '../dialogs/team_pulse_dialog.dart';
 import '../dialogs/search_dialog.dart';
+import '../widgets/command_palette.dart';
 import '../dialogs/manual_add_dialog.dart';
 import '../dialogs/edit_task_dialog.dart';
 import '../dialogs/task_details_dialog.dart';
@@ -241,71 +242,6 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     return ClarifyGlass(borderRadius: borderRadius, padding: padding, margin: margin, customColor: customColor, child: child);
   }
 
-  Widget _buildUserAccountBlock() {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return const SizedBox.shrink();
-
-    final metadata = user.userMetadata ?? {};
-    final fullName = metadata['full_name']?.toString() ?? 'Без имени';
-    final avatarUrl = metadata['avatar_url']?.toString();
-    final initial = fullName.isNotEmpty ? fullName[0].toUpperCase() : '?';
-
-    // Та же карточная логика, что у строк друзей/команд (glass-контейнер +
-    // круглая аватарка), плюс цветная полоса слева — тот же приём, что уже
-    // используется в MobileTaskRow, для узнаваемого "этим можно управлять"
-    // акцента вместо ровного контура со всех сторон.
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 16 * _s),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16 * _s),
-          onTap: _showAccountSettingsDialog,
-          hoverColor: _tokens.accent.withValues(alpha: 0.06),
-          child: Container(
-            padding: EdgeInsets.all(12 * _s),
-            // Только левая сторона border'а — если задать все четыре стороны
-            // разными цветами вместе с borderRadius, Flutter кидает
-            // FlutterError в paint() ("A borderRadius can only be given on
-            // borders with uniform colors"), из-за чего блок не рендерился
-            // вообще. BorderSide.none на остальных сторонах не считается
-            // "невидимым цветом" и не ломает borderRadius — тот же приём,
-            // что уже работает в MobileTaskRow и карточке "7 дней".
-            decoration: BoxDecoration(
-              color: glassColor,
-              borderRadius: BorderRadius.circular(16 * _s),
-              border: Border(left: BorderSide(color: _tokens.accent, width: 3)),
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 20 * _s, // <-- Масштабируем аватарку
-                  backgroundColor: isDark ? Colors.black45 : Colors.white54,
-                  backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-                  child: avatarUrl == null
-                    ? Text(initial, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 18 * _s))
-                    : null,
-                ),
-                SizedBox(width: 12 * _s),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(fullName, style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 14 * _s), overflow: TextOverflow.ellipsis),
-                      Text("Настройки".tr(widget.currentLang), style: TextStyle(color: textMuted, fontSize: 12 * _s)),
-                    ],
-                  ),
-                ),
-                Icon(LucideIcons.chevronRight, size: 16 * _s, color: textMuted),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   // Свёрнутый вариант — только аватар (по решению из этого же диалога:
   // "только аватар, имя/Настройки скрыты").
   Widget _buildUserAccountBlockCollapsed() {
@@ -396,6 +332,31 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
       onTaskSelected: _showTaskDetailsDialog,
       buildGlassContainer: _buildGlassContainer,
     ));
+
+    HotKey commandPaletteKey = HotKey(key: PhysicalKeyboardKey.keyK, modifiers: [HotKeyModifier.control], scope: HotKeyScope.inapp);
+    await hotKeyManager.register(commandPaletteKey, keyDownHandler: (hotKey) => _showCommandPalette());
+  }
+
+  void _showCommandPalette() {
+    showCommandPalette(
+      context: context,
+      currentLang: widget.currentLang,
+      textColor: textColor,
+      textMuted: textMuted,
+      isDark: isDark,
+      tasks: tasks,
+      menuItems: menuItems,
+      onNavigate: (menu) => setState(() => selectedMenu = menu),
+      onCreateTask: () => _showManualAddDialog(),
+      onToggleTheme: widget.toggleTheme,
+      onOpenSettings: _showAccountSettingsDialog,
+      onAskAi: (query) => setState(() {
+        rightPanelState = 'ai';
+        _aiChatController.text = query;
+      }),
+      onTaskSelected: _showTaskDetailsDialog,
+      buildGlassContainer: _buildGlassContainer,
+    );
   }
 
   // Локальный статус доски проекта (Не начато/В работе) — нет поля в БД под это,
@@ -1267,9 +1228,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
                         setState(() => selectedMenu = menuKey);
                         _fetchWorkspaceMembers(id);
                       },
-                      userAccountBlock: _buildUserAccountBlock(),
                       userAccountBlockCollapsed: _buildUserAccountBlockCollapsed(),
-                      buildGlassContainer: _buildGlassContainer,
                     ),
                     Expanded(
                       child: Column(
@@ -1618,7 +1577,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
                     ),
                     ClipRect(
                       child: AnimatedContainer(
-                        duration: ClarifyMotion.slow, curve: ClarifyMotion.standard, width: rightPanelState != 'none' ? 360 * _s : 0,
+                        duration: ClarifyMotion.slow, curve: ClarifyMotion.spring, width: rightPanelState != 'none' ? 360 * _s : 0,
                         child: OverflowBox(
                           alignment: Alignment.centerRight,
                           minWidth: 360 * _s, maxWidth: 360 * _s,

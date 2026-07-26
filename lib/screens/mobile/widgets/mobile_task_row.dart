@@ -42,7 +42,7 @@ class MobileTaskRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
-        color: isDone ? t.surfaceSunken : t.surface,
+        color: isDone ? t.surfaceSunken : (overdue ? t.dangerSoft : t.surface),
         borderRadius: BorderRadius.circular(ClarifyRadius.md),
         child: InkWell(
           onTap: onTap,
@@ -50,6 +50,9 @@ class MobileTaskRow extends StatelessWidget {
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(ClarifyRadius.md),
+              // Полоса — канал приоритета ТОЛЬКО (§6.4 REDESIGN_V4_PLAN.md);
+              // просрочка теперь читается через фон строки + иконку часов
+              // у времени ниже, не через эту же полосу.
               border: Border(left: BorderSide(color: isDone ? t.border : priorityColor, width: 3)),
             ),
             child: Padding(
@@ -87,6 +90,8 @@ class MobileTaskRow extends StatelessWidget {
                             spacing: 8,
                             runSpacing: 4,
                             children: [
+                              if (overdue && !isDone)
+                                Icon(LucideIcons.clockAlert, size: 12, color: t.danger),
                               if (showDate && task['due_date'] != null)
                                 Text(task['due_date'], style: TextStyle(fontSize: 12, color: overdue && !isDone ? t.danger : t.text3, fontWeight: FontWeight.w600)),
                               if (task['due_time'] != null)

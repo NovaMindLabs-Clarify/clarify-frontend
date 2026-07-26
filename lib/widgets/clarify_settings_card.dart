@@ -60,7 +60,7 @@ class ClarifySettingsCard extends StatelessWidget {
           if (expandedChild != null)
             AnimatedSize(
               duration: reduceMotion ? Duration.zero : ClarifyMotion.base,
-              curve: ClarifyMotion.standard,
+              curve: ClarifyMotion.spring,
               alignment: Alignment.topCenter,
               child: isExpanded
                   ? Padding(padding: const EdgeInsets.fromLTRB(14, 0, 14, 14), child: expandedChild)

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../widgets/clarify_surface.dart';
+import '../widgets/clarify_sparkle_burst.dart';
+import '../widgets/clarify_illustrations.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
 
@@ -101,7 +103,10 @@ void showTeamPulseDialog({
 
                   if (sortedHeroes.isNotEmpty) ...[
                     SizedBox(height: 32 * s),
-                    Align(alignment: Alignment.centerLeft, child: Text("🏆 ГЕРОИ ДНЯ:".tr(currentLang), style: TextStyle(fontWeight: FontWeight.w900, color: textMuted, fontSize: 12 * s, letterSpacing: 1.2))),
+                    ClarifySparkleBurst(
+                      trigger: true,
+                      child: Align(alignment: Alignment.centerLeft, child: Text("🏆 ГЕРОИ ДНЯ:".tr(currentLang), style: TextStyle(fontWeight: FontWeight.w900, color: textMuted, fontSize: 12 * s, letterSpacing: 1.2))),
+                    ),
                     SizedBox(height: 16 * s),
                     Column(
                       children: sortedHeroes.map((entry) {
@@ -125,6 +130,8 @@ void showTeamPulseDialog({
                     ),
                   ] else ...[
                     SizedBox(height: 32 * s),
+                    ClarifyIllustration(type: ClarifyIllustrationType.trophyShine, size: 88 * s),
+                    SizedBox(height: 16 * s),
                     Text("Пока никто ничего не выполнил.\nСамое время начать! 🚀".tr(currentLang), textAlign: TextAlign.center, style: TextStyle(color: textMuted, fontSize: 15 * s)),
                   ],
                 ],

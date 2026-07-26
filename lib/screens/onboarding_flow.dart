@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
 import '../widgets/clarify_button.dart';
+import '../widgets/clarify_illustrations.dart';
 import '../main.dart';
 
 /// Онбординг перед авторизацией — сплэш → карусель → welcome с «Войти»/
 /// «Создать аккаунт» (REDESIGN_V3_PLAN.md §3.8/5.8). Показывается один раз,
 /// флаг `has_seen_onboarding` в Hive `settings` — по образцу `kanban_status`.
 ///
-/// НЕИЗВЕСТНОЕ/НЕПРОВЕРЕННОЕ: иллюстрации — цветные Lucide-иконки в круге, а
-/// не подобранные извне SVG (unDraw/Storyset и т.п., см. §4 плана) — подбор
-/// конкретных файлов требует ручной проверки лицензии пользователем, не
-/// выполнялся автономно в рамках этого прохода.
+/// Иллюстрации — процедурные `ClarifyIllustration` (REDESIGN_V4_PLAN.md §6.8),
+/// не подобранные извне SVG (unDraw/Storyset и т.п.) — решение принято, чтобы
+/// не зависеть от ручной проверки лицензии стороннего ассета.
 class OnboardingFlow extends StatefulWidget {
   final bool isDark;
   final VoidCallback toggleTheme;
@@ -35,9 +34,9 @@ class _OnboardingFlowState extends State<OnboardingFlow> with SingleTickerProvid
   late final AnimationController _splashController;
 
   static const _slides = [
-    (icon: LucideIcons.sparkles, titleKey: 'Онбординг: заголовок 1', descKey: 'Онбординг: описание 1'),
-    (icon: LucideIcons.usersRound, titleKey: 'Онбординг: заголовок 2', descKey: 'Онбординг: описание 2'),
-    (icon: LucideIcons.bellRing, titleKey: 'Онбординг: заголовок 3', descKey: 'Онбординг: описание 3'),
+    (illustration: ClarifyIllustrationType.aiSpark, titleKey: 'Онбординг: заголовок 1', descKey: 'Онбординг: описание 1'),
+    (illustration: ClarifyIllustrationType.teamOrbit, titleKey: 'Онбординг: заголовок 2', descKey: 'Онбординг: описание 2'),
+    (illustration: ClarifyIllustrationType.bellPulse, titleKey: 'Онбординг: заголовок 3', descKey: 'Онбординг: описание 3'),
   ];
 
   @override
@@ -124,12 +123,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> with SingleTickerProvid
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Container(
-                      width: 140,
-                      height: 140,
-                      decoration: BoxDecoration(color: t.accentSoft, shape: BoxShape.circle),
-                      child: Icon(slide.icon, size: 56, color: t.accent),
-                    ),
+                    ClarifyIllustration(type: slide.illustration, size: 140),
                     const SizedBox(height: 40),
                     Text(slide.titleKey.tr(widget.currentLang), textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Unbounded', fontSize: 22, fontWeight: FontWeight.w700, color: t.text)),
                     const SizedBox(height: 12),

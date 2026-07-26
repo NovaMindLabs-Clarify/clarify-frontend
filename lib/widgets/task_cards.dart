@@ -69,22 +69,20 @@ class TaskCardBuilders {
 
     String displayTitle = task['title'] ?? '';
     final String? dueTime = task['due_time'];
-    // Полоса слева — тот же язык, что и везде (7 дней/аккаунт-блок/мобильные
-    // строки), плюс кружок отмены остаётся: полоса не заменяет чекбокс (им
-    // нечем было бы отмечать выполнение в свёрнутом виде ячейки), а даёт
-    // ряду видимую структуру — раньше обычная (не просроченная) задача не
-    // имела вообще никакой рамки/фона и "плыла" в ячейке без опоры.
+    // Полоса слева — канал приоритета ТОЛЬКО (§6.4 REDESIGN_V4_PLAN.md):
+    // просрочка больше не подменяет цвет полосы, когда приоритет не задан —
+    // раньше оба явления делили один канал и были неразличимы на глаз.
+    // Просрочка теперь — фон строки (ниже) + отдельная иконка часов у времени.
     final Color stripeColor = isDone
         ? glassBorderColor
-        : (hasPriority
-              ? priorityColor
-              : (overdue ? _t.danger : glassBorderColor));
+        : (hasPriority ? priorityColor : glassBorderColor);
 
     return ClarifyPressable(
       onTap: () => onTap(task),
       child: Container(
         margin: EdgeInsets.only(bottom: 2 * _s, left: 4 * _s, right: 4 * _s),
         decoration: BoxDecoration(
+          color: (!isDone && overdue) ? _t.dangerSoft : null,
           border: Border(
             left: BorderSide(color: stripeColor, width: 2 * _s),
           ),
@@ -96,12 +94,10 @@ class TaskCardBuilders {
             // ПРИНУДИТЕЛЬНОЕ масштабирование кругляшка
             ClarifyCheckCircle(
               size: 10 * _s,
-              borderWidth: hasPriority || overdue ? 2.0 : 1.5,
+              borderWidth: hasPriority ? 2.0 : 1.5,
               borderColor: isDone
                   ? glassBorderColor
-                  : (hasPriority
-                        ? priorityColor
-                        : (overdue ? _t.danger : glassBorderColor)),
+                  : (hasPriority ? priorityColor : glassBorderColor),
               checkedColor: _t.accent,
               value: isDone,
               onTap: () => onToggle(task),
@@ -130,7 +126,7 @@ class TaskCardBuilders {
                 Padding(
                   padding: EdgeInsets.only(right: 2 * _s),
                   child: Icon(
-                    LucideIcons.alertCircle,
+                    LucideIcons.clockAlert,
                     size: 8 * _s,
                     color: _t.danger,
                   ),
@@ -199,11 +195,11 @@ class TaskCardBuilders {
     // Полоса слева вместо сплошной стеклянной подложки — тот же язык, что у
     // MobileTaskRow (REDESIGN_V3_PLAN §5.3): "жирный блок" был из-за границы
     // со всех сторон + заливки, здесь акцент только слева, карточка легче.
+    // Канал приоритета ТОЛЬКО (§6.4 REDESIGN_V4_PLAN.md) — просрочка больше не
+    // подменяет цвет полосы, у неё свой канал (иконка часов у времени слева).
     final Color stripeColor = isDone
         ? glassBorderColor
-        : (hasPriority
-              ? priorityColor
-              : (overdue ? _t.danger : glassBorderColor));
+        : (hasPriority ? priorityColor : glassBorderColor);
 
     return ClarifyCollapsingTaskRow(
       key: ValueKey(task['id']),
@@ -227,7 +223,7 @@ class TaskCardBuilders {
                       Padding(
                         padding: EdgeInsets.only(bottom: 2 * _s),
                         child: Icon(
-                          LucideIcons.alertCircle,
+                          LucideIcons.clockAlert,
                           size: 16 * _s,
                           color: _t.danger,
                         ),
@@ -251,6 +247,7 @@ class TaskCardBuilders {
                 // это читалось как жирный блок, а не строка списка.
                 child: Container(
                   decoration: BoxDecoration(
+                    color: (!isDone && overdue) ? _t.dangerSoft : null,
                     border: Border(
                       left: BorderSide(color: stripeColor, width: 3 * _s),
                       bottom: BorderSide(color: glassBorderColor),
@@ -411,7 +408,7 @@ class TaskCardBuilders {
                     ? glassBorderColor
                     : (hasPriority
                           ? getPriorityColor(task['priority'])
-                          : (overdue ? _t.danger : glassBorderColor)),
+                          : glassBorderColor),
                 checkedColor: _t.accent,
                 value: isDone,
                 onTap: () => onToggle(task),
@@ -506,7 +503,7 @@ class TaskCardBuilders {
                                 Padding(
                                   padding: const EdgeInsets.only(right: 4),
                                   child: Icon(
-                                    LucideIcons.alertCircle,
+                                    LucideIcons.clockAlert,
                                     size: 16,
                                     color: _t.danger,
                                   ),

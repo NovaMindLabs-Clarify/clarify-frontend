@@ -30,6 +30,9 @@ class AppSettings {
   static bool get closeToTray => _box.get('close_to_tray', defaultValue: true) as bool;
   static set closeToTray(bool value) => _box.put('close_to_tray', value);
 
+  static bool get aiOnboardingSeen => _box.get('ai_onboarding_seen', defaultValue: false) as bool;
+  static set aiOnboardingSeen(bool value) => _box.put('ai_onboarding_seen', value);
+
   static final ValueNotifier<int> accentPresetIndex = ValueNotifier<int>(
     Hive.box('settings').get('accent_preset', defaultValue: 0) as int,
   );

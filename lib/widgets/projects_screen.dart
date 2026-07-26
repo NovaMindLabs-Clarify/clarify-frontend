@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
 import '../core/tags.dart';
 import 'icon_picker_dialog.dart';
+import 'clarify_illustrations.dart';
 
 /// "Проекты" — отдельный полноэкранный раздел вместо инлайн-списка тег-папок
 /// прямо в сайдбаре (тот разрастался вместе с числом проектов). Сами
@@ -61,7 +61,7 @@ class ProjectsScreen extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(LucideIcons.folderKanban, size: 40 * s, color: t.text3),
+              ClarifyIllustration(type: ClarifyIllustrationType.folderGlow, size: 64 * s),
               SizedBox(height: 16 * s),
               Text(
                 'Проектов пока нет'.tr(currentLang),

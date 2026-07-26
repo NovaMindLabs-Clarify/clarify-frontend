@@ -250,7 +250,7 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
           // (REDESIGN_V3_PLAN.md §3.16/5.15).
           AnimatedSize(
             duration: ClarifyMotion.base,
-            curve: ClarifyMotion.standard,
+            curve: ClarifyMotion.spring,
             alignment: Alignment.topCenter,
             child: !_expanded
                 ? const SizedBox(width: double.infinity)
