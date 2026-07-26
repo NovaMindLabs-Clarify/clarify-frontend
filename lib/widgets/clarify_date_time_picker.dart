@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
+import 'clarify_button.dart';
 import 'clarify_glass.dart';
 import 'clarify_surface.dart';
 
@@ -74,7 +75,7 @@ class _ClarifyDatePickerDialogState extends State<_ClarifyDatePickerDialog> {
       child: Material(
         color: Colors.transparent,
         child: ClarifyGlass(
-          borderRadius: BorderRadius.circular(ClarifyRadius.lg),
+          borderRadius: ClarifyRadius.dialogShell,
           padding: const EdgeInsets.all(20),
           child: SizedBox(
             width: 320,
@@ -137,7 +138,11 @@ class _ClarifyDatePickerDialogState extends State<_ClarifyDatePickerDialog> {
                 const SizedBox(height: 8),
                 Align(
                   alignment: Alignment.centerRight,
-                  child: TextButton(onPressed: () => Navigator.of(context).pop(), child: Text('Отмена'.tr(widget.currentLang), style: TextStyle(color: t.text2))),
+                  child: ClarifyButton(
+                    label: 'Отмена'.tr(widget.currentLang),
+                    variant: ClarifyButtonVariant.ghost,
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
                 ),
               ],
             ),
@@ -348,7 +353,7 @@ class _ClarifyTimePickerDialogState extends State<_ClarifyTimePickerDialog> {
       child: Material(
         color: Colors.transparent,
         child: ClarifyGlass(
-          borderRadius: BorderRadius.circular(ClarifyRadius.lg),
+          borderRadius: ClarifyRadius.dialogShell,
           padding: const EdgeInsets.all(20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -427,12 +432,16 @@ class _ClarifyTimePickerDialogState extends State<_ClarifyTimePickerDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  TextButton(onPressed: () => Navigator.of(context).pop(), child: Text('Отмена'.tr(widget.currentLang), style: TextStyle(color: t.text2))),
+                  ClarifyButton(
+                    label: 'Отмена'.tr(widget.currentLang),
+                    variant: ClarifyButtonVariant.ghost,
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
                   const SizedBox(width: 8),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ClarifyRadius.sm))),
+                  ClarifyButton(
+                    label: 'Готово'.tr(widget.currentLang),
+                    variant: ClarifyButtonVariant.filled,
                     onPressed: () => Navigator.of(context).pop(TimeOfDay(hour: _hour, minute: _minute)),
-                    child: Text('Готово'.tr(widget.currentLang), style: const TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),

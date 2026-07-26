@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
+import '../widgets/clarify_button.dart';
 import '../main.dart';
 
 /// Онбординг перед авторизацией — сплэш → карусель → welcome с «Войти»/
@@ -104,7 +105,11 @@ class _OnboardingFlowState extends State<OnboardingFlow> with SingleTickerProvid
           alignment: Alignment.topRight,
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: TextButton(onPressed: _finish, child: Text('Пропустить'.tr(widget.currentLang), style: TextStyle(color: t.text3))),
+            child: ClarifyButton(
+              label: 'Пропустить'.tr(widget.currentLang),
+              variant: ClarifyButtonVariant.ghost,
+              onPressed: _finish,
+            ),
           ),
         ),
         Expanded(
@@ -151,17 +156,18 @@ class _OnboardingFlowState extends State<OnboardingFlow> with SingleTickerProvid
           child: Row(
             children: [
               if (_slideIndex > 0)
-                TextButton(
+                ClarifyButton(
+                  label: 'Назад'.tr(widget.currentLang),
+                  variant: ClarifyButtonVariant.ghost,
                   onPressed: () => _pageController.previousPage(duration: ClarifyMotion.slow, curve: ClarifyMotion.standard),
-                  child: Text('Назад'.tr(widget.currentLang), style: TextStyle(color: t.text2)),
                 ),
               const Spacer(),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent, padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ClarifyRadius.pill))),
+              ClarifyButton(
+                label: (_slideIndex == _slides.length - 1 ? 'Начать' : 'Далее').tr(widget.currentLang),
+                variant: ClarifyButtonVariant.filled,
                 onPressed: _slideIndex == _slides.length - 1
                     ? _finish
                     : () => _pageController.nextPage(duration: ClarifyMotion.slow, curve: ClarifyMotion.standard),
-                child: Text((_slideIndex == _slides.length - 1 ? 'Начать' : 'Далее').tr(widget.currentLang), style: const TextStyle(fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -182,16 +188,18 @@ class _OnboardingFlowState extends State<OnboardingFlow> with SingleTickerProvid
           const SizedBox(height: 12),
           Text('Планируйте день, работайте в команде, ничего не забывайте.'.tr(widget.currentLang), textAlign: TextAlign.center, style: TextStyle(fontSize: 15, color: t.text2, height: 1.5)),
           const SizedBox(height: 48),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent, padding: const EdgeInsets.symmetric(vertical: 18), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ClarifyRadius.pill))),
+          ClarifyButton(
+            label: 'Создать аккаунт'.tr(widget.currentLang),
+            variant: ClarifyButtonVariant.filled,
+            fullWidth: true,
             onPressed: () => _openAuth(AuthMode.register),
-            child: Text('Создать аккаунт'.tr(widget.currentLang), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ),
           const SizedBox(height: 12),
-          OutlinedButton(
-            style: OutlinedButton.styleFrom(side: BorderSide(color: t.border), padding: const EdgeInsets.symmetric(vertical: 18), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ClarifyRadius.pill))),
+          ClarifyButton(
+            label: 'Войти'.tr(widget.currentLang),
+            variant: ClarifyButtonVariant.outline,
+            fullWidth: true,
             onPressed: () => _openAuth(AuthMode.login),
-            child: Text('Войти'.tr(widget.currentLang), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: t.text)),
           ),
         ],
       ),

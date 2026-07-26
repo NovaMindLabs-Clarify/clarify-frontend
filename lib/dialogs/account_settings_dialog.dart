@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../widgets/clarify_button.dart';
 import '../widgets/clarify_surface.dart';
 import '../widgets/clarify_toast.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
@@ -15,7 +16,9 @@ import '../core/app_settings.dart';
 import '../core/config.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
+import '../widgets/clarify_priority_lever.dart';
 import '../widgets/clarify_settings_card.dart';
+import '../widgets/clarify_text_field.dart';
 
 /// Диалог настроек аккаунта: аватар, имя, автозапуск, язык, смена пароля,
 /// выход. Вынесено из DesktopPlannerScreen (P3.1, docs/IMPROVEMENT_PLAN.md) —
@@ -277,56 +280,67 @@ void showAccountSettingsDialog({
                           avatarUrl != null && avatarUrl!.isNotEmpty;
                       showClarifySurface(
                         context: context,
-                        builder: (dialogCtx) => AlertDialog(
-                          backgroundColor: t.surface2,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          title: Text(
-                            "Фото профиля".tr(currentLang),
-                            style: TextStyle(
-                              color: textColor,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          content: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              ListTile(
-                                leading: Icon(
-                                  LucideIcons.upload,
-                                  color: t.accent,
-                                ),
-                                title: Text(
-                                  "Загрузить новое".tr(currentLang),
-                                  style: TextStyle(color: textColor),
-                                ),
-                                onTap: () {
-                                  Navigator.pop(dialogCtx);
-                                  pickAndUpload();
-                                },
-                              ),
-                              if (hasAvatar) ...[
-                                const Divider(),
-                                ListTile(
-                                  leading: Icon(
-                                    LucideIcons.trash2,
-                                    color: t.danger,
-                                  ),
-                                  title: Text(
-                                    "Удалить текущее".tr(currentLang),
-                                    style: TextStyle(
-                                      color: t.danger,
-                                      fontWeight: FontWeight.bold,
+                        builder: (dialogCtx) => Center(
+                          child: Material(
+                            color: Colors.transparent,
+                            child: buildGlassContainer(
+                              borderRadius: ClarifyRadius.dialogShell,
+                              padding: const EdgeInsets.all(20),
+                              child: SizedBox(
+                                width: 320,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      "Фото профиля".tr(currentLang),
+                                      style: TextStyle(
+                                        color: textColor,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                      ),
                                     ),
-                                  ),
-                                  onTap: () {
-                                    Navigator.pop(dialogCtx);
-                                    deleteAvatar();
-                                  },
+                                    const SizedBox(height: 12),
+                                    ListTile(
+                                      contentPadding: EdgeInsets.zero,
+                                      leading: Icon(
+                                        LucideIcons.upload,
+                                        color: t.accent,
+                                      ),
+                                      title: Text(
+                                        "Загрузить новое".tr(currentLang),
+                                        style: TextStyle(color: textColor),
+                                      ),
+                                      onTap: () {
+                                        Navigator.pop(dialogCtx);
+                                        pickAndUpload();
+                                      },
+                                    ),
+                                    if (hasAvatar) ...[
+                                      Divider(color: t.border),
+                                      ListTile(
+                                        contentPadding: EdgeInsets.zero,
+                                        leading: Icon(
+                                          LucideIcons.trash2,
+                                          color: t.danger,
+                                        ),
+                                        title: Text(
+                                          "Удалить текущее".tr(currentLang),
+                                          style: TextStyle(
+                                            color: t.danger,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        onTap: () {
+                                          Navigator.pop(dialogCtx);
+                                          deleteAvatar();
+                                        },
+                                      ),
+                                    ],
+                                  ],
                                 ),
-                              ],
-                            ],
+                              ),
+                            ),
                           ),
                         ),
                       );
@@ -370,37 +384,18 @@ void showAccountSettingsDialog({
             Row(
               children: [
                 Expanded(
-                  child: TextField(
+                  child: ClarifyTextField(
                     controller: nameController,
                     style: TextStyle(color: textColor),
-                    decoration: InputDecoration(
-                      labelText: "Никнейм".tr(currentLang),
-                      labelStyle: TextStyle(color: textMuted),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: glassBorderColor),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: t.accent),
-                      ),
-                      isDense: true,
-                    ),
+                    labelText: "Никнейм".tr(currentLang),
+                    dense: true,
                   ),
                 ),
                 const SizedBox(width: 12),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: highlightColor,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 16,
-                    ),
-                  ),
+                ClarifyButton(
+                  label: "Сохранить".tr(currentLang),
+                  variant: ClarifyButtonVariant.filled,
+                  loading: isLoading,
                   onPressed: isLoading
                       ? null
                       : () async {
@@ -430,13 +425,6 @@ void showAccountSettingsDialog({
                             setStateDialog(() => isLoading = false);
                           }
                         },
-                  child: Text(
-                    "Сохранить".tr(currentLang),
-                    style: TextStyle(
-                      color: t.accent,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
                 ),
               ],
             ),
@@ -736,50 +724,26 @@ void showAccountSettingsDialog({
                     style: TextStyle(color: textMuted, fontSize: 12.5),
                   ),
                   const SizedBox(height: 8),
-                  Row(
-                    children: ['none', 'red', 'orange', 'blue', 'gray'].map((
-                      pVal,
-                    ) {
-                      Color dotColor;
+                  ClarifyPriorityLever(
+                    value: AppSettings.quickAddDefaultPriority,
+                    onChanged: (val) => setStateDialog(
+                      () => AppSettings.quickAddDefaultPriority = val,
+                    ),
+                    getPriorityColor: (pVal) {
                       switch (pVal) {
                         case 'red':
-                          dotColor = t.danger;
-                          break;
+                          return t.danger;
                         case 'orange':
-                          dotColor = t.warning;
-                          break;
+                          return t.warning;
                         case 'blue':
-                          dotColor = t.accent;
-                          break;
+                          return t.accent;
                         case 'gray':
-                          dotColor = textMuted;
-                          break;
+                          return textMuted;
                         default:
-                          dotColor = Colors.transparent;
+                          return Colors.transparent;
                       }
-                      final isSelected =
-                          AppSettings.quickAddDefaultPriority == pVal;
-                      return GestureDetector(
-                        onTap: () => setStateDialog(
-                          () => AppSettings.quickAddDefaultPriority = pVal,
-                        ),
-                        child: Container(
-                          margin: const EdgeInsets.only(right: 8),
-                          width: 26,
-                          height: 26,
-                          decoration: BoxDecoration(
-                            color: dotColor,
-                            shape: BoxShape.circle,
-                            border: isSelected
-                                ? Border.all(color: textColor, width: 2)
-                                : Border.all(color: glassBorderColor, width: 1),
-                          ),
-                          child: isSelected && pVal == 'none'
-                              ? Icon(LucideIcons.x, size: 14, color: textMuted)
-                              : null,
-                        ),
-                      );
-                    }).toList(),
+                    },
+                    textMuted: textMuted,
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -912,26 +876,14 @@ void showAccountSettingsDialog({
                     danger: t.danger,
                   ),
                   const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: t.accent,
-                        foregroundColor: t.onAccent,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: () => ClarifyToast.show(
-                        context,
-                        "Оплата Pro скоро будет доступна".tr(currentLang),
-                        variant: ClarifyToastVariant.info,
-                      ),
-                      child: Text(
-                        "Оформить Pro — 199 ₽/мес".tr(currentLang),
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                  ClarifyButton(
+                    label: "Оформить Pro — 199 ₽/мес".tr(currentLang),
+                    variant: ClarifyButtonVariant.filled,
+                    fullWidth: true,
+                    onPressed: () => ClarifyToast.show(
+                      context,
+                      "Оплата Pro скоро будет доступна".tr(currentLang),
+                      variant: ClarifyToastVariant.info,
                     ),
                   ),
                 ],
@@ -971,21 +923,13 @@ void showAccountSettingsDialog({
                       "Требует Pro".tr(currentLang),
                       style: TextStyle(color: textMuted, fontSize: 12.5),
                     ),
-                    trailing: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: glassBorderColor),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                      ),
+                    trailing: ClarifyButton(
+                      label: "Подключить".tr(currentLang),
+                      variant: ClarifyButtonVariant.outline,
                       onPressed: () => ClarifyToast.show(
                         context,
                         "Интеграция скоро будет доступна".tr(currentLang),
                         variant: ClarifyToastVariant.info,
-                      ),
-                      child: Text(
-                        "Подключить".tr(currentLang),
-                        style: TextStyle(color: textColor),
                       ),
                     ),
                   ),
@@ -1029,18 +973,10 @@ void showAccountSettingsDialog({
                       cacheSizeLabel(),
                       style: TextStyle(color: textMuted, fontSize: 12.5),
                     ),
-                    trailing: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: t.danger),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                      ),
+                    trailing: ClarifyButton(
+                      label: "Очистить кэш".tr(currentLang),
+                      variant: ClarifyButtonVariant.danger,
                       onPressed: clearCache,
-                      child: Text(
-                        "Очистить кэш".tr(currentLang),
-                        style: TextStyle(color: t.danger),
-                      ),
                     ),
                   ),
                 ],
@@ -1051,201 +987,111 @@ void showAccountSettingsDialog({
             ClarifySettingsCard(
               icon: LucideIcons.fileDown,
               title: "Экспорт задач в CSV".tr(currentLang),
-              trailing: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: glassBorderColor),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
+              trailing: ClarifyButton(
+                label: "Экспортировать".tr(currentLang),
+                variant: ClarifyButtonVariant.outline,
                 onPressed: exportTasksCsv,
-                child: Text(
-                  "Экспортировать".tr(currentLang),
-                  style: TextStyle(color: textColor),
-                ),
               ),
             ),
             const SizedBox(height: 16),
 
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  side: BorderSide(color: t.accent.withValues(alpha: 0.5)),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                icon: Icon(LucideIcons.send, color: t.accent, size: 20),
-                label: Text(
-                  "Поддержка".tr(currentLang),
-                  style: TextStyle(
-                    color: t.accent,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                onPressed: () async {
-                  final Uri url = Uri.parse(AppConfig.telegramSupportUrl);
-                  if (await canLaunchUrl(url)) {
-                    await launchUrl(url, mode: LaunchMode.externalApplication);
-                  } else {
-                    if (context.mounted) {
-                      ClarifyToast.show(
-                        context,
-                        "Не удалось открыть Telegram".tr(currentLang),
-                        variant: ClarifyToastVariant.danger,
-                      );
-                    }
+            ClarifyButton(
+              icon: LucideIcons.send,
+              label: "Поддержка".tr(currentLang),
+              variant: ClarifyButtonVariant.outline,
+              fullWidth: true,
+              onPressed: () async {
+                final Uri url = Uri.parse(AppConfig.telegramSupportUrl);
+                if (await canLaunchUrl(url)) {
+                  await launchUrl(url, mode: LaunchMode.externalApplication);
+                } else {
+                  if (context.mounted) {
+                    ClarifyToast.show(
+                      context,
+                      "Не удалось открыть Telegram".tr(currentLang),
+                      variant: ClarifyToastVariant.danger,
+                    );
                   }
-                },
-              ),
+                }
+              },
             ),
 
             const SizedBox(height: 16),
             ], // if (!isMobileContext) — общие настройки приложения
 
-            TextField(
+            ClarifyTextField(
               controller: TextEditingController(text: email),
               style: TextStyle(color: textMuted),
               enabled: false,
-              decoration: InputDecoration(
-                labelText: "Email",
-                labelStyle: TextStyle(color: textMuted),
-                disabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(
-                    color: glassBorderColor.withValues(alpha: 0.5),
-                  ),
-                ),
-                filled: true,
-                fillColor: t.surfaceSunken,
-                isDense: true,
-              ),
+              labelText: "Email",
+              dense: true,
             ),
             const SizedBox(height: 24),
             Divider(color: glassBorderColor),
             const SizedBox(height: 16),
 
             if (!isChangingPassword)
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    side: BorderSide(color: glassBorderColor),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  icon: Icon(
-                    hasPasswordAuth ? LucideIcons.lock : LucideIcons.key,
-                    color: textColor,
-                    size: 20,
-                  ),
-                  label: Text(
-                    hasPasswordAuth
-                        ? "Изменить пароль".tr(currentLang)
-                        : "Установить пароль".tr(currentLang),
-                    style: TextStyle(
-                      color: textColor,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  onPressed: () =>
-                      setStateDialog(() => isChangingPassword = true),
-                ),
+              ClarifyButton(
+                icon: hasPasswordAuth ? LucideIcons.lock : LucideIcons.key,
+                label: hasPasswordAuth
+                    ? "Изменить пароль".tr(currentLang)
+                    : "Установить пароль".tr(currentLang),
+                variant: ClarifyButtonVariant.outline,
+                fullWidth: true,
+                onPressed: () =>
+                    setStateDialog(() => isChangingPassword = true),
               )
             else
               Column(
                 children: [
                   if (hasPasswordAuth) ...[
-                    TextField(
+                    ClarifyTextField(
                       controller: oldPasswordController,
                       obscureText: true,
                       style: TextStyle(color: textColor),
-                      decoration: InputDecoration(
-                        labelText: "Текущий пароль".tr(currentLang),
-                        labelStyle: TextStyle(color: textMuted),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: glassBorderColor),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: t.accent),
-                        ),
-                        isDense: true,
-                      ),
+                      labelText: "Текущий пароль".tr(currentLang),
+                      dense: true,
                     ),
                     const SizedBox(height: 12),
                   ],
 
-                  TextField(
+                  ClarifyTextField(
                     controller: newPasswordController,
                     obscureText: true,
                     style: TextStyle(color: textColor),
-                    decoration: InputDecoration(
-                      labelText: "Новый пароль".tr(currentLang),
-                      labelStyle: TextStyle(color: textMuted),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: glassBorderColor),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: t.accent),
-                      ),
-                      isDense: true,
-                    ),
+                    labelText: "Новый пароль".tr(currentLang),
+                    dense: true,
                   ),
                   const SizedBox(height: 12),
-                  TextField(
+                  ClarifyTextField(
                     controller: confirmPasswordController,
                     obscureText: true,
                     style: TextStyle(color: textColor),
-                    decoration: InputDecoration(
-                      labelText: "Подтвердите пароль".tr(currentLang),
-                      labelStyle: TextStyle(color: textMuted),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: glassBorderColor),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: t.accent),
-                      ),
-                      isDense: true,
-                    ),
+                    labelText: "Подтвердите пароль".tr(currentLang),
+                    dense: true,
                   ),
                   const SizedBox(height: 16),
                   Row(
                     children: [
                       Expanded(
-                        child: TextButton(
+                        child: ClarifyButton(
+                          label: "Отмена".tr(currentLang),
+                          variant: ClarifyButtonVariant.ghost,
                           onPressed: () => setStateDialog(() {
                             isChangingPassword = false;
                             oldPasswordController.clear();
                             newPasswordController.clear();
                             confirmPasswordController.clear();
                           }),
-                          child: Text(
-                            "Отмена".tr(currentLang),
-                            style: TextStyle(color: textMuted),
-                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: t.accent,
-                            foregroundColor: t.onAccent,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
+                        child: ClarifyButton(
+                          label: "Сохранить".tr(currentLang),
+                          variant: ClarifyButtonVariant.filled,
+                          fullWidth: true,
+                          loading: isLoading,
                           onPressed: isLoading
                               ? null
                               : () async {
@@ -1363,10 +1209,6 @@ void showAccountSettingsDialog({
                                     setStateDialog(() => isLoading = false);
                                   }
                                 },
-                          child: Text(
-                            "Сохранить".tr(currentLang),
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
                         ),
                       ),
                     ],
@@ -1376,29 +1218,15 @@ void showAccountSettingsDialog({
 
             const SizedBox(height: 24),
 
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: t.dangerSoft,
-                  foregroundColor: t.danger,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: t.danger),
-                  ),
-                ),
-                icon: const Icon(LucideIcons.logOut, size: 20),
-                label: Text(
-                  "Выйти из аккаунта".tr(currentLang),
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                onPressed: () async {
-                  if (context.mounted) Navigator.of(context).pop();
-                  await Supabase.instance.client.auth.signOut();
-                },
-              ),
+            ClarifyButton(
+              icon: LucideIcons.logOut,
+              label: "Выйти из аккаунта".tr(currentLang),
+              variant: ClarifyButtonVariant.danger,
+              fullWidth: true,
+              onPressed: () async {
+                if (context.mounted) Navigator.of(context).pop();
+                await Supabase.instance.client.auth.signOut();
+              },
             ),
           ],
         );
@@ -1414,6 +1242,7 @@ void showAccountSettingsDialog({
           child: Material(
             color: Colors.transparent,
             child: buildGlassContainer(
+              borderRadius: ClarifyRadius.dialogShell,
               padding: const EdgeInsets.all(32),
               child: SizedBox(
                 width: 400,

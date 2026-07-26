@@ -904,19 +904,14 @@ void _showDailyReviewOverlay(int taskCount) {
                         style: TextStyle(color: textMuted, fontSize: 16 * _s, height: 1.5)
                       ),
                       SizedBox(height: 40 * _s),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _tokens.accent,
-                          foregroundColor: _tokens.onAccent,
-                          padding: EdgeInsets.symmetric(horizontal: 40 * _s, vertical: 20 * _s),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16 * _s)),
-                          elevation: 0,
-                        ),
+                      ClarifyButton(
+                        label: "Завершить день".tr(widget.currentLang),
+                        variant: ClarifyButtonVariant.filled,
+                        scale: _s,
                         onPressed: () {
                           _confettiController.stop();
                           Navigator.pop(context);
                         },
-                        child: Text("Завершить день".tr(widget.currentLang), style: TextStyle(fontSize: 18 * _s, fontWeight: FontWeight.bold)),
                       )
                     ],
                   ),
@@ -981,16 +976,11 @@ void _checkBurnoutWarning(String dateStr) {
                       style: TextStyle(color: textMuted, fontSize: 14 * _s, height: 1.5)
                     ),
                     SizedBox(height: 28 * _s),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _tokens.accent,
-                        foregroundColor: _tokens.onAccent,
-                        padding: EdgeInsets.symmetric(horizontal: 32 * _s, vertical: 16 * _s),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12 * _s)),
-                        elevation: 0,
-                      ),
+                    ClarifyButton(
+                      label: "Понял, спасибо".tr(widget.currentLang),
+                      variant: ClarifyButtonVariant.filled,
+                      scale: _s,
                       onPressed: () => Navigator.pop(context),
-                      child: Text("Понял, спасибо".tr(widget.currentLang), style: TextStyle(fontSize: 15 * _s, fontWeight: FontWeight.bold)),
                     )
                   ],
                 ),

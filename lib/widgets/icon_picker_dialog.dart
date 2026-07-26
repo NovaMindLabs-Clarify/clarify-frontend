@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
+import 'clarify_button.dart';
 import 'clarify_glass.dart';
 import 'clarify_surface.dart';
 
@@ -118,7 +119,11 @@ Future<String?> showIconPickerDialog({
                   const SizedBox(height: 12),
                   Align(
                     alignment: Alignment.centerRight,
-                    child: TextButton(onPressed: () => Navigator.of(context).pop(), child: Text('Отмена'.tr(currentLang), style: TextStyle(color: t.text2))),
+                    child: ClarifyButton(
+                      label: 'Отмена'.tr(currentLang),
+                      variant: ClarifyButtonVariant.ghost,
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
                   ),
                 ],
               ),
@@ -216,12 +221,16 @@ Future<Map<String, String>?> showProjectCustomizeDialog({
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        TextButton(onPressed: () => Navigator.of(context).pop(), child: Text('Отмена'.tr(currentLang), style: TextStyle(color: t.text2))),
+                        ClarifyButton(
+                          label: 'Отмена'.tr(currentLang),
+                          variant: ClarifyButtonVariant.ghost,
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
                         const SizedBox(width: 8),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                        ClarifyButton(
+                          label: 'Сохранить'.tr(currentLang),
+                          variant: ClarifyButtonVariant.filled,
                           onPressed: () => Navigator.of(context).pop({'icon': selectedIcon, 'color': selectedColorIndex.toString()}),
-                          child: Text('Сохранить'.tr(currentLang)),
                         ),
                       ],
                     ),

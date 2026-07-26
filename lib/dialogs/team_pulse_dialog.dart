@@ -69,6 +69,7 @@ void showTeamPulseDialog({
         child: Material(
           color: Colors.transparent,
           child: buildGlassContainer(
+            borderRadius: ClarifyRadius.dialogShell,
             padding: EdgeInsets.all(32 * s),
             child: SizedBox(
               width: 400 * s,

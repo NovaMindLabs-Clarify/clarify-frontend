@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../widgets/clarify_surface.dart';
+import '../widgets/clarify_text_field.dart';
 import '../widgets/clarify_toast.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -77,6 +78,7 @@ void showTaskDetailsDialog({
           child: Material(
             color: Colors.transparent,
             child: buildGlassContainer(
+              borderRadius: ClarifyRadius.dialogShell,
               padding: const EdgeInsets.all(32),
               child: SizedBox(
                 width: 450,
@@ -178,7 +180,7 @@ void showTaskDetailsDialog({
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          Expanded(child: TextField(controller: subtaskController, style: TextStyle(color: textColor), decoration: InputDecoration(hintText: "Добавить пункт...".tr(currentLang), hintStyle: TextStyle(color: textMuted), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14), isDense: true),
+                          Expanded(child: ClarifyTextField(controller: subtaskController, style: TextStyle(color: textColor), hintText: "Добавить пункт...".tr(currentLang), dense: true,
                             onSubmitted: (text) {
                               if (text.trim().isEmpty) return;
                               subtaskController.clear();
@@ -282,17 +284,11 @@ void showTaskDetailsDialog({
                       Row(
                         children: [
                           Expanded(
-                            child: TextField(
+                            child: ClarifyTextField(
                               controller: commentController,
                               style: TextStyle(color: textColor),
-                              decoration: InputDecoration(
-                                hintText: "Написать комментарий...".tr(currentLang),
-                                hintStyle: TextStyle(color: textMuted),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)),
-                                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                                isDense: true
-                              ),
+                              hintText: "Написать комментарий...".tr(currentLang),
+                              dense: true,
                               onSubmitted: (text) async {
                                 if (commentController.text.trim().isEmpty) return;
                                 final submittedText = commentController.text.trim();

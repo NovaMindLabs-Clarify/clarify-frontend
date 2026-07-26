@@ -3,7 +3,10 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../core/tags.dart';
 import '../core/priority.dart';
 import 'clarify_bottom_sheet.dart';
+import 'clarify_button.dart';
 import 'clarify_date_time_picker.dart';
+import 'clarify_priority_lever.dart';
+import 'clarify_text_field.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
 
@@ -171,17 +174,11 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
             ],
           ),
           const SizedBox(height: 16),
-          TextField(
+          ClarifyTextField(
             controller: _titleController,
             autofocus: true,
             style: TextStyle(color: t.text),
-            decoration: InputDecoration(
-              hintText: 'Заголовок'.tr(widget.currentLang),
-              hintStyle: TextStyle(color: t.text3),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md), borderSide: BorderSide(color: t.border)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md), borderSide: BorderSide(color: t.border)),
-              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md), borderSide: BorderSide(color: t.accent, width: 2)),
-            ),
+            hintText: 'Заголовок'.tr(widget.currentLang),
             onSubmitted: (_) => _save(),
           ),
           const SizedBox(height: 16),
@@ -189,30 +186,14 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
             children: [
               Text('Приоритет: '.tr(widget.currentLang), style: TextStyle(color: t.text3, fontSize: 14)),
               const SizedBox(width: 10),
-              ...['none', 'red', 'orange', 'blue', 'gray'].map((pVal) {
-                final color = pVal == 'none' ? Colors.transparent : widget.getPriorityColor(pVal);
-                final isSelected = _priority == pVal;
-                final label = priorityFlagLabel(pVal);
-                return GestureDetector(
-                  onTap: () => setState(() => _priority = pVal),
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 8),
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: pVal == 'none' ? Colors.transparent : color.withValues(alpha: 0.16),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: isSelected ? t.text : t.border, width: isSelected ? 2 : 1),
-                    ),
-                    alignment: Alignment.center,
-                    child: pVal == 'none'
-                        ? Icon(LucideIcons.x, size: 14, color: t.text3)
-                        : label.isEmpty
-                            ? null
-                            : Icon(LucideIcons.flag, size: 14, color: color),
-                  ),
-                );
-              }),
+              Expanded(
+                child: ClarifyPriorityLever(
+                  value: _priority,
+                  onChanged: (val) => setState(() => _priority = val),
+                  getPriorityColor: widget.getPriorityColor,
+                  textMuted: t.text3,
+                ),
+              ),
               if (_priority != 'none') ...[
                 const SizedBox(width: 4),
                 Text(priorityFlagLabel(_priority), style: TextStyle(color: widget.getPriorityColor(_priority), fontWeight: FontWeight.bold, fontSize: 13)),
@@ -223,10 +204,11 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
           Row(
             children: [
               Expanded(
-                child: OutlinedButton.icon(
-                  icon: Icon(LucideIcons.calendar, size: 18, color: t.text),
-                  label: Text(_date == null ? 'Без даты'.tr(widget.currentLang) : widget.formatDate(_date!), style: TextStyle(color: t.text)),
-                  style: OutlinedButton.styleFrom(side: BorderSide(color: t.border), padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md))),
+                child: ClarifyButton(
+                  icon: LucideIcons.calendar,
+                  label: _date == null ? 'Без даты'.tr(widget.currentLang) : widget.formatDate(_date!),
+                  variant: ClarifyButtonVariant.outline,
+                  fullWidth: true,
                   onPressed: () async {
                     final picked = await showClarifyDatePicker(context: context, isDark: Theme.of(context).brightness == Brightness.dark, currentLang: widget.currentLang, initialDate: _date);
                     if (picked != null) setState(() => _date = picked);
@@ -235,10 +217,11 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: OutlinedButton.icon(
-                  icon: Icon(LucideIcons.clock, size: 18, color: t.text),
-                  label: Text(_time == null ? 'Время'.tr(widget.currentLang) : _time!.format(context), style: TextStyle(color: t.text)),
-                  style: OutlinedButton.styleFrom(side: BorderSide(color: t.border), padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md))),
+                child: ClarifyButton(
+                  icon: LucideIcons.clock,
+                  label: _time == null ? 'Время'.tr(widget.currentLang) : _time!.format(context),
+                  variant: ClarifyButtonVariant.outline,
+                  fullWidth: true,
                   onPressed: () async {
                     final picked = await showClarifyTimePicker(context: context, isDark: Theme.of(context).brightness == Brightness.dark, currentLang: widget.currentLang, initialTime: _time ?? TimeOfDay.now());
                     if (picked != null) setState(() => _time = picked);
@@ -305,11 +288,12 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
                             const SizedBox(width: 8),
                             SizedBox(
                               width: 56,
-                              child: TextField(
+                              child: ClarifyTextField(
                                 controller: TextEditingController(text: _recurrenceInterval.toString()),
                                 keyboardType: TextInputType.number,
                                 style: TextStyle(color: t.text),
-                                decoration: InputDecoration(isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8), border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: t.border))),
+                                textAlign: TextAlign.center,
+                                dense: true,
                                 onChanged: (val) => _recurrenceInterval = int.tryParse(val) ?? 2,
                               ),
                             ),
@@ -319,17 +303,12 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
                         ),
                       ],
                       const SizedBox(height: 12),
-                      TextField(
+                      ClarifyTextField(
                         controller: _tagsController,
                         style: TextStyle(color: t.text),
                         onChanged: (_) => setState(() {}),
-                        decoration: InputDecoration(
-                          labelText: 'Теги (через запятую)'.tr(widget.currentLang),
-                          labelStyle: TextStyle(color: t.text3),
-                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md), borderSide: BorderSide(color: t.border)),
-                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md), borderSide: BorderSide(color: t.accent)),
-                          isDense: true,
-                        ),
+                        labelText: 'Теги (через запятую)'.tr(widget.currentLang),
+                        dense: true,
                       ),
                       if (_tagSuggestions.isNotEmpty)
                         Padding(
@@ -345,17 +324,11 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
                           ),
                         ),
                       const SizedBox(height: 12),
-                      TextField(
+                      ClarifyTextField(
                         controller: _noteController,
                         style: TextStyle(color: t.text),
                         maxLines: 2,
-                        decoration: InputDecoration(
-                          labelText: 'Заметка'.tr(widget.currentLang),
-                          labelStyle: TextStyle(color: t.text3),
-                          alignLabelWithHint: true,
-                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md), borderSide: BorderSide(color: t.border)),
-                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md), borderSide: BorderSide(color: t.accent)),
-                        ),
+                        labelText: 'Заметка'.tr(widget.currentLang),
                       ),
                       const SizedBox(height: 12),
                       Text('Чек-лист (Подзадачи):'.tr(widget.currentLang), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: t.text)),
@@ -383,17 +356,11 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
                       Row(
                         children: [
                           Expanded(
-                            child: TextField(
+                            child: ClarifyTextField(
                               controller: _subtaskController,
                               style: TextStyle(color: t.text),
-                              decoration: InputDecoration(
-                                hintText: 'Добавить пункт...'.tr(widget.currentLang),
-                                hintStyle: TextStyle(color: t.text3),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md), borderSide: BorderSide(color: t.border)),
-                                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md), borderSide: BorderSide(color: t.border)),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                isDense: true,
-                              ),
+                              hintText: 'Добавить пункт...'.tr(widget.currentLang),
+                              dense: true,
                               onSubmitted: (text) { if (text.trim().isNotEmpty) setState(() { _subtasks.add(text.trim()); _subtaskController.clear(); }); },
                             ),
                           ),
@@ -409,15 +376,12 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
                   ),
           ),
           const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md))),
-              onPressed: _isSaving ? null : _save,
-              child: _isSaving
-                  ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: t.onAccent, strokeWidth: 2))
-                  : Text('Сохранить'.tr(widget.currentLang), style: const TextStyle(fontWeight: FontWeight.bold)),
-            ),
+          ClarifyButton(
+            label: 'Сохранить'.tr(widget.currentLang),
+            variant: ClarifyButtonVariant.filled,
+            fullWidth: true,
+            loading: _isSaving,
+            onPressed: _isSaving ? null : _save,
           ),
         ],
       ),

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../widgets/clarify_button.dart';
+import '../widgets/clarify_priority_lever.dart';
 import '../widgets/clarify_surface.dart';
+import '../widgets/clarify_text_field.dart';
 import '../widgets/clarify_toast.dart';
 import '../widgets/clarify_date_time_picker.dart';
 import '../core/app_settings.dart';
@@ -113,6 +116,7 @@ void showManualAddDialog({
           child: Material(
             color: Colors.transparent,
             child: buildGlassContainer(
+              borderRadius: ClarifyRadius.dialogShell,
               padding: const EdgeInsets.all(24),
               child: SizedBox(
                 width: 450,
@@ -128,7 +132,7 @@ void showManualAddDialog({
                         ]
                       ),
                       const SizedBox(height: 16),
-                      TextField(
+                      ClarifyTextField(
                         controller: titleController,
                         style: TextStyle(color: textColor, fontSize: 16),
                         autofocus: true,
@@ -145,7 +149,7 @@ void showManualAddDialog({
                             }
                           }
                         },
-                        decoration: InputDecoration(labelText: "Заголовок".tr(currentLang), labelStyle: TextStyle(color: textMuted), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)))
+                        labelText: "Заголовок".tr(currentLang),
                       ),
                       const SizedBox(height: 16),
                       Container(
@@ -158,24 +162,14 @@ void showManualAddDialog({
                         children: [
                           Text("Приоритет: ".tr(currentLang), style: TextStyle(color: textMuted, fontSize: 14)),
                           const SizedBox(width: 8),
-                          ...['none', 'red', 'orange', 'blue', 'gray'].map((pVal) {
-                            Color btnColor = pVal == 'none' ? Colors.transparent : getPriorityColor(pVal);
-                            bool isSelected = selectedPriority == pVal;
-                            final label = priorityFlagLabel(pVal);
-                            return GestureDetector(
-                              onTap: () => setStateDialog(() => selectedPriority = pVal),
-                              child: Container(
-                                margin: const EdgeInsets.only(right: 8), width: 26, height: 26,
-                                decoration: BoxDecoration(color: pVal == 'none' ? Colors.transparent : btnColor.withValues(alpha: 0.16), shape: BoxShape.circle, border: isSelected ? Border.all(color: textColor, width: 2) : Border.all(color: glassBorderColor, width: 1)),
-                                alignment: Alignment.center,
-                                child: pVal == 'none'
-                                    ? Icon(LucideIcons.x, size: 14, color: textMuted)
-                                    : label.isEmpty
-                                        ? null
-                                        : Icon(LucideIcons.flag, size: 14, color: btnColor),
-                              ),
-                            );
-                          }),
+                          Expanded(
+                            child: ClarifyPriorityLever(
+                              value: selectedPriority,
+                              onChanged: (val) => setStateDialog(() => selectedPriority = val),
+                              getPriorityColor: getPriorityColor,
+                              textMuted: textMuted,
+                            ),
+                          ),
                           if (selectedPriority != 'none') ...[
                             const SizedBox(width: 4),
                             Text(priorityFlagLabel(selectedPriority), style: TextStyle(color: getPriorityColor(selectedPriority), fontWeight: FontWeight.bold, fontSize: 13)),
@@ -185,18 +179,18 @@ void showManualAddDialog({
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          Expanded(child: OutlinedButton.icon(icon: Icon(LucideIcons.calendar, size: 18, color: textColor), label: Text(selectedDate == null ? "Без даты".tr(currentLang) : formatDate(selectedDate!), style: TextStyle(color: textColor)), style: OutlinedButton.styleFrom(side: BorderSide(color: glassBorderColor), padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), onPressed: () async { final picked = await showClarifyDatePicker(context: context, isDark: isDark, currentLang: currentLang, initialDate: selectedDate); if (picked != null) setStateDialog(() => selectedDate = picked); })),
+                          Expanded(child: ClarifyButton(icon: LucideIcons.calendar, label: selectedDate == null ? "Без даты".tr(currentLang) : formatDate(selectedDate!), variant: ClarifyButtonVariant.outline, onPressed: () async { final picked = await showClarifyDatePicker(context: context, isDark: isDark, currentLang: currentLang, initialDate: selectedDate); if (picked != null) setStateDialog(() => selectedDate = picked); })),
                           const SizedBox(width: 12),
-                          Expanded(child: OutlinedButton.icon(icon: Icon(LucideIcons.clock, size: 18, color: textColor), label: Text(selectedTime == null ? "Время".tr(currentLang) : selectedTime!.format(context), style: TextStyle(color: textColor)), style: OutlinedButton.styleFrom(side: BorderSide(color: glassBorderColor), padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), onPressed: () async { final picked = await showClarifyTimePicker(context: context, isDark: isDark, currentLang: currentLang, initialTime: selectedTime ?? TimeOfDay.now()); if (picked != null) setStateDialog(() => selectedTime = picked); })),
+                          Expanded(child: ClarifyButton(icon: LucideIcons.clock, label: selectedTime == null ? "Время".tr(currentLang) : selectedTime!.format(context), variant: ClarifyButtonVariant.outline, onPressed: () async { final picked = await showClarifyTimePicker(context: context, isDark: isDark, currentLang: currentLang, initialTime: selectedTime ?? TimeOfDay.now()); if (picked != null) setStateDialog(() => selectedTime = picked); })),
                         ],
                       ),
                       const SizedBox(height: 8),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          TextButton(onPressed: () => shiftDate(1, 0, setStateDialog, selectedDate), child: Text("+1 День".tr(currentLang))),
-                          TextButton(onPressed: () => shiftDate(7, 0, setStateDialog, selectedDate), child: Text("+1 Неделя".tr(currentLang))),
-                          TextButton(onPressed: () => setStateDialog(() => selectedDate = null), child: Text("Убрать".tr(currentLang), style: TextStyle(color: t.danger))),
+                          ClarifyButton(label: "+1 День".tr(currentLang), variant: ClarifyButtonVariant.ghost, onPressed: () => shiftDate(1, 0, setStateDialog, selectedDate)),
+                          ClarifyButton(label: "+1 Неделя".tr(currentLang), variant: ClarifyButtonVariant.ghost, onPressed: () => shiftDate(7, 0, setStateDialog, selectedDate)),
+                          ClarifyButton(label: "Убрать".tr(currentLang), variant: ClarifyButtonVariant.danger, onPressed: () => setStateDialog(() => selectedDate = null)),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -227,11 +221,12 @@ void showManualAddDialog({
                             const SizedBox(width: 8),
                             SizedBox(
                               width: 56,
-                              child: TextField(
+                              child: ClarifyTextField(
                                 controller: TextEditingController(text: selectedRecurrenceInterval.toString()),
                                 keyboardType: TextInputType.number,
                                 style: TextStyle(color: textColor),
-                                decoration: InputDecoration(isDense: true, contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8), border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: glassBorderColor))),
+                                textAlign: TextAlign.center,
+                                dense: true,
                                 onChanged: (val) => selectedRecurrenceInterval = int.tryParse(val) ?? 2,
                               ),
                             ),
@@ -292,7 +287,7 @@ void showManualAddDialog({
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          Expanded(child: TextField(controller: subtaskController, style: TextStyle(color: textColor), decoration: InputDecoration(hintText: "Добавить пункт...".tr(currentLang), hintStyle: TextStyle(color: textMuted), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: glassBorderColor)), contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), isDense: true), onSubmitted: (text) { if (text.trim().isNotEmpty) { setStateDialog(() { tempSubtasks.add(text.trim()); subtaskController.clear(); }); } })),
+                          Expanded(child: ClarifyTextField(controller: subtaskController, style: TextStyle(color: textColor), hintText: "Добавить пункт...".tr(currentLang), dense: true, onSubmitted: (text) { if (text.trim().isNotEmpty) { setStateDialog(() { tempSubtasks.add(text.trim()); subtaskController.clear(); }); } })),
                           const SizedBox(width: 12),
                           IconButton(style: IconButton.styleFrom(backgroundColor: highlightColor, padding: const EdgeInsets.all(12)), icon: Icon(LucideIcons.plus, color: t.accent), onPressed: () { if (subtaskController.text.trim().isNotEmpty) { setStateDialog(() { tempSubtasks.add(subtaskController.text.trim()); subtaskController.clear(); }); } })
                         ],
@@ -327,11 +322,17 @@ void showManualAddDialog({
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          TextButton(onPressed: () { Navigator.pop(context); if (isDuplicating) onDuplicateHandled(); }, child: Text("Отмена".tr(currentLang), style: TextStyle(color: textMuted))),
+                          ClarifyButton(
+                            label: "Отмена".tr(currentLang),
+                            variant: ClarifyButtonVariant.ghost,
+                            onPressed: () { Navigator.pop(context); if (isDuplicating) onDuplicateHandled(); },
+                          ),
                           const SizedBox(width: 12),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                            onPressed: isSaving ? null : () async {
+                          ClarifyButton(
+                            label: "Сохранить".tr(currentLang),
+                            variant: ClarifyButtonVariant.filled,
+                            loading: isSaving,
+                            onPressed: () async {
                               if (titleController.text.trim().isEmpty) return;
 
                               setStateDialog(() => isSaving = true);
@@ -378,9 +379,6 @@ void showManualAddDialog({
 
                               if (context.mounted) setStateDialog(() => isSaving = false);
                             },
-                            child: isSaving
-                                ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: t.onAccent, strokeWidth: 2))
-                                : Text("Сохранить".tr(currentLang), style: TextStyle(fontWeight: FontWeight.bold))
                           ),
                         ],
                       )

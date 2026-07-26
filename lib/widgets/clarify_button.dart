@@ -13,6 +13,8 @@ class ClarifyButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final ClarifyButtonVariant variant;
   final double scale;
+  final bool loading;
+  final bool fullWidth;
 
   const ClarifyButton({
     super.key,
@@ -21,6 +23,8 @@ class ClarifyButton extends StatelessWidget {
     this.icon,
     this.variant = ClarifyButtonVariant.outline,
     this.scale = 1.0,
+    this.loading = false,
+    this.fullWidth = false,
   });
 
   @override
@@ -89,6 +93,17 @@ class ClarifyButton extends StatelessWidget {
             return Colors.transparent;
           }),
         );
+    // ClarifyPressGlow оборачивает кнопку в Stack (alignment: center) —
+    // Stack даёт непозиционированным детям loose-констрейнты независимо от
+    // своих собственных tight-констрейнтов, поэтому Column(stretch) её не
+    // растягивает, как растянул бы голый ElevatedButton. minimumSize с
+    // double.infinity — стандартный флаттеровский приём, работает и без tight
+    // ширины от родителя.
+    final effectiveStyle = fullWidth
+        ? style.copyWith(
+            minimumSize: WidgetStateProperty.all(const Size(double.infinity, 0)),
+          )
+        : style;
 
     // clipBehavior: без него hover/pressed-заливка ElevatedButton иногда не
     // обрезается по скруглению pill-формы и на границе видны острые углы —
@@ -96,15 +111,21 @@ class ClarifyButton extends StatelessWidget {
     final glowColor = variant == ClarifyButtonVariant.danger
         ? t.danger
         : t.accent;
+    final effectiveOnPressed = loading ? null : onPressed;
+    final spinner = SizedBox(
+      width: 16 * scale,
+      height: 16 * scale,
+      child: CircularProgressIndicator(strokeWidth: 2, color: fg),
+    );
     if (icon == null) {
       return ClarifyPressGlow(
         color: glowColor,
         spread: 14 * scale,
         child: ElevatedButton(
-          style: style,
+          style: effectiveStyle,
           clipBehavior: Clip.antiAlias,
-          onPressed: onPressed,
-          child: Text(label),
+          onPressed: effectiveOnPressed,
+          child: loading ? spinner : Text(label),
         ),
       );
     }
@@ -114,8 +135,8 @@ class ClarifyButton extends StatelessWidget {
       child: ElevatedButton.icon(
         style: style,
         clipBehavior: Clip.antiAlias,
-        onPressed: onPressed,
-        icon: Icon(icon, size: 18 * scale),
+        onPressed: effectiveOnPressed,
+        icon: loading ? spinner : Icon(icon, size: 18 * scale),
         label: Text(label, overflow: TextOverflow.ellipsis),
       ),
     );

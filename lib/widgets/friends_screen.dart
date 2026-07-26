@@ -3,6 +3,8 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
+import 'clarify_button.dart';
+import 'clarify_text_field.dart';
 import 'clarify_toast.dart';
 
 /// «Друзья» — три вкладки Друзья/Заявки/Найти (SOCIAL_PLAN.md §3/4.2). Общий
@@ -185,25 +187,19 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
           Row(
             children: [
               Expanded(
-                child: TextField(
+                child: ClarifyTextField(
                   controller: _codeController,
                   style: TextStyle(color: t.text, letterSpacing: 1.5),
                   textCapitalization: TextCapitalization.characters,
-                  decoration: InputDecoration(
-                    hintText: 'ABCD1234',
-                    hintStyle: TextStyle(color: t.text3),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md), borderSide: BorderSide(color: t.border)),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md), borderSide: BorderSide(color: t.accent)),
-                  ),
+                  hintText: 'ABCD1234',
                 ),
               ),
               const SizedBox(width: 12),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent, padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md))),
+              ClarifyButton(
+                label: 'Добавить'.tr(widget.currentLang),
+                variant: ClarifyButtonVariant.filled,
+                loading: _isSending,
                 onPressed: _isSending ? null : _sendRequest,
-                child: _isSending
-                    ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: t.onAccent, strokeWidth: 2))
-                    : Text('Добавить'.tr(widget.currentLang), style: const TextStyle(fontWeight: FontWeight.bold)),
               ),
             ],
           ),

@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
+import 'clarify_button.dart';
 import 'clarify_glass.dart';
 import 'clarify_surface.dart';
 import 'clarify_toast.dart';
@@ -145,45 +146,39 @@ class _UserProfileModalState extends State<_UserProfileModal> {
 
   Widget _buildActions(ClarifyTokens t) {
     if (_isSelf) {
-      return SizedBox(
-        width: double.infinity,
-        child: OutlinedButton(
-          style: OutlinedButton.styleFrom(side: BorderSide(color: t.border), padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md))),
-          onPressed: () {
-            Navigator.of(context).pop();
-            widget.onOpenOwnSettings?.call();
-          },
-          child: Text('Настройки профиля'.tr(widget.currentLang), style: TextStyle(color: t.text, fontWeight: FontWeight.bold)),
-        ),
+      return ClarifyButton(
+        label: 'Настройки профиля'.tr(widget.currentLang),
+        variant: ClarifyButtonVariant.outline,
+        fullWidth: true,
+        onPressed: () {
+          Navigator.of(context).pop();
+          widget.onOpenOwnSettings?.call();
+        },
       );
     }
 
     if (_friendshipStatus == 'accepted') {
-      return SizedBox(
-        width: double.infinity,
-        child: ElevatedButton.icon(
-          style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md))),
-          icon: const Icon(LucideIcons.messageCircle, size: 18),
-          label: Text('Написать'.tr(widget.currentLang), style: const TextStyle(fontWeight: FontWeight.bold)),
-          onPressed: widget.onOpenConversation == null
-              ? null
-              : () {
-                  Navigator.of(context).pop();
-                  final name = (_profile?['full_name'] as String?)?.trim() ?? 'Без имени'.tr(widget.currentLang);
-                  widget.onOpenConversation!(widget.userId, name);
-                },
-        ),
+      return ClarifyButton(
+        icon: LucideIcons.messageCircle,
+        label: 'Написать'.tr(widget.currentLang),
+        variant: ClarifyButtonVariant.filled,
+        fullWidth: true,
+        onPressed: widget.onOpenConversation == null
+            ? null
+            : () {
+                Navigator.of(context).pop();
+                final name = (_profile?['full_name'] as String?)?.trim() ?? 'Без имени'.tr(widget.currentLang);
+                widget.onOpenConversation!(widget.userId, name);
+              },
       );
     }
 
     if (_friendshipStatus == 'pending_sent') {
-      return SizedBox(
-        width: double.infinity,
-        child: OutlinedButton(
-          style: OutlinedButton.styleFrom(side: BorderSide(color: t.border), padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md))),
-          onPressed: null,
-          child: Text('Заявка отправлена'.tr(widget.currentLang), style: TextStyle(color: t.text3, fontWeight: FontWeight.bold)),
-        ),
+      return ClarifyButton(
+        label: 'Заявка отправлена'.tr(widget.currentLang),
+        variant: ClarifyButtonVariant.outline,
+        fullWidth: true,
+        onPressed: null,
       );
     }
 
@@ -191,14 +186,13 @@ class _UserProfileModalState extends State<_UserProfileModal> {
       return Text('Этот пользователь уже отправил вам заявку — примите её в разделе «Друзья».'.tr(widget.currentLang), textAlign: TextAlign.center, style: TextStyle(color: t.text3, fontSize: 13));
     }
 
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md))),
-        icon: _isActing ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: t.onAccent, strokeWidth: 2)) : const Icon(LucideIcons.userPlus, size: 18),
-        label: Text('Добавить в друзья'.tr(widget.currentLang), style: const TextStyle(fontWeight: FontWeight.bold)),
-        onPressed: _isActing ? null : _addFriend,
-      ),
+    return ClarifyButton(
+      icon: LucideIcons.userPlus,
+      label: 'Добавить в друзья'.tr(widget.currentLang),
+      variant: ClarifyButtonVariant.filled,
+      fullWidth: true,
+      loading: _isActing,
+      onPressed: _isActing ? null : _addFriend,
     );
   }
 }

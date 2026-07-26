@@ -222,6 +222,15 @@ class ClarifyRadius {
   /// остаются для карточек/чипов, где уместно равномерное скругление.
   static const double dialogTop = 28;
   static const double dialogBottom = 8;
+
+  /// Готовый силуэт для корневой оболочки модалок (§6.1/§6.3/§9.2) — крупный
+  /// верх, острый низ, вместо равномерного [md]/[lg]/[xl] у всех диалогов.
+  static const BorderRadius dialogShell = BorderRadius.only(
+    topLeft: Radius.circular(dialogTop),
+    topRight: Radius.circular(dialogTop),
+    bottomLeft: Radius.circular(dialogBottom),
+    bottomRight: Radius.circular(dialogBottom),
+  );
 }
 
 /// Брейкпоинты — дискретные состояния раскладки, а не равномерный масштаб.

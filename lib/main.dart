@@ -22,6 +22,7 @@ import 'core/config.dart';
 import 'core/last_tap_tracker.dart';
 import 'core/localization.dart';
 import 'core/theme/design_tokens.dart';
+import 'widgets/clarify_button.dart';
 import 'widgets/clarify_glass.dart';
 import 'widgets/clarify_surface.dart';
 import 'widgets/clarify_toast.dart';
@@ -447,15 +448,18 @@ class _AuthScreenState extends State<AuthScreen> {
           decoration: InputDecoration(counterText: "", hintText: "00000000", hintStyle: TextStyle(color: textMuted.withOpacity(0.3)), filled: true, fillColor: isDark ? Colors.black.withOpacity(0.2) : Colors.white.withOpacity(0.4), border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none)),
         ),
         const SizedBox(height: 32),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent, padding: const EdgeInsets.symmetric(vertical: 20), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 8),
+        ClarifyButton(
+          label: "Подтвердить".tr(widget.currentLang),
+          variant: ClarifyButtonVariant.filled,
+          fullWidth: true,
+          loading: _isLoading,
           onPressed: _isLoading ? null : _verifyOtp,
-          child: _isLoading ? SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: t.onAccent, strokeWidth: 2)) : Text("Подтвердить".tr(widget.currentLang), style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         ),
         const SizedBox(height: 16),
-        TextButton(
+        ClarifyButton(
+          label: "Вернуться назад".tr(widget.currentLang),
+          variant: ClarifyButtonVariant.ghost,
           onPressed: () => setState(() { _isOtpMode = false; _otpController.clear(); }),
-          child: Text("Вернуться назад".tr(widget.currentLang), style: TextStyle(color: textMuted, fontWeight: FontWeight.bold)),
         )
       ],
     );
@@ -713,14 +717,11 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
         const SizedBox(height: 24),
 
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: t.accent,
-            foregroundColor: t.onAccent,
-            padding: const EdgeInsets.symmetric(vertical: 20),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            elevation: 8
-          ),
+        ClarifyButton(
+          label: (_mode == AuthMode.register ? "Создать аккаунт" : "Получить ссылку для входа").tr(widget.currentLang),
+          variant: ClarifyButtonVariant.filled,
+          fullWidth: true,
+          loading: _isLoading,
           onPressed: _isLoading ? null : () async {
             final email = _emailController.text.trim();
             if (email.isEmpty) {
@@ -747,12 +748,6 @@ class _AuthScreenState extends State<AuthScreen> {
               if (context.mounted) setState(() => _isLoading = false);
             }
           },
-          child: _isLoading
-            ? SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: t.onAccent, strokeWidth: 2))
-            : Text(
-                (_mode == AuthMode.register ? "Создать аккаунт" : "Получить ссылку для входа").tr(widget.currentLang),
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
         ),
       ],
     );
@@ -904,40 +899,52 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
     showClarifySurface(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          backgroundColor: t.surface2,
-          title: Text(
-            "Фото профиля".tr(widget.currentLang),
-            style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: Icon(LucideIcons.upload, color: t.accent),
-                title: Text("Загрузить новое".tr(widget.currentLang), style: TextStyle(color: textColor)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickAndUploadAvatar();
-                },
-              ),
+        return Center(
+          child: Material(
+            color: Colors.transparent,
+            child: ClarifyGlass(
+              borderRadius: ClarifyRadius.dialogShell,
+              padding: const EdgeInsets.all(20),
+              child: SizedBox(
+                width: 320,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Фото профиля".tr(widget.currentLang),
+                      style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 18),
+                    ),
+                    const SizedBox(height: 12),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(LucideIcons.upload, color: t.accent),
+                      title: Text("Загрузить новое".tr(widget.currentLang), style: TextStyle(color: textColor)),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _pickAndUploadAvatar();
+                      },
+                    ),
 
-              if (hasAvatar) ...[
-                const Divider(),
-                ListTile(
-                  leading: Icon(LucideIcons.trash2, color: t.danger),
-                  title: Text(
-                    "Удалить текущее".tr(widget.currentLang),
-                    style: TextStyle(color: t.danger, fontWeight: FontWeight.bold),
-                  ),
-                  onTap: () {
-                    Navigator.pop(context); 
-                    _deleteAvatar(); 
-                  },
+                    if (hasAvatar) ...[
+                      Divider(color: t.border),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(LucideIcons.trash2, color: t.danger),
+                        title: Text(
+                          "Удалить текущее".tr(widget.currentLang),
+                          style: TextStyle(color: t.danger, fontWeight: FontWeight.bold),
+                        ),
+                        onTap: () {
+                          Navigator.pop(context);
+                          _deleteAvatar();
+                        },
+                      ),
+                    ]
+                  ],
                 ),
-              ]
-            ],
+              ),
+            ),
           ),
         );
       },
@@ -1003,15 +1010,12 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
                     ),
                     const SizedBox(height: 32),
                     
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent, padding: const EdgeInsets.symmetric(vertical: 20), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 8),
-                        onPressed: _isLoading ? null : _saveProfile,
-                        child: _isLoading
-                          ? SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: t.onAccent, strokeWidth: 2))
-                          : Text("Начать планирование".tr(widget.currentLang), style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      ),
+                    ClarifyButton(
+                      label: "Начать планирование".tr(widget.currentLang),
+                      variant: ClarifyButtonVariant.filled,
+                      fullWidth: true,
+                      loading: _isLoading,
+                      onPressed: _isLoading ? null : _saveProfile,
                     )
                   ],
                 ),

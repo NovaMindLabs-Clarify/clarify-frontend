@@ -12,6 +12,8 @@ import '../../core/config.dart';
 import '../../core/localization.dart';
 import '../../core/theme/design_tokens.dart';
 import '../../services/push_registration.dart';
+import '../../widgets/clarify_button.dart';
+import '../../widgets/clarify_priority_lever.dart';
 import '../../widgets/clarify_settings_card.dart';
 import '../../widgets/clarify_toast.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -162,9 +164,26 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
         const SizedBox(height: 20),
 
         _SectionLabel(text: 'Обзор'.tr(currentLang)),
-        _SettingsTile(icon: LucideIcons.userRound, label: 'Друзья'.tr(currentLang), onTap: widget.onOpenFriends),
-        _SettingsTile(icon: LucideIcons.messageCircle, label: 'Сообщения'.tr(currentLang), onTap: widget.onOpenMessages),
-        _SettingsTile(icon: LucideIcons.chartBar, label: 'Статистика'.tr(currentLang), onTap: widget.onOpenStatistics),
+        ClarifySettingsCard(
+          icon: LucideIcons.userRound,
+          title: 'Друзья'.tr(currentLang),
+          onTap: widget.onOpenFriends,
+          trailing: Icon(LucideIcons.chevronRight, size: 18, color: t.text3),
+        ),
+        const SizedBox(height: 12),
+        ClarifySettingsCard(
+          icon: LucideIcons.messageCircle,
+          title: 'Сообщения'.tr(currentLang),
+          onTap: widget.onOpenMessages,
+          trailing: Icon(LucideIcons.chevronRight, size: 18, color: t.text3),
+        ),
+        const SizedBox(height: 12),
+        ClarifySettingsCard(
+          icon: LucideIcons.chartBar,
+          title: 'Статистика'.tr(currentLang),
+          onTap: widget.onOpenStatistics,
+          trailing: Icon(LucideIcons.chevronRight, size: 18, color: t.text3),
+        ),
 
         const SizedBox(height: 20),
         _SectionLabel(text: 'Уведомления'.tr(currentLang)),
@@ -189,9 +208,10 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
         ),
         if (kIsWeb) ...[
           const SizedBox(height: 12),
-          _SettingsTile(
+          ClarifySettingsCard(
             icon: LucideIcons.bellRing,
-            label: 'Включить push-уведомления'.tr(currentLang),
+            title: 'Включить push-уведомления'.tr(currentLang),
+            trailing: Icon(LucideIcons.chevronRight, size: 18, color: t.text3),
             onTap: () async {
               final error = await PushRegistrationWeb.register(AppConfig.vapidPublicKey);
               if (context.mounted) {
@@ -224,27 +244,28 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
 
         const SizedBox(height: 20),
         _SectionLabel(text: 'Тариф'.tr(currentLang)),
-        _SettingsTile(
+        ClarifySettingsCard(
           icon: LucideIcons.crown,
-          label: 'Управление подпиской'.tr(currentLang),
+          title: 'Управление подпиской'.tr(currentLang),
+          trailing: Icon(LucideIcons.chevronRight, size: 18, color: t.text3),
           onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _PlanPage(currentLang: currentLang))),
         ),
 
         const SizedBox(height: 20),
         _SectionLabel(text: 'Интеграции'.tr(currentLang)),
-        _SettingsTile(
+        ClarifySettingsCard(
           icon: LucideIcons.calendarSync,
-          label: 'Календари'.tr(currentLang),
+          title: 'Календари'.tr(currentLang),
+          trailing: Icon(LucideIcons.chevronRight, size: 18, color: t.text3),
           onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _CalendarsPage(currentLang: currentLang))),
         ),
 
         const SizedBox(height: 20),
         _SectionLabel(text: 'Оформление'.tr(currentLang)),
-        _SettingsSwitchTile(
+        ClarifySettingsCard(
           icon: widget.isDark ? LucideIcons.moon : LucideIcons.sun,
-          label: 'Тёмная тема'.tr(currentLang),
-          value: widget.isDark,
-          onChanged: (_) => widget.toggleTheme(),
+          title: 'Тёмная тема'.tr(currentLang),
+          trailing: Switch(value: widget.isDark, activeColor: t.accent, onChanged: (_) => widget.toggleTheme()),
         ),
         const SizedBox(height: 8),
         ClarifySettingsCard(
@@ -294,7 +315,18 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        _LanguageTile(currentLang: currentLang, changeLang: widget.changeLang),
+        ClarifySettingsCard(
+          icon: LucideIcons.globe,
+          title: 'Язык'.tr(currentLang),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _LangButton(label: 'RU', active: currentLang == 'ru', onTap: () => widget.changeLang('ru')),
+              const SizedBox(width: 6),
+              _LangButton(label: 'EN', active: currentLang == 'en', onTap: () => widget.changeLang('en')),
+            ],
+          ),
+        ),
 
         const SizedBox(height: 20),
         _SectionLabel(text: 'Быстрое добавление'.tr(currentLang)),
@@ -310,41 +342,24 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
               Divider(color: t.border, height: 17),
               Text('Приоритет по умолчанию'.tr(currentLang), style: TextStyle(color: t.text3, fontSize: 12.5)),
               const SizedBox(height: 8),
-              Row(
-                children: ['none', 'red', 'orange', 'blue', 'gray'].map((pVal) {
-                  Color dotColor;
+              ClarifyPriorityLever(
+                value: AppSettings.quickAddDefaultPriority,
+                onChanged: (val) => setState(() => AppSettings.quickAddDefaultPriority = val),
+                getPriorityColor: (pVal) {
                   switch (pVal) {
                     case 'red':
-                      dotColor = t.danger;
-                      break;
+                      return t.danger;
                     case 'orange':
-                      dotColor = t.warning;
-                      break;
+                      return t.warning;
                     case 'blue':
-                      dotColor = t.accent;
-                      break;
+                      return t.accent;
                     case 'gray':
-                      dotColor = t.text3;
-                      break;
+                      return t.text3;
                     default:
-                      dotColor = Colors.transparent;
+                      return Colors.transparent;
                   }
-                  final isSelected = AppSettings.quickAddDefaultPriority == pVal;
-                  return GestureDetector(
-                    onTap: () => setState(() => AppSettings.quickAddDefaultPriority = pVal),
-                    child: Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      width: 26,
-                      height: 26,
-                      decoration: BoxDecoration(
-                        color: dotColor,
-                        shape: BoxShape.circle,
-                        border: isSelected ? Border.all(color: t.text, width: 2) : Border.all(color: t.border, width: 1),
-                      ),
-                      child: isSelected && pVal == 'none' ? Icon(LucideIcons.x, size: 14, color: t.text3) : null,
-                    ),
-                  );
-                }).toList(),
+                },
+                textMuted: t.text3,
               ),
               const SizedBox(height: 16),
               Text('Повтор по умолчанию'.tr(currentLang), style: TextStyle(color: t.text3, fontSize: 12.5)),
@@ -387,13 +402,11 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
                 ],
               ),
               const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(side: BorderSide(color: t.danger), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ClarifyRadius.sm))),
-                  onPressed: _clearCache,
-                  child: Text('Очистить кэш'.tr(currentLang), style: TextStyle(color: t.danger)),
-                ),
+              ClarifyButton(
+                label: 'Очистить кэш'.tr(currentLang),
+                variant: ClarifyButtonVariant.danger,
+                fullWidth: true,
+                onPressed: _clearCache,
               ),
             ],
           ),
@@ -402,34 +415,29 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
         ClarifySettingsCard(
           icon: LucideIcons.fileDown,
           title: 'Экспорт задач в CSV'.tr(currentLang),
-          trailing: OutlinedButton(
-            style: OutlinedButton.styleFrom(side: BorderSide(color: t.border), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999))),
+          trailing: ClarifyButton(
+            label: 'Экспортировать'.tr(currentLang),
+            variant: ClarifyButtonVariant.outline,
+            scale: 0.85,
             onPressed: _exportTasksCsv,
-            child: Text('Экспортировать'.tr(currentLang), style: TextStyle(color: t.text)),
           ),
         ),
 
         const SizedBox(height: 20),
         _SectionLabel(text: 'Поддержка'.tr(currentLang)),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              side: BorderSide(color: t.accent.withValues(alpha: 0.5)),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md)),
-            ),
-            icon: Icon(LucideIcons.send, color: t.accent, size: 20),
-            label: Text('Поддержка'.tr(currentLang), style: TextStyle(color: t.accent, fontWeight: FontWeight.bold)),
-            onPressed: () async {
-              final url = Uri.parse(AppConfig.telegramSupportUrl);
-              if (await canLaunchUrl(url)) {
-                await launchUrl(url, mode: LaunchMode.externalApplication);
-              } else if (context.mounted) {
-                ClarifyToast.show(context, 'Не удалось открыть Telegram'.tr(currentLang), variant: ClarifyToastVariant.danger);
-              }
-            },
-          ),
+        ClarifyButton(
+          label: 'Поддержка'.tr(currentLang),
+          icon: LucideIcons.send,
+          variant: ClarifyButtonVariant.outline,
+          fullWidth: true,
+          onPressed: () async {
+            final url = Uri.parse(AppConfig.telegramSupportUrl);
+            if (await canLaunchUrl(url)) {
+              await launchUrl(url, mode: LaunchMode.externalApplication);
+            } else if (context.mounted) {
+              ClarifyToast.show(context, 'Не удалось открыть Telegram'.tr(currentLang), variant: ClarifyToastVariant.danger);
+            }
+          },
         ),
       ],
     );
@@ -476,13 +484,11 @@ class _PlanPage extends StatelessWidget {
             ]),
           ),
           const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ClarifyRadius.md))),
-              onPressed: () => ClarifyToast.show(context, 'Оплата Pro скоро будет доступна'.tr(currentLang), variant: ClarifyToastVariant.info),
-              child: Text('Оформить Pro — 199 ₽/мес'.tr(currentLang), style: const TextStyle(fontWeight: FontWeight.bold)),
-            ),
+          ClarifyButton(
+            label: 'Оформить Pro — 199 ₽/мес'.tr(currentLang),
+            variant: ClarifyButtonVariant.filled,
+            fullWidth: true,
+            onPressed: () => ClarifyToast.show(context, 'Оплата Pro скоро будет доступна'.tr(currentLang), variant: ClarifyToastVariant.info),
           ),
         ],
       ),
@@ -538,10 +544,11 @@ class _CalendarsPage extends StatelessWidget {
                     Text('Требует Pro'.tr(currentLang), style: TextStyle(color: t.text3, fontSize: 12)),
                   ]),
                 ),
-                OutlinedButton(
-                  style: OutlinedButton.styleFrom(side: BorderSide(color: t.border), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999))),
+                ClarifyButton(
+                  label: 'Подключить'.tr(currentLang),
+                  variant: ClarifyButtonVariant.outline,
+                  scale: 0.85,
                   onPressed: () => ClarifyToast.show(context, 'Интеграция скоро будет доступна'.tr(currentLang), variant: ClarifyToastVariant.info),
-                  child: Text('Подключить'.tr(currentLang), style: TextStyle(color: t.text)),
                 ),
               ]),
             ),
@@ -562,93 +569,6 @@ class _SectionLabel extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8, left: 4),
       child: Text(text.toUpperCase(), style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: t.text3, letterSpacing: 0.6)),
-    );
-  }
-}
-
-class _SettingsTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  const _SettingsTile({required this.icon, required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: t.surface,
-        borderRadius: BorderRadius.circular(ClarifyRadius.md),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(ClarifyRadius.md),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-            child: Row(
-              children: [
-                Icon(icon, size: 20, color: t.text2),
-                const SizedBox(width: 12),
-                Expanded(child: Text(label, style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600, color: t.text))),
-                Icon(LucideIcons.chevronRight, size: 18, color: t.text3),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SettingsSwitchTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-  const _SettingsSwitchTile({required this.icon, required this.label, required this.value, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Container(
-        decoration: BoxDecoration(color: t.surface, borderRadius: BorderRadius.circular(ClarifyRadius.md)),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        child: Row(
-          children: [
-            Icon(icon, size: 20, color: t.text2),
-            const SizedBox(width: 12),
-            Expanded(child: Text(label, style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600, color: t.text))),
-            Switch(value: value, activeColor: t.accent, onChanged: onChanged),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _LanguageTile extends StatelessWidget {
-  final String currentLang;
-  final Function(String lang) changeLang;
-  const _LanguageTile({required this.currentLang, required this.changeLang});
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-    return Container(
-      decoration: BoxDecoration(color: t.surface, borderRadius: BorderRadius.circular(ClarifyRadius.md)),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      child: Row(
-        children: [
-          Icon(LucideIcons.globe, size: 20, color: t.text2),
-          const SizedBox(width: 12),
-          Expanded(child: Text('Язык'.tr(currentLang), style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600, color: t.text))),
-          _LangButton(label: 'RU', active: currentLang == 'ru', onTap: () => changeLang('ru')),
-          const SizedBox(width: 6),
-          _LangButton(label: 'EN', active: currentLang == 'en', onTap: () => changeLang('en')),
-        ],
-      ),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../widgets/clarify_surface.dart';
+import '../widgets/clarify_text_field.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
 
@@ -44,14 +45,13 @@ void showSearchDialog({
                 children: [
                   buildGlassContainer(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    child: TextField(
+                    child: ClarifyTextField(
                       autofocus: true,
                       style: TextStyle(color: textColor, fontSize: 20),
-                      decoration: InputDecoration(
-                        hintText: "Поиск задач...".tr(currentLang),
-                        hintStyle: TextStyle(color: textMuted),
-                        border: InputBorder.none,
-                        icon: Icon(LucideIcons.search, color: t.accent, size: 28),
+                      hintText: "Поиск задач...".tr(currentLang),
+                      prefixIcon: Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: Icon(LucideIcons.search, color: t.accent, size: 28),
                       ),
                       onChanged: (val) => setStateDialog(() => query = val),
                     ),
