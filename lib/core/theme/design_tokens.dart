@@ -216,6 +216,12 @@ class ClarifyRadius {
   static const double lg = 20;
   static const double xl = 28;
   static const double pill = 999;
+
+  /// Асимметричный силуэт диалогов/панелей v2 — крупный верх, острый низ
+  /// (REDESIGN_V4_PLAN.md §6.1). Не замена [sm]/[md]/[lg]/[xl]/[pill] — те
+  /// остаются для карточек/чипов, где уместно равномерное скругление.
+  static const double dialogTop = 28;
+  static const double dialogBottom = 8;
 }
 
 /// Брейкпоинты — дискретные состояния раскладки, а не равномерный масштаб.
@@ -270,4 +276,44 @@ class ClarifyAccentPresets {
 extension ClarifyThemeX on BuildContext {
   /// Короткий доступ к токенам: `context.tokens.accent`.
   ClarifyTokens get tokens => Theme.of(this).extension<ClarifyTokens>()!;
+}
+
+/// Типографическая сигнатура v2 — новые пресеты поверх шкалы из
+/// DESIGN_SYSTEM.md §3 (не замена Unbounded/Golos Text), см.
+/// REDESIGN_V4_PLAN.md §6.1. На этом этапе никуда не подключены.
+class ClarifyTypeSignature {
+  ClarifyTypeSignature._();
+
+  /// Табличные цифры — даты, счётчики, стрики не «прыгают» по ширине при
+  /// обновлении значения. Накладывается поверх любого [base].
+  static TextStyle tabular(TextStyle base) {
+    return base.copyWith(
+      fontFeatures: [
+        ...?base.fontFeatures,
+        const FontFeature.tabularFigures(),
+      ],
+    );
+  }
+
+  /// Крупный заголовок ритуальных экранов — резче трекинг, чем H1 из
+  /// DESIGN_SYSTEM.md (-0.02em вместо -0.005em), для более выразительного
+  /// скачка масштаба между «мелким» и «крупным» на ключевых экранах.
+  static const TextStyle heroHeading = TextStyle(
+    fontFamily: 'Unbounded',
+    fontSize: 44,
+    height: 1.05,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -0.02 * 44,
+  );
+
+  /// Лейбл метаданных (статус, категория, дата секции) — капс + разрядка,
+  /// повторяющаяся деталь по интерфейсу. Текст переводится в верхний регистр
+  /// в месте использования (регистр не задаётся стилем).
+  static const TextStyle metaLabel = TextStyle(
+    fontFamily: 'Golos Text',
+    fontSize: 11,
+    height: 1.3,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 0.08 * 11,
+  );
 }
