@@ -141,7 +141,9 @@ class _MobileTasksScreenState extends State<MobileTasksScreen> {
                       children: [
                         ClarifyIllustration(type: _emptyIllustration, size: 72),
                         const SizedBox(height: 16),
-                        Text(_emptyStateKey.tr(widget.currentLang), textAlign: TextAlign.center, style: TextStyle(fontSize: 15, color: t.text3)),
+                        Text(_emptyStateKey.tr(widget.currentLang), textAlign: TextAlign.center, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: t.text2)),
+                        const SizedBox(height: 6),
+                        Text('Нажмите «+», чтобы добавить задачу'.tr(widget.currentLang), textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: t.text3)),
                       ],
                     ),
                   ),
