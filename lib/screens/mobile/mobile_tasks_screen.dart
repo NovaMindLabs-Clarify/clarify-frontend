@@ -106,7 +106,17 @@ class _MobileTasksScreenState extends State<MobileTasksScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-          child: Text('Задачи'.tr(widget.currentLang), style: TextStyle(fontFamily: 'Golos Text', fontSize: 22, fontWeight: FontWeight.w700, color: t.text)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Задачи'.tr(widget.currentLang), style: TextStyle(fontFamily: 'Golos Text', fontSize: 22, fontWeight: FontWeight.w700, color: t.text)),
+              const SizedBox(height: 2),
+              // Невидимый плейсхолдер той же высоты, что подпись даты на "Мой
+              // день" (MobileTodayScreen) — без него календарная плашка и
+              // пустое состояние оказываются на разной высоте между вкладками.
+              Opacity(opacity: 0, child: Text('.', style: TextStyle(fontSize: 13, color: t.text3))),
+            ],
+          ),
         ),
         MobileMiniCalendar(
           currentLang: widget.currentLang,
@@ -215,7 +225,10 @@ class _FilterChip extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(ClarifyRadius.pill),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        // vertical:10, а не 8 — та же высота плашки, что у "Входящие" на
+        // "Мой день" (MobileTodayScreen), иначе календарь и пустое состояние
+        // между вкладками "прыгают" по высоте.
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: active ? t.accent : t.surface2,
           borderRadius: BorderRadius.circular(ClarifyRadius.pill),
