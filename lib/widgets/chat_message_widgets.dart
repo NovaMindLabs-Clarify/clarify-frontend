@@ -53,7 +53,6 @@ class ChatMessageBubble extends StatelessWidget {
     final text = message['text'] as String;
     final createdAt = DateTime.parse(message['created_at'] as String);
     final editedAt = message['edited_at'] as String?;
-    final pinned = message['pinned'] as bool? ?? false;
     final forwardedFrom = message['forwarded_from_name'] as String?;
     final readAt = message['read_at'];
     final metaColor = isMine ? t.onAccent.withValues(alpha: 0.7) : t.text3;
@@ -72,15 +71,6 @@ class ChatMessageBubble extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (pinned)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 3),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(LucideIcons.pin, size: 11, color: metaColor),
-                    const SizedBox(width: 3),
-                    Text('Закреплено'.tr(currentLang), style: TextStyle(fontSize: 11, color: metaColor)),
-                  ]),
-                ),
               if (senderLabel != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 3),
@@ -128,6 +118,48 @@ class ChatMessageBubble extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Плашка закреплённого сообщения — как в Telegram, сразу под шапкой чата,
+/// а не внутри самого пузырька (см. showMessageActions/onTogglePin — в чате
+/// поддерживается ровно одно закреплённое сообщение на диалог/команду).
+class PinnedMessageBar extends StatelessWidget {
+  final String currentLang;
+  final String text;
+  final VoidCallback onUnpin;
+
+  const PinnedMessageBar({
+    super.key,
+    required this.currentLang,
+    required this.text,
+    required this.onUnpin,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(color: t.surface2, border: Border(bottom: BorderSide(color: t.border))),
+      child: Row(
+        children: [
+          Icon(LucideIcons.pin, size: 15, color: t.accent),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Закреплено'.tr(currentLang), style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: t.accent)),
+                Text(text, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: t.text2)),
+              ],
+            ),
+          ),
+          InkWell(onTap: onUnpin, borderRadius: BorderRadius.circular(ClarifyRadius.sm), child: Padding(padding: const EdgeInsets.all(4), child: Icon(LucideIcons.pinOff, size: 17, color: t.text3))),
+        ],
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
 import 'chat_message_widgets.dart';
+import 'clarify_bottom_sheet.dart';
 import 'clarify_toast.dart';
 
 /// Личные сообщения — список диалогов + чат (SOCIAL_PLAN.md §2.3/4.3). Реалтайм
@@ -130,6 +131,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
   RealtimeChannel? _channel;
   Map<String, dynamic>? _replyingTo;
   Map<String, dynamic>? _editingMessage;
+  String? _partnerAvatarUrl;
 
   String get _myId => Supabase.instance.client.auth.currentUser!.id;
 
@@ -137,10 +139,45 @@ class _ConversationScreenState extends State<ConversationScreen> {
   void initState() {
     super.initState();
     _load();
+    _loadPartnerAvatar();
     Supabase.instance.client.rpc('mark_conversation_read', params: {'partner_id': widget.partnerId}).catchError((_) => null);
     _channel = Supabase.instance.client.channel('conversation_${widget.partnerId}')
       ..onPostgresChanges(event: PostgresChangeEvent.all, schema: 'public', table: 'messages', callback: (_) => _load())
       ..subscribe();
+  }
+
+  Future<void> _loadPartnerAvatar() async {
+    try {
+      final data = await Supabase.instance.client.from('profiles').select('avatar_url').eq('user_id', widget.partnerId).maybeSingle();
+      if (mounted && data != null) setState(() => _partnerAvatarUrl = data['avatar_url'] as String?);
+    } catch (_) {
+      // Аватарки может не быть или профиль ещё не создан — иконка-заглушка не хуже.
+    }
+  }
+
+  void _showPartnerCard() {
+    final t = context.tokens;
+    showClarifyBottomSheet(
+      context: context,
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircleAvatar(
+              radius: 40,
+              backgroundColor: t.accentSoft,
+              backgroundImage: _partnerAvatarUrl != null ? NetworkImage(_partnerAvatarUrl!) : null,
+              child: _partnerAvatarUrl == null
+                  ? Text(widget.partnerName.isNotEmpty ? widget.partnerName[0].toUpperCase() : '?', style: TextStyle(fontSize: 28, color: t.accent, fontWeight: FontWeight.bold))
+                  : null,
+            ),
+            const SizedBox(height: 12),
+            Text(widget.partnerName, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: t.text)),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -254,6 +291,8 @@ class _ConversationScreenState extends State<ConversationScreen> {
   Widget build(BuildContext context) {
     final t = context.tokens;
     final byId = _messages == null ? <dynamic, Map<String, dynamic>>{} : {for (final m in _messages!) m['id']: m};
+    final pinnedList = _messages?.where((m) => m['pinned'] == true).toList() ?? const [];
+    final pinnedMessage = pinnedList.isEmpty ? null : pinnedList.first;
 
     return Scaffold(
       backgroundColor: t.bg,
@@ -262,9 +301,31 @@ class _ConversationScreenState extends State<ConversationScreen> {
         elevation: 0,
         foregroundColor: t.text,
         title: Text(widget.partnerName, style: TextStyle(fontFamily: 'Golos Text', fontWeight: FontWeight.w700)),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: GestureDetector(
+              onTap: _showPartnerCard,
+              child: CircleAvatar(
+                radius: 18,
+                backgroundColor: t.accentSoft,
+                backgroundImage: _partnerAvatarUrl != null ? NetworkImage(_partnerAvatarUrl!) : null,
+                child: _partnerAvatarUrl == null
+                    ? Text(widget.partnerName.isNotEmpty ? widget.partnerName[0].toUpperCase() : '?', style: TextStyle(color: t.accent, fontWeight: FontWeight.bold))
+                    : null,
+              ),
+            ),
+          ),
+        ],
       ),
       body: Column(
         children: [
+          if (pinnedMessage != null)
+            PinnedMessageBar(
+              currentLang: widget.currentLang,
+              text: pinnedMessage['text'] as String,
+              onUnpin: () => _togglePin((pinnedMessage['id'] as num).toInt()),
+            ),
           Expanded(
             child: _messages == null
                 ? const Center(child: CircularProgressIndicator())

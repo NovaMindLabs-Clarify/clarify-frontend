@@ -504,10 +504,18 @@ class _DirectChatPaneState extends State<_DirectChatPane> {
   @override
   Widget build(BuildContext context) {
     final byId = _messages == null ? <dynamic, Map<String, dynamic>>{} : {for (final m in _messages!) m['id']: m};
+    final pinnedList = _messages?.where((m) => m['pinned'] == true).toList() ?? const [];
+    final pinnedMessage = pinnedList.isEmpty ? null : pinnedList.first;
 
     return Column(
       children: [
         _ChatPaneHeader(title: widget.partnerName, icon: LucideIcons.user, iconColor: context.tokens.accent),
+        if (pinnedMessage != null)
+          PinnedMessageBar(
+            currentLang: widget.currentLang,
+            text: pinnedMessage['text'] as String,
+            onUnpin: () => _togglePin((pinnedMessage['id'] as num).toInt()),
+          ),
         Expanded(
           child: _messages == null
               ? const Center(child: CircularProgressIndicator())
@@ -691,10 +699,18 @@ class _TeamChatPaneState extends State<_TeamChatPane> {
     final t = context.tokens;
     final wsColor = t.tagPalette[widget.workspaceId % t.tagPalette.length];
     final byId = _messages == null ? <dynamic, Map<String, dynamic>>{} : {for (final m in _messages!) m['id']: m};
+    final pinnedList = _messages?.where((m) => m['pinned'] == true).toList() ?? const [];
+    final pinnedMessage = pinnedList.isEmpty ? null : pinnedList.first;
 
     return Column(
       children: [
         _ChatPaneHeader(title: widget.workspaceName, icon: LucideIcons.usersRound, iconColor: wsColor),
+        if (pinnedMessage != null)
+          PinnedMessageBar(
+            currentLang: widget.currentLang,
+            text: pinnedMessage['text'] as String,
+            onUnpin: () => _togglePin((pinnedMessage['id'] as num).toInt()),
+          ),
         Expanded(
           child: _messages == null
               ? const Center(child: CircularProgressIndicator())
