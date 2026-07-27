@@ -145,6 +145,7 @@ class _SmartPlannerAppState extends State<SmartPlannerApp> with TrayListener {
     }
 
     _hasSeenOnboarding = Hive.box('settings').get('has_seen_onboarding', defaultValue: false) as bool;
+    isDark = Hive.box('settings').get('is_dark_theme', defaultValue: false) as bool;
 
     final user = Supabase.instance.client.auth.currentUser;
     _isAuthenticated = user != null;
@@ -221,7 +222,10 @@ class _SmartPlannerAppState extends State<SmartPlannerApp> with TrayListener {
     }
   }
 
-  void toggleTheme() { setState(() => isDark = !isDark); }
+  void toggleTheme() {
+    setState(() => isDark = !isDark);
+    Hive.box('settings').put('is_dark_theme', isDark);
+  }
 
   void changeLang(String lang) async {
     setState(() => currentLang = lang);
