@@ -129,37 +129,45 @@ class ChatMessageBubble extends StatelessWidget {
 class PinnedMessageBar extends StatelessWidget {
   final String currentLang;
   final String text;
+  final VoidCallback onTap;
   final VoidCallback onUnpin;
 
   const PinnedMessageBar({
     super.key,
     required this.currentLang,
     required this.text,
+    required this.onTap,
     required this.onUnpin,
   });
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(color: t.surface2, border: Border(bottom: BorderSide(color: t.border))),
-      child: Row(
-        children: [
-          Icon(LucideIcons.pin, size: 15, color: t.accent),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Закреплено'.tr(currentLang), style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: t.accent)),
-                Text(text, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: t.text2)),
-              ],
-            ),
+    return Material(
+      color: t.surface2,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(border: Border(bottom: BorderSide(color: t.border))),
+          child: Row(
+            children: [
+              Icon(LucideIcons.pin, size: 15, color: t.accent),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Закреплено'.tr(currentLang), style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: t.accent)),
+                    Text(text, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: t.text2)),
+                  ],
+                ),
+              ),
+              InkWell(onTap: onUnpin, borderRadius: BorderRadius.circular(ClarifyRadius.sm), child: Padding(padding: const EdgeInsets.all(4), child: Icon(LucideIcons.pinOff, size: 17, color: t.text3))),
+            ],
           ),
-          InkWell(onTap: onUnpin, borderRadius: BorderRadius.circular(ClarifyRadius.sm), child: Padding(padding: const EdgeInsets.all(4), child: Icon(LucideIcons.pinOff, size: 17, color: t.text3))),
-        ],
+        ),
       ),
     );
   }

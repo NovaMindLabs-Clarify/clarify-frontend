@@ -377,12 +377,36 @@ class _DirectChatPane extends StatefulWidget {
 
 class _DirectChatPaneState extends State<_DirectChatPane> {
   final _scrollController = ScrollController();
+  final Map<dynamic, GlobalKey> _messageKeys = {};
   List<Map<String, dynamic>>? _messages;
   RealtimeChannel? _channel;
   Map<String, dynamic>? _replyingTo;
   Map<String, dynamic>? _editingMessage;
 
   String get _myId => Supabase.instance.client.auth.currentUser!.id;
+
+  GlobalKey _keyFor(dynamic id) => _messageKeys.putIfAbsent(id, () => GlobalKey());
+
+  // См. _ConversationScreenState._scrollToMessage (conversations_screen.dart) —
+  // та же логика перехода к закреплённому сообщению, продублирована здесь по
+  // тому же принципу, что и вся остальная desktop/mobile-пара в этом файле.
+  void _scrollToMessage(dynamic id) {
+    final index = _messages?.indexWhere((m) => m['id'] == id) ?? -1;
+    if (index == -1) return;
+    final ctx = _messageKeys[id]?.currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 300), alignment: 0.5, curve: Curves.easeOut);
+      return;
+    }
+    if (_scrollController.hasClients && _messages!.length > 1) {
+      final estimate = _scrollController.position.maxScrollExtent * (index / (_messages!.length - 1));
+      _scrollController.jumpTo(estimate.clamp(0, _scrollController.position.maxScrollExtent));
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final retryCtx = _messageKeys[id]?.currentContext;
+        if (retryCtx != null) Scrollable.ensureVisible(retryCtx, duration: const Duration(milliseconds: 200), alignment: 0.5, curve: Curves.easeOut);
+      });
+    }
+  }
 
   @override
   void initState() {
@@ -514,6 +538,7 @@ class _DirectChatPaneState extends State<_DirectChatPane> {
           PinnedMessageBar(
             currentLang: widget.currentLang,
             text: pinnedMessage['text'] as String,
+            onTap: () => _scrollToMessage(pinnedMessage['id']),
             onUnpin: () => _togglePin((pinnedMessage['id'] as num).toInt()),
           ),
         Expanded(
@@ -527,14 +552,17 @@ class _DirectChatPaneState extends State<_DirectChatPane> {
                     final m = _messages![index];
                     final isMine = m['from_id'] == _myId;
                     final replyTo = byId[m['reply_to_id']];
-                    return ChatMessageBubble(
-                      currentLang: widget.currentLang,
-                      message: m,
-                      isMine: isMine,
-                      showReadTicks: true,
-                      replyToMessage: replyTo,
-                      replyToSenderLabel: replyTo == null ? '' : (replyTo['from_id'] == _myId ? 'Вы'.tr(widget.currentLang) : widget.partnerName),
-                      onOpenActions: () => _openActions(m),
+                    return KeyedSubtree(
+                      key: _keyFor(m['id']),
+                      child: ChatMessageBubble(
+                        currentLang: widget.currentLang,
+                        message: m,
+                        isMine: isMine,
+                        showReadTicks: true,
+                        replyToMessage: replyTo,
+                        replyToSenderLabel: replyTo == null ? '' : (replyTo['from_id'] == _myId ? 'Вы'.tr(widget.currentLang) : widget.partnerName),
+                        onOpenActions: () => _openActions(m),
+                      ),
                     );
                   },
                 ),
@@ -568,12 +596,33 @@ class _TeamChatPane extends StatefulWidget {
 
 class _TeamChatPaneState extends State<_TeamChatPane> {
   final _scrollController = ScrollController();
+  final Map<dynamic, GlobalKey> _messageKeys = {};
   List<Map<String, dynamic>>? _messages;
   RealtimeChannel? _channel;
   Map<String, dynamic>? _replyingTo;
   Map<String, dynamic>? _editingMessage;
 
   String get _myId => Supabase.instance.client.auth.currentUser!.id;
+
+  GlobalKey _keyFor(dynamic id) => _messageKeys.putIfAbsent(id, () => GlobalKey());
+
+  void _scrollToMessage(dynamic id) {
+    final index = _messages?.indexWhere((m) => m['id'] == id) ?? -1;
+    if (index == -1) return;
+    final ctx = _messageKeys[id]?.currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 300), alignment: 0.5, curve: Curves.easeOut);
+      return;
+    }
+    if (_scrollController.hasClients && _messages!.length > 1) {
+      final estimate = _scrollController.position.maxScrollExtent * (index / (_messages!.length - 1));
+      _scrollController.jumpTo(estimate.clamp(0, _scrollController.position.maxScrollExtent));
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final retryCtx = _messageKeys[id]?.currentContext;
+        if (retryCtx != null) Scrollable.ensureVisible(retryCtx, duration: const Duration(milliseconds: 200), alignment: 0.5, curve: Curves.easeOut);
+      });
+    }
+  }
 
   @override
   void initState() {
@@ -709,6 +758,7 @@ class _TeamChatPaneState extends State<_TeamChatPane> {
           PinnedMessageBar(
             currentLang: widget.currentLang,
             text: pinnedMessage['text'] as String,
+            onTap: () => _scrollToMessage(pinnedMessage['id']),
             onUnpin: () => _togglePin((pinnedMessage['id'] as num).toInt()),
           ),
         Expanded(
@@ -722,14 +772,17 @@ class _TeamChatPaneState extends State<_TeamChatPane> {
                     final m = _messages![index];
                     final isMine = m['from_id'] == _myId;
                     final replyTo = byId[m['reply_to_id']];
-                    return ChatMessageBubble(
-                      currentLang: widget.currentLang,
-                      message: m,
-                      isMine: isMine,
-                      senderLabel: isMine ? null : _senderLabel(m),
-                      replyToMessage: replyTo,
-                      replyToSenderLabel: replyTo == null ? '' : _senderLabel(replyTo),
-                      onOpenActions: () => _openActions(m),
+                    return KeyedSubtree(
+                      key: _keyFor(m['id']),
+                      child: ChatMessageBubble(
+                        currentLang: widget.currentLang,
+                        message: m,
+                        isMine: isMine,
+                        senderLabel: isMine ? null : _senderLabel(m),
+                        replyToMessage: replyTo,
+                        replyToSenderLabel: replyTo == null ? '' : _senderLabel(replyTo),
+                        onOpenActions: () => _openActions(m),
+                      ),
                     );
                   },
                 ),

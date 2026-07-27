@@ -127,11 +127,36 @@ class ConversationScreen extends StatefulWidget {
 
 class _ConversationScreenState extends State<ConversationScreen> {
   final _scrollController = ScrollController();
+  final Map<dynamic, GlobalKey> _messageKeys = {};
   List<Map<String, dynamic>>? _messages;
   RealtimeChannel? _channel;
   Map<String, dynamic>? _replyingTo;
   Map<String, dynamic>? _editingMessage;
   String? _partnerAvatarUrl;
+
+  GlobalKey _keyFor(dynamic id) => _messageKeys.putIfAbsent(id, () => GlobalKey());
+
+  // Прыжок к закреплённому сообщению по тапу на плашку (как в Telegram). Если
+  // сообщение сейчас не построено (далеко за пределами экрана — ListView.builder
+  // строит только видимое + небольшой запас), сперва грубо оцениваем позицию по
+  // индексу и докручиваем точно на следующем кадре, когда виджет уже в дереве.
+  void _scrollToMessage(dynamic id) {
+    final index = _messages?.indexWhere((m) => m['id'] == id) ?? -1;
+    if (index == -1) return;
+    final ctx = _messageKeys[id]?.currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 300), alignment: 0.5, curve: Curves.easeOut);
+      return;
+    }
+    if (_scrollController.hasClients && _messages!.length > 1) {
+      final estimate = _scrollController.position.maxScrollExtent * (index / (_messages!.length - 1));
+      _scrollController.jumpTo(estimate.clamp(0, _scrollController.position.maxScrollExtent));
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final retryCtx = _messageKeys[id]?.currentContext;
+        if (retryCtx != null) Scrollable.ensureVisible(retryCtx, duration: const Duration(milliseconds: 200), alignment: 0.5, curve: Curves.easeOut);
+      });
+    }
+  }
 
   String get _myId => Supabase.instance.client.auth.currentUser!.id;
 
@@ -324,6 +349,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
             PinnedMessageBar(
               currentLang: widget.currentLang,
               text: pinnedMessage['text'] as String,
+              onTap: () => _scrollToMessage(pinnedMessage['id']),
               onUnpin: () => _togglePin((pinnedMessage['id'] as num).toInt()),
             ),
           Expanded(
@@ -337,14 +363,17 @@ class _ConversationScreenState extends State<ConversationScreen> {
                       final m = _messages![index];
                       final isMine = m['from_id'] == _myId;
                       final replyTo = byId[m['reply_to_id']];
-                      return ChatMessageBubble(
-                        currentLang: widget.currentLang,
-                        message: m,
-                        isMine: isMine,
-                        showReadTicks: true,
-                        replyToMessage: replyTo,
-                        replyToSenderLabel: replyTo == null ? '' : (replyTo['from_id'] == _myId ? 'Вы'.tr(widget.currentLang) : widget.partnerName),
-                        onOpenActions: () => _openActions(m),
+                      return KeyedSubtree(
+                        key: _keyFor(m['id']),
+                        child: ChatMessageBubble(
+                          currentLang: widget.currentLang,
+                          message: m,
+                          isMine: isMine,
+                          showReadTicks: true,
+                          replyToMessage: replyTo,
+                          replyToSenderLabel: replyTo == null ? '' : (replyTo['from_id'] == _myId ? 'Вы'.tr(widget.currentLang) : widget.partnerName),
+                          onOpenActions: () => _openActions(m),
+                        ),
                       );
                     },
                   ),
