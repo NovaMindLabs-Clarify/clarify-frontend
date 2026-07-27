@@ -193,7 +193,7 @@ class _ConversationScreenState extends State<ConversationScreen> {
           .from('messages')
           .select()
           .or('and(from_id.eq.$_myId,to_id.eq.${widget.partnerId}),and(from_id.eq.${widget.partnerId},to_id.eq.$_myId)')
-          .order('created_at');
+          .order('created_at', ascending: true);
       if (mounted) {
         setState(() => _messages = List<Map<String, dynamic>>.from(data));
         WidgetsBinding.instance.addPostFrameCallback((_) {
