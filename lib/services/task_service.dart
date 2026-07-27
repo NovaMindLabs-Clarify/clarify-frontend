@@ -175,7 +175,7 @@ class TaskService {
       // бы бесследно исчезла при следующем успешном fetchTasks(), который
       // полностью перезаписывает _inMemoryTasks данными с сервера.
       _queuePendingOp('create', {'data': taskData});
-      return tempId;
+      rethrow; // вызывающий код (тост "не удалось сохранить") не меняем
     }
   }
   // --- КОНЕЦ ИЗМЕНЕНИЙ В СЕРВИСЕ ---

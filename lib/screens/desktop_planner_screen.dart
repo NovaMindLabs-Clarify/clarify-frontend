@@ -721,10 +721,16 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
       });
       
       final newTaskId = await taskFuture;
-      await _fetchTasks(); 
+      await _fetchTasks();
       return newTaskId;
     } catch (e) {
+      // addTask уже поставил создание в очередь на повтор (TaskService.flushPendingOps) —
+      // сообщаем об этом пользователю, а не просто теряем ошибку молча (см. print ниже).
       print("Ошибка создания задачи: $e".tr(widget.currentLang));
+      if (mounted) {
+        setState(() => _pendingOpsCount = _taskService.pendingOpsCount);
+        ClarifyToast.show(context, "Не удалось сохранить задачу на сервере. Отправим, когда сеть восстановится.".tr(widget.currentLang), variant: ClarifyToastVariant.warning);
+      }
       return null;
     }
   }
