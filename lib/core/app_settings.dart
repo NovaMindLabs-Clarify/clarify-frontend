@@ -15,6 +15,17 @@ class AppSettings {
   static bool get notificationsEnabled => _box.get('notifications_enabled', defaultValue: true) as bool;
   static set notificationsEnabled(bool value) => _box.put('notifications_enabled', value);
 
+  /// Реальная push-подписка (web Notification/PushManager) — отдельно от
+  /// [notificationsEnabled] (общий гейт локальных алармов, default true).
+  /// Default false: подписки не существует, пока пользователь явно не
+  /// включит её (PushRegistrationWeb.register) и браузер не выдаст
+  /// разрешение — в отличие от notificationsEnabled, тут "включено по
+  /// умолчанию" было бы неверно и приводило к тому, что первый тап по
+  /// объединённому переключателю в настройках выключал его вместо запроса
+  /// разрешения (см. mobile_settings_screen.dart).
+  static bool get pushSubscribed => _box.get('push_subscribed', defaultValue: false) as bool;
+  static set pushSubscribed(bool value) => _box.put('push_subscribed', value);
+
   static int get zenDurationMinutes => _box.get('zen_duration_minutes', defaultValue: 45) as int;
   static set zenDurationMinutes(int value) => _box.put('zen_duration_minutes', value);
 

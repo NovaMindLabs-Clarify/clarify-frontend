@@ -191,7 +191,7 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
           icon: LucideIcons.bell,
           title: 'Уведомления'.tr(currentLang),
           trailing: Switch(
-            value: AppSettings.notificationsEnabled,
+            value: AppSettings.pushSubscribed,
             activeColor: t.accent,
             onChanged: (val) async {
               if (kIsWeb) {
@@ -206,7 +206,10 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
                   return;
                 }
               }
-              setState(() => AppSettings.notificationsEnabled = val);
+              setState(() {
+                AppSettings.notificationsEnabled = val;
+                AppSettings.pushSubscribed = val;
+              });
             },
           ),
         ),
