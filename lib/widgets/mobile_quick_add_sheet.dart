@@ -77,7 +77,6 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
   DateTime? _date;
   TimeOfDay? _time;
   bool _isSaving = false;
-  bool _expanded = false;
   final List<String> _subtasks = [];
 
   @override
@@ -230,34 +229,10 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          InkWell(
-            borderRadius: BorderRadius.circular(ClarifyRadius.sm),
-            onTap: () => setState(() => _expanded = !_expanded),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('Ещё'.tr(widget.currentLang), style: TextStyle(color: t.accent, fontWeight: FontWeight.w600, fontSize: 14)),
-                  Icon(_expanded ? LucideIcons.chevronUp : LucideIcons.chevronDown, size: 18, color: t.accent),
-                ],
-              ),
-            ),
-          ),
-          // Внутренний рост шторки при раскрытии — само открытие шторки (container
-          // transform из FAB) этим не затрагивается, растёт только содержимое
-          // (REDESIGN_V3_PLAN.md §3.16/5.15).
-          AnimatedSize(
-            duration: ClarifyMotion.base,
-            curve: ClarifyMotion.spring,
-            alignment: Alignment.topCenter,
-            child: !_expanded
-                ? const SizedBox(width: double.infinity)
-                : Column(
+          const SizedBox(height: 16),
+          Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(height: 8),
                       Row(
                         children: [
                           Icon(LucideIcons.repeat, size: 18, color: t.text3),
@@ -374,7 +349,6 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
                       ),
                     ],
                   ),
-          ),
           const SizedBox(height: 16),
           ClarifyButton(
             label: 'Сохранить'.tr(widget.currentLang),
