@@ -82,7 +82,10 @@ void showTaskDetailsDialog({
               borderRadius: ClarifyRadius.dialogShell,
               padding: const EdgeInsets.all(32),
               child: SizedBox(
-                width: 450,
+                // Фикс 450 переполнял узкие мобильные экраны (кнопки внизу
+                // обрезались краем экрана) — сужаем, если не помещается,
+                // с запасом на padding контейнера (32*2) и отступ от края экрана.
+                width: (MediaQuery.sizeOf(context).width - 96).clamp(280.0, 450.0),
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
@@ -350,18 +353,16 @@ void showTaskDetailsDialog({
 
                       // КНОПКИ УПРАВЛЕНИЯ ЗАДАЧЕЙ
                       const SizedBox(height: 32),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      Wrap(
+                        alignment: WrapAlignment.spaceBetween,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 8,
+                        runSpacing: 8,
                         children: [
                           TextButton.icon(icon: Icon(LucideIcons.trash2, color: t.danger), label: Text("Удалить".tr(currentLang), style: TextStyle(color: t.danger)), onPressed: () { Navigator.of(context).pop(); onDeleteTask(task['id']); }),
-                          Row(
-                            children: [
-                              TextButton.icon(icon: Icon(LucideIcons.copy, color: t.accent), label: Text("Дублировать".tr(currentLang), style: TextStyle(color: t.accent)), onPressed: () { onDuplicate(task); Navigator.of(context).pop(); ClarifyToast.show(context, "Кликни на плюсик любого дня".tr(currentLang), variant: ClarifyToastVariant.info); }),
-                              const SizedBox(width: 8),
-                              ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), icon: const Icon(LucideIcons.pencil, size: 18), label: Text("Изменить".tr(currentLang), style: TextStyle(fontWeight: FontWeight.bold)), onPressed: () { ClarifySurfaceTransitionOut.markCollapseOnClose(context); Navigator.of(context).pop(); onEdit(task); }),
-                            ]
-                          )
-                        ]
+                          TextButton.icon(icon: Icon(LucideIcons.copy, color: t.accent), label: Text("Дублировать".tr(currentLang), style: TextStyle(color: t.accent)), onPressed: () { onDuplicate(task); Navigator.of(context).pop(); ClarifyToast.show(context, "Кликни на плюсик любого дня".tr(currentLang), variant: ClarifyToastVariant.info); }),
+                          ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), icon: const Icon(LucideIcons.pencil, size: 18), label: Text("Изменить".tr(currentLang), style: TextStyle(fontWeight: FontWeight.bold)), onPressed: () { ClarifySurfaceTransitionOut.markCollapseOnClose(context); Navigator.of(context).pop(); onEdit(task); }),
+                        ],
                       )
                     ],
                   ),

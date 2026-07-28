@@ -119,7 +119,9 @@ void showManualAddDialog({
               borderRadius: ClarifyRadius.dialogShell,
               padding: const EdgeInsets.all(24),
               child: SizedBox(
-                width: 450,
+                // Фикс 450 переполнял узкие мобильные экраны — сужаем, если
+                // не помещается (см. task_details_dialog.dart).
+                width: (MediaQuery.sizeOf(context).width - 80).clamp(280.0, 450.0),
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
