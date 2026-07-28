@@ -112,31 +112,43 @@ void showTaskDetailsDialog({
                         )
                       ],
                       const SizedBox(height: 24),
-                      Row(
-                        children: [
-                          Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: t.accentSoft, borderRadius: BorderRadius.circular(8)), child: Icon(LucideIcons.calendarDays, color: t.accent, size: 20)),
-                          const SizedBox(width: 12),
-                          Text("${task['due_date'] ?? 'Входящие (Без даты)'.tr(currentLang)}  •  ${task['due_time'] ?? 'Весь день'.tr(currentLang)}", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: textColor)),
-                          if (task['recurrence'] != null && task['recurrence'] != 'none') ...[SizedBox(width: 12), Icon(LucideIcons.repeat, size: 18, color: t.text3)]
-                        ],
-                      ),
-
-                      // ИСПОЛНИТЕЛЬ
-                      if (task['assigned_to'] != null) ...[
-                        const SizedBox(height: 16),
-                        Row(
+                      // Сгруппированная карточка метаданных — тот же рецепт
+                      // (surfaceSunken/ClarifyRadius.md/border), что и в
+                      // edit_task_dialog/manual_add_dialog, для единого стиля
+                      // всех диалогов задачи.
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(color: t.surfaceSunken, borderRadius: BorderRadius.circular(ClarifyRadius.md), border: Border.all(color: t.border)),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: t.accentSoft, borderRadius: BorderRadius.circular(8)), child: Icon(LucideIcons.user, color: t.accent, size: 20)),
-                            const SizedBox(width: 12),
-                            Builder(builder: (context) {
-                              var members = workspaceMembers[task['workspace_id']] ?? [];
-                              var member = members.firstWhere((m) => m['user_id'] == task['assigned_to'], orElse: () => <String, dynamic>{});
-                              String name = member.isNotEmpty ? (member['full_name'] ?? 'Участник'.tr(currentLang)) : 'Неизвестно'.tr(currentLang);
-                              return Text("${'Исполнитель: '.tr(currentLang)}$name", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: textColor));
-                            }),
+                            Row(
+                              children: [
+                                Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: t.accentSoft, borderRadius: BorderRadius.circular(8)), child: Icon(LucideIcons.calendarDays, color: t.accent, size: 20)),
+                                const SizedBox(width: 12),
+                                Expanded(child: Text("${task['due_date'] ?? 'Входящие (Без даты)'.tr(currentLang)}  •  ${task['due_time'] ?? 'Весь день'.tr(currentLang)}", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: textColor))),
+                                if (task['recurrence'] != null && task['recurrence'] != 'none') ...[SizedBox(width: 12), Icon(LucideIcons.repeat, size: 18, color: t.text3)]
+                              ],
+                            ),
+                            // ИСПОЛНИТЕЛЬ
+                            if (task['assigned_to'] != null) ...[
+                              Divider(color: t.border, height: 24),
+                              Row(
+                                children: [
+                                  Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: t.accentSoft, borderRadius: BorderRadius.circular(8)), child: Icon(LucideIcons.user, color: t.accent, size: 20)),
+                                  const SizedBox(width: 12),
+                                  Expanded(child: Builder(builder: (context) {
+                                    var members = workspaceMembers[task['workspace_id']] ?? [];
+                                    var member = members.firstWhere((m) => m['user_id'] == task['assigned_to'], orElse: () => <String, dynamic>{});
+                                    String name = member.isNotEmpty ? (member['full_name'] ?? 'Участник'.tr(currentLang)) : 'Неизвестно'.tr(currentLang);
+                                    return Text("${'Исполнитель: '.tr(currentLang)}$name", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: textColor));
+                                  })),
+                                ],
+                              ),
+                            ],
                           ],
                         ),
-                      ],
+                      ),
 
                       if (task['note'] != null && task['note'].toString().isNotEmpty) ...[
                         const SizedBox(height: 24),
@@ -351,16 +363,36 @@ void showTaskDetailsDialog({
                         ],
                       ),
 
-                      // КНОПКИ УПРАВЛЕНИЯ ЗАДАЧЕЙ
+                      // КНОПКИ УПРАВЛЕНИЯ ЗАДАЧЕЙ — второстепенные действия
+                      // (удалить/дублировать) сведены к иконкам, чтобы ряд
+                      // гарантированно помещался в одну строку на узких
+                      // экранах; единственная подписанная кнопка — основное
+                      // действие "Изменить".
                       const SizedBox(height: 32),
-                      Wrap(
-                        alignment: WrapAlignment.spaceBetween,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        spacing: 8,
-                        runSpacing: 8,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          TextButton.icon(icon: Icon(LucideIcons.trash2, color: t.danger), label: Text("Удалить".tr(currentLang), style: TextStyle(color: t.danger)), onPressed: () { Navigator.of(context).pop(); onDeleteTask(task['id']); }),
-                          TextButton.icon(icon: Icon(LucideIcons.copy, color: t.accent), label: Text("Дублировать".tr(currentLang), style: TextStyle(color: t.accent)), onPressed: () { onDuplicate(task); Navigator.of(context).pop(); ClarifyToast.show(context, "Кликни на плюсик любого дня".tr(currentLang), variant: ClarifyToastVariant.info); }),
+                          Row(
+                            children: [
+                              Tooltip(
+                                message: "Удалить".tr(currentLang),
+                                child: IconButton(
+                                  style: IconButton.styleFrom(backgroundColor: t.dangerSoft),
+                                  icon: Icon(LucideIcons.trash2, color: t.danger, size: 20),
+                                  onPressed: () { Navigator.of(context).pop(); onDeleteTask(task['id']); },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Tooltip(
+                                message: "Дублировать".tr(currentLang),
+                                child: IconButton(
+                                  style: IconButton.styleFrom(backgroundColor: highlightColor),
+                                  icon: Icon(LucideIcons.copy, color: t.accent, size: 20),
+                                  onPressed: () { onDuplicate(task); Navigator.of(context).pop(); ClarifyToast.show(context, "Кликни на плюсик любого дня".tr(currentLang), variant: ClarifyToastVariant.info); },
+                                ),
+                              ),
+                            ],
+                          ),
                           ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: t.accent, foregroundColor: t.onAccent, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), icon: const Icon(LucideIcons.pencil, size: 18), label: Text("Изменить".tr(currentLang), style: TextStyle(fontWeight: FontWeight.bold)), onPressed: () { ClarifySurfaceTransitionOut.markCollapseOnClose(context); Navigator.of(context).pop(); onEdit(task); }),
                         ],
                       )
