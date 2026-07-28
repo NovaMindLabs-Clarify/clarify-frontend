@@ -55,8 +55,9 @@ void showTaskDetailsDialog({
     builder: (context) {
       return StatefulBuilder(builder: (context, setStateDialog) {
 
-        // Загружаем комментарии (чат)
-        if (!isCommentsLoaded) {
+        // Загружаем комментарии (чат) — только для командных задач, для
+        // соло-задач обсуждение не имеет смысла и не показывается вовсе.
+        if (!isCommentsLoaded && task['workspace_id'] != null) {
           isCommentsLoaded = true;
           Supabase.instance.client
               .from('task_comments')
@@ -215,7 +216,9 @@ void showTaskDetailsDialog({
                         ],
                       ),
 
-                      // ЧАТ (ОБСУЖДЕНИЕ)
+                      // ЧАТ (ОБСУЖДЕНИЕ) — только для задач команды, для
+                      // соло-задач раздел не имеет смысла (не с кем обсуждать).
+                      if (task['workspace_id'] != null) ...[
                       const SizedBox(height: 32),
                       Divider(color: glassBorderColor),
                       const SizedBox(height: 16),
@@ -362,6 +365,7 @@ void showTaskDetailsDialog({
                           )
                         ],
                       ),
+                      ], // конец блока "Обсуждение" (только для командных задач)
 
                       // КНОПКИ УПРАВЛЕНИЯ ЗАДАЧЕЙ — второстепенные действия
                       // (удалить/дублировать) сведены к иконкам, чтобы ряд
