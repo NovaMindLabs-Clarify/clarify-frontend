@@ -17,7 +17,15 @@ Future<T?> showClarifyBottomSheet<T>({
     isScrollControlled: isScrollControlled,
     backgroundColor: Colors.transparent,
     barrierColor: Colors.black.withValues(alpha: 0.45),
-    builder: (context) => Padding(
+    builder: (context) => AnimatedPadding(
+      // Обычный Padding применял новую высоту клавиатуры мгновенно — на
+      // мобильном вебе браузер шлёт промежуточные значения viewInsets.bottom
+      // во время анимации появления клавиатуры (не сразу финальное), из-за
+      // чего лист резко подпрыгивал/улетал вверх на первом фокусе поля и
+      // "успокаивался" на следующем. AnimatedPadding сглаживает переход
+      // вместо мгновенного скачка.
+      duration: ClarifyMotion.base,
+      curve: Curves.easeOut,
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: ClarifyGlass(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
