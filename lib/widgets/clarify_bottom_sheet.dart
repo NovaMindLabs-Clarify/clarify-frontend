@@ -17,17 +17,14 @@ Future<T?> showClarifyBottomSheet<T>({
     isScrollControlled: isScrollControlled,
     backgroundColor: Colors.transparent,
     barrierColor: Colors.black.withValues(alpha: 0.45),
-    builder: (context) => AnimatedPadding(
-      // Обычный Padding применял новую высоту клавиатуры мгновенно — на
-      // мобильном вебе браузер шлёт промежуточные значения viewInsets.bottom
-      // во время анимации появления клавиатуры (не сразу финальное), из-за
-      // чего лист резко подпрыгивал/улетал вверх на первом фокусе поля и
-      // "успокаивался" на следующем. AnimatedPadding сглаживает переход
-      // вместо мгновенного скачка.
-      duration: ClarifyMotion.base,
-      curve: Curves.easeOut,
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: ClarifyGlass(
+    // ЭКСПЕРИМЕНТАЛЬНО (см. showClarifyBottomSheet doc-комментарий выше):
+    // ручной Padding под viewInsets.bottom убран — похоже, само значение,
+    // которое Flutter Web получает от мобильного Safari на первом фокусе
+    // поля, завышено (не проблема анимации, AnimatedPadding не помог).
+    // Пробуем отдать позиционирование браузеру (нативный scroll-into-view
+    // фокусed-поля) вместо ручной компенсации, которая, похоже, сама и
+    // была источником "улёта" листа наверх.
+    builder: (context) => ClarifyGlass(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         showHighlight: false,
         child: Padding(
@@ -42,6 +39,5 @@ Future<T?> showClarifyBottomSheet<T>({
           ),
         ),
       ),
-    ),
   );
 }
