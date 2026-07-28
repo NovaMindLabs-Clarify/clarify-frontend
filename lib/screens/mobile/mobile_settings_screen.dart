@@ -61,8 +61,38 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
   bool showAccentPicker = false;
   bool showQuickAddDefaults = false;
   bool showCacheDetails = false;
+  int _unreadMessagesCount = 0;
+  RealtimeChannel? _messagesChannel;
 
   String get currentLang => widget.currentLang;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUnreadMessagesCount();
+    // Обновляем бейдж, пока пользователь на экране настроек — не только при
+    // заходе, чтобы не выглядело так, будто новое сообщение не заметилось.
+    _messagesChannel = Supabase.instance.client.channel('settings_messages_badge')
+      ..onPostgresChanges(event: PostgresChangeEvent.all, schema: 'public', table: 'messages', callback: (_) => _loadUnreadMessagesCount())
+      ..subscribe();
+  }
+
+  @override
+  void dispose() {
+    _messagesChannel?.unsubscribe();
+    super.dispose();
+  }
+
+  Future<void> _loadUnreadMessagesCount() async {
+    try {
+      final data = await Supabase.instance.client.rpc('list_conversations');
+      final total = List<Map<String, dynamic>>.from(data)
+          .fold<int>(0, (sum, c) => sum + ((c['unread_count'] as num?)?.toInt() ?? 0));
+      if (mounted) setState(() => _unreadMessagesCount = total);
+    } catch (_) {
+      // Бейдж — не критичная информация, молча оставляем прежнее значение.
+    }
+  }
 
   String _cacheSizeLabel() {
     final raw = Hive.box('tasks_cache').get('all_tasks') as String?;
@@ -173,9 +203,22 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
         const SizedBox(height: 12),
         ClarifySettingsCard(
           icon: LucideIcons.messageCircle,
-          title: 'Сообщения'.tr(currentLang),
+          title: 'Мессенджер'.tr(currentLang),
           onTap: widget.onOpenMessages,
-          trailing: Icon(LucideIcons.chevronRight, size: 18, color: t.text3),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_unreadMessagesCount > 0) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(color: t.accent, borderRadius: BorderRadius.circular(ClarifyRadius.pill)),
+                  child: Text('$_unreadMessagesCount', style: TextStyle(color: t.onAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Icon(LucideIcons.chevronRight, size: 18, color: t.text3),
+            ],
+          ),
         ),
         const SizedBox(height: 12),
         ClarifySettingsCard(

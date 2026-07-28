@@ -354,7 +354,7 @@ class _MessagesPage extends StatelessWidget {
         backgroundColor: t.bg,
         elevation: 0,
         foregroundColor: t.text,
-        title: Text('Сообщения'.tr(currentLang), style: TextStyle(fontFamily: 'Golos Text', fontWeight: FontWeight.w700)),
+        title: Text('Мессенджер'.tr(currentLang), style: TextStyle(fontFamily: 'Golos Text', fontWeight: FontWeight.w700)),
       ),
       body: ConversationsListScreen(
         currentLang: currentLang,
