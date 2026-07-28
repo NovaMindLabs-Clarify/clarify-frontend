@@ -106,24 +106,12 @@ void showManualAddDialog({
     });
   }
 
-  showClarifySurface(
+  showClarifyResponsiveSurface(
     context: context,
     barrierColor: Colors.black.withOpacity(0.4),
-    originOffset: originOffset,
     builder: (context) {
       return StatefulBuilder(builder: (context, setStateDialog) {
-        return Center(
-          child: Material(
-            color: Colors.transparent,
-            child: buildGlassContainer(
-              borderRadius: ClarifyRadius.dialogShell,
-              padding: const EdgeInsets.all(24),
-              child: SizedBox(
-                // Фикс 450 переполнял узкие мобильные экраны — сужаем, если
-                // не помещается (см. task_details_dialog.dart).
-                width: (MediaQuery.sizeOf(context).width - 80).clamp(280.0, 450.0),
-                child: SingleChildScrollView(
-                  child: Column(
+        final content = Column(
                     mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
@@ -385,9 +373,28 @@ void showManualAddDialog({
                         ],
                       )
                     ],
-                  ),
-                ),
-              )
+                  );
+
+        if (isClarifyDialogMobile(context)) {
+          // showClarifyBottomSheet сам не добавляет боковой/нижний отступ
+          // контенту (глазурь/ручка — edge-to-edge), контент кладёт свой.
+          return SingleChildScrollView(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(20, 4, 20, MediaQuery.of(context).padding.bottom + 20),
+              child: content,
+            ),
+          );
+        }
+        return Center(
+          child: Material(
+            color: Colors.transparent,
+            child: buildGlassContainer(
+              borderRadius: ClarifyRadius.dialogShell,
+              padding: const EdgeInsets.all(24),
+              child: SizedBox(
+                width: (MediaQuery.sizeOf(context).width - 80).clamp(280.0, 450.0),
+                child: SingleChildScrollView(child: content),
+              ),
             ),
           ),
         );

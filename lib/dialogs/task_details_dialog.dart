@@ -49,7 +49,7 @@ void showTaskDetailsDialog({
   List<Map<String, dynamic>> comments = [];
   bool isCommentsLoaded = false;
 
-  showClarifySurface(
+  showClarifyResponsiveSurface(
     context: context,
     barrierColor: Colors.black.withOpacity(0.4),
     builder: (context) {
@@ -76,19 +76,7 @@ void showTaskDetailsDialog({
         // Вычисляем подзадачи (чек-лист)
         final subtasks = tasks.where((t) => t['parent_id'] == task['id']).toList();
 
-        return Center(
-          child: Material(
-            color: Colors.transparent,
-            child: buildGlassContainer(
-              borderRadius: ClarifyRadius.dialogShell,
-              padding: const EdgeInsets.all(32),
-              child: SizedBox(
-                // Фикс 450 переполнял узкие мобильные экраны (кнопки внизу
-                // обрезались краем экрана) — сужаем, если не помещается,
-                // с запасом на padding контейнера (32*2) и отступ от края экрана.
-                width: (MediaQuery.sizeOf(context).width - 96).clamp(280.0, 450.0),
-                child: SingleChildScrollView(
-                  child: Column(
+        final content = Column(
                     mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
@@ -401,9 +389,30 @@ void showTaskDetailsDialog({
                         ],
                       )
                     ],
-                  ),
-                ),
-              )
+                  );
+
+        // Мобильный — bottom sheet (showClarifyResponsiveSurface уже даёт
+        // форму/ширину/drag-to-dismiss), десктоп — прежняя карточка по центру.
+        if (isClarifyDialogMobile(context)) {
+          // showClarifyBottomSheet сам не добавляет боковой/нижний отступ
+          // контенту (глазурь/ручка — edge-to-edge), контент кладёт свой.
+          return SingleChildScrollView(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(20, 4, 20, MediaQuery.of(context).padding.bottom + 20),
+              child: content,
+            ),
+          );
+        }
+        return Center(
+          child: Material(
+            color: Colors.transparent,
+            child: buildGlassContainer(
+              borderRadius: ClarifyRadius.dialogShell,
+              padding: const EdgeInsets.all(32),
+              child: SizedBox(
+                width: (MediaQuery.sizeOf(context).width - 96).clamp(280.0, 450.0),
+                child: SingleChildScrollView(child: content),
+              ),
             ),
           ),
         );

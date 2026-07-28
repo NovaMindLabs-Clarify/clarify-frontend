@@ -1,6 +1,7 @@
 import 'dart:ui' show SemanticsHitTestBehavior;
 import 'package:flutter/material.dart';
 import '../core/theme/design_tokens.dart';
+import 'clarify_bottom_sheet.dart';
 
 /// Замена [showDialog] с собственным переходом (слайд снизу + fade по
 /// ClarifyMotion) вместо дефолтного Material-fade — см.
@@ -66,6 +67,33 @@ Future<T?> showClarifySurface<T>({
     ),
   );
 }
+
+/// Для карточных диалогов задачи (детали/редактирование/добавление) — на
+/// мобильном настоящий bottom sheet вместо центрированной карточки: во всю
+/// ширину экрана, от самого низа, почти до верха, скруглены только верхние
+/// углы, свайп вниз закрывает — всё это [showClarifyBottomSheet] уже даёт "из
+/// коробки" через стоковый showModalBottomSheet, включая drag-to-dismiss. На
+/// десктопе — прежний [showClarifySurface] с плавающей карточкой по центру.
+/// [builder] должен вернуть "голый" контент без обёртки Center/Material/
+/// buildGlassContainer — про это (и про подбор ширины/паддинга) сам решает
+/// вызывающий код в зависимости от [isClarifyDialogMobile], сюда попадает уже
+/// готовый виджет.
+Future<T?> showClarifyResponsiveSurface<T>({
+  required BuildContext context,
+  required WidgetBuilder builder,
+  bool barrierDismissible = true,
+  Color? barrierColor,
+}) {
+  if (isClarifyDialogMobile(context)) {
+    return showClarifyBottomSheet<T>(context: context, builder: builder);
+  }
+  return showClarifySurface<T>(context: context, builder: builder, barrierDismissible: barrierDismissible, barrierColor: barrierColor);
+}
+
+/// Порог, по которому карточные диалоги задачи решают — bottom sheet
+/// (мобильный) или плавающая карточка по центру (десктоп). Тот же
+/// [ClarifyBreakpoints.mobile], что и у остальной адаптивной раскладки.
+bool isClarifyDialogMobile(BuildContext context) => MediaQuery.sizeOf(context).width < ClarifyBreakpoints.mobile;
 
 class _CollapseFlag {
   bool value = false;
