@@ -25,7 +25,13 @@
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <!-- "black" рисует статус-бар отдельной непрозрачной чёрной полосой поверх
+       контента — не совпадает с темой (видимая граница цвета сверху,
+       особенно в светлой теме). "black-translucent" делает статус-бар
+       прозрачным поверх контента приложения — сам Flutter дорисовывает под
+       ним свой фон темы (SafeArea уже учитывает вырез через viewport-fit=cover
+       выше и env(safe-area-inset-top)). -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Clarify">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
