@@ -6,4 +6,6 @@ class PushRegistrationWeb {
   static Future<String?> register(String vapidPublicKeyBase64Url) async {
     return 'Push-уведомления доступны только в браузерной версии (PWA)';
   }
+
+  static Future<String?> unregister() async => null;
 }

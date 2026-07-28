@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ui';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/services.dart';
@@ -19,6 +20,7 @@ import '../core/localization.dart';
 import '../core/tags.dart';
 import '../core/priority.dart';
 import '../core/theme/design_tokens.dart';
+import '../services/browser_notification.dart';
 import '../services/task_service.dart';
 import '../widgets/clarify_button.dart';
 import '../widgets/clarify_glass.dart';
@@ -532,6 +534,17 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     // 🚀 ЕСЛИ МЫ В ФОКУСЕ - БЛОКИРУЕМ ЛЮБЫЕ ПУШИ ОТ ЗАДАЧ
     if (_isMyZenActive) return;
     if (!AppSettings.notificationsEnabled) return;
+
+    if (kIsWeb) {
+      // local_notifier не имеет веб-реализации (MissingPluginException) —
+      // на web/PWA попап идёт через настоящий браузерный Notification API.
+      if (!BrowserNotification.show(title, body)) {
+        if (mounted) {
+          ClarifyToast.show(context, "$title: $body", variant: ClarifyToastVariant.info);
+        }
+      }
+      return;
+    }
 
     try {
       LocalNotification notification = LocalNotification(

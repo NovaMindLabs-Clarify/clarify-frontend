@@ -82,6 +82,48 @@ class PushRegistrationWeb {
     }
   }
 
+  /// Отписка от Web Push — снимает подписку в браузере и удаляет её запись
+  /// в `push_subscriptions`, чтобы backend (`/internal/check-due-tasks`)
+  /// перестал слать push на это устройство.
+  static Future<String?> unregister() async {
+    try {
+      final serviceWorkerContainer = html.window.navigator.serviceWorker;
+      if (serviceWorkerContainer == null) return null;
+
+      final registration = await serviceWorkerContainer.getRegistration('/push_sw.js');
+
+      final pushManager = registration.pushManager;
+      if (pushManager == null) return null;
+
+      final subscriptionPromise = (pushManager as JSObject)
+          .callMethod<JSPromise<JSObject?>>('getSubscription'.toJS);
+      final subscription = await subscriptionPromise.toDart;
+      if (subscription == null) return null;
+
+      final endpoint = subscription
+          .getProperty<JSString?>('endpoint'.toJS)
+          ?.toDart;
+
+      final unsubscribePromise = subscription
+          .callMethod<JSPromise<JSBoolean>>('unsubscribe'.toJS);
+      await unsubscribePromise.toDart;
+
+      if (endpoint != null) {
+        final user = Supabase.instance.client.auth.currentUser;
+        if (user != null) {
+          await Supabase.instance.client
+              .from('push_subscriptions')
+              .delete()
+              .eq('endpoint', endpoint);
+        }
+      }
+
+      return null; // успех
+    } catch (e) {
+      return 'Ошибка: $e';
+    }
+  }
+
   static Uint8List _urlBase64ToUint8List(String base64String) {
     final padding = '=' * ((4 - base64String.length % 4) % 4);
     final normalized = (base64String + padding)

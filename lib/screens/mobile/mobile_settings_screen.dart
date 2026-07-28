@@ -193,7 +193,21 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
           trailing: Switch(
             value: AppSettings.notificationsEnabled,
             activeColor: t.accent,
-            onChanged: (val) => setState(() => AppSettings.notificationsEnabled = val),
+            onChanged: (val) async {
+              if (kIsWeb) {
+                final error = val
+                    ? await PushRegistrationWeb.register(AppConfig.vapidPublicKey)
+                    : await PushRegistrationWeb.unregister();
+                if (val && error != null) {
+                  if (context.mounted) {
+                    ClarifyToast.show(context, error, variant: ClarifyToastVariant.warning);
+                  }
+                  setState(() {});
+                  return;
+                }
+              }
+              setState(() => AppSettings.notificationsEnabled = val);
+            },
           ),
         ),
         const SizedBox(height: 12),
@@ -206,24 +220,6 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
             onChanged: (val) => setState(() => AppSettings.dailyReviewEnabled = val),
           ),
         ),
-        if (kIsWeb) ...[
-          const SizedBox(height: 12),
-          ClarifySettingsCard(
-            icon: LucideIcons.bellRing,
-            title: 'Включить push-уведомления'.tr(currentLang),
-            trailing: Icon(LucideIcons.chevronRight, size: 18, color: t.text3),
-            onTap: () async {
-              final error = await PushRegistrationWeb.register(AppConfig.vapidPublicKey);
-              if (context.mounted) {
-                ClarifyToast.show(
-                  context,
-                  error ?? 'Уведомления включены!'.tr(currentLang),
-                  variant: error == null ? ClarifyToastVariant.success : ClarifyToastVariant.warning,
-                );
-              }
-            },
-          ),
-        ],
 
         const SizedBox(height: 20),
         _SectionLabel(text: 'Фокус-режим'.tr(currentLang)),
