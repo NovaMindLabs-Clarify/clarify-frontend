@@ -742,7 +742,10 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
       print("Ошибка создания задачи: $e".tr(widget.currentLang));
       if (mounted) {
         setState(() => _pendingOpsCount = _taskService.pendingOpsCount);
-        ClarifyToast.show(context, "Не удалось сохранить задачу на сервере. Отправим, когда сеть восстановится.".tr(widget.currentLang), variant: ClarifyToastVariant.warning);
+        final message = e is PostgrestException
+            ? "Не удалось сохранить: ".tr(widget.currentLang) + e.message
+            : "Не удалось сохранить задачу на сервере. Отправим, когда сеть восстановится.".tr(widget.currentLang);
+        ClarifyToast.show(context, message, variant: ClarifyToastVariant.warning);
       }
       return null;
     }
@@ -762,7 +765,10 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
       print("Ошибка обновления задачи: $e".tr(widget.currentLang));
       if (mounted) {
         setState(() => _pendingOpsCount = _taskService.pendingOpsCount);
-        ClarifyToast.show(context, "Нет сети. Изменение отправим, когда сеть восстановится.".tr(widget.currentLang), variant: ClarifyToastVariant.warning);
+        final message = e is PostgrestException
+            ? "Не удалось сохранить: ".tr(widget.currentLang) + e.message
+            : "Нет сети. Изменение отправим, когда сеть восстановится.".tr(widget.currentLang);
+        ClarifyToast.show(context, message, variant: ClarifyToastVariant.warning);
       }
     }
   }
@@ -988,7 +994,10 @@ void _checkBurnoutWarning(String dateStr) {
       print("Ошибка удаления: $e".tr(widget.currentLang));
       if (mounted) {
         setState(() => _pendingOpsCount = _taskService.pendingOpsCount);
-        ClarifyToast.show(context, "Нет сети. Удаление отправим, когда сеть восстановится.".tr(widget.currentLang), variant: ClarifyToastVariant.warning);
+        final message = e is PostgrestException
+            ? "Не удалось удалить: ".tr(widget.currentLang) + e.message
+            : "Нет сети. Удаление отправим, когда сеть восстановится.".tr(widget.currentLang);
+        ClarifyToast.show(context, message, variant: ClarifyToastVariant.warning);
       }
     }
   }

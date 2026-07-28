@@ -169,6 +169,12 @@ class TaskService {
       }
 
       return realId;
+    } on PostgrestException {
+      // Сервер ответил и отклонил запрос (RLS/валидация/etc.) — это не
+      // сетевая проблема, повторная отправка того же payload даст тот же
+      // отказ. В очередь не кладём, даём вызывающему коду показать
+      // настоящую причину вместо "нет сети".
+      rethrow;
     } catch (e) {
       print("Фоновое сохранение на сервер не удалось: $e");
       // Задача уже показана пользователю (optimistic UI) — без очереди она
@@ -185,6 +191,10 @@ class TaskService {
   Future<void> updateTask(int taskId, Map<String, dynamic> updates) async {
     try {
       await Supabase.instance.client.from('tasks').update(updates).eq('id', taskId);
+    } on PostgrestException {
+      // Сервер ответил отказом (RLS/валидация/etc.) — не сетевая проблема,
+      // ретрай с тем же payload даст тот же результат, в очередь не кладём.
+      rethrow;
     } catch (e) {
       _queuePendingOp('update', {'taskId': taskId, 'data': updates});
       rethrow; // вызывающий код (например, откат чекбокса) не меняем
@@ -195,6 +205,8 @@ class TaskService {
   Future<void> deleteTask(int taskId) async {
     try {
       await Supabase.instance.client.from('tasks').delete().eq('id', taskId);
+    } on PostgrestException {
+      rethrow;
     } catch (e) {
       _queuePendingOp('delete', {'taskId': taskId});
       rethrow;
