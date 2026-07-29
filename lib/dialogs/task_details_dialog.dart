@@ -380,7 +380,22 @@ void showTaskDetailsDialog({
                                 child: IconButton(
                                   style: IconButton.styleFrom(backgroundColor: highlightColor),
                                   icon: Icon(LucideIcons.copy, color: t.accent, size: 20),
-                                  onPressed: () { onDuplicate(task); Navigator.of(context).pop(); ClarifyToast.show(context, "Кликни на плюсик любого дня".tr(currentLang), variant: ClarifyToastVariant.info); },
+                                  onPressed: () {
+                                    if (isClarifyDialogMobile(context)) {
+                                      // Мобильный: сразу открываем предзаполненное окно
+                                      // добавления — закрыть текущий диалог нужно ДО
+                                      // вызова onDuplicate (тот сам откроет новый),
+                                      // иначе последующий pop() случайно закроет уже
+                                      // новое окно вместо этого (см. паттерн "Изменить" выше).
+                                      ClarifySurfaceTransitionOut.markCollapseOnClose(context);
+                                      Navigator.of(context).pop();
+                                      onDuplicate(task);
+                                    } else {
+                                      onDuplicate(task);
+                                      Navigator.of(context).pop();
+                                      ClarifyToast.show(context, "Кликни на плюсик любого дня".tr(currentLang), variant: ClarifyToastVariant.info);
+                                    }
+                                  },
                                 ),
                               ),
                             ],

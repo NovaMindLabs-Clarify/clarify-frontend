@@ -1083,7 +1083,17 @@ void _checkBurnoutWarning(String dateStr) {
       onDeleteTask: _deleteTask,
       createTaskManually: _createTaskManually,
       onTagTap: (tag) => setState(() => activeTagFilter = tag),
-      onDuplicate: (task) => setState(() { _taskToDuplicate = task; _isDuplicating = true; }),
+      onDuplicate: (task) {
+        // На мобильном — сразу открываем окно добавления с предзаполненными
+        // данными, без промежуточного "нажми на плюсик любого дня" (см. кнопку
+        // "Дублировать" в task_details_dialog.dart). Десктоп — как раньше,
+        // выбор конкретного дня кликом по его "+".
+        if (isClarifyDialogMobile(context)) {
+          _showManualAddDialog(sourceTaskForDuplicate: task, preselectedDate: DateTime.now());
+        } else {
+          setState(() { _taskToDuplicate = task; _isDuplicating = true; });
+        }
+      },
       onEdit: _showEditTaskDialog,
       buildGlassContainer: _buildGlassContainer,
     );
