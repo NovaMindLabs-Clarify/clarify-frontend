@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:ui';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -11,7 +10,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:hotkey_manager/hotkey_manager.dart';
-import 'package:confetti/confetti.dart';
 import 'package:local_notifier/local_notifier.dart';
 
 import '../core/app_settings.dart';
@@ -285,9 +283,8 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     );
   }
 
-  late ConfettiController _confettiController;
   // Храним дату (ДД.ММ.ГГГГ), для которой уже показывали обзор — а не просто bool,
-  // иначе поздравление не повторится на следующий день без перезапуска приложения.
+  // иначе сводка не повторится на следующий день без перезапуска приложения.
   String? _dailyReviewShownForDate;
 
   // Даты, для которых уже показали предупреждение о перегрузке — чтобы не спамить
@@ -298,9 +295,8 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   void initState() {
     super.initState();
     _settingsBox = Hive.box('settings');
-    _confettiController = ConfettiController(duration: const Duration(seconds: 3));
 
-    _loadLocalData(); 
+    _loadLocalData();
     _fetchTasks();    
     _fetchWorkspaces(); 
     _fetchZenStatuses(); // <--- Добавили запуск загрузки статусов
@@ -429,7 +425,6 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   void dispose() {
     _taskService.dispose(); // <--- ЗАКРЫВАЕМ СОКЕТ ЧЕРЕЗ СЕРВИС
     _aiChatController.dispose();
-    _confettiController.dispose();
     for (var timer in _activeAlarms.values) {
       timer.cancel();
     }
@@ -470,23 +465,23 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     }
   }
 
-   void _checkDailyReviewTrigger() {
+  // "Ежедневный обзор" — утренняя сводка (сколько задач сегодня, сколько
+  // просрочено), не поздравление с закрытием всех задач (как было раньше) —
+  // та версия срабатывала только в узком случае "все задачи на сегодня
+  // выполнены", из-за чего выглядела как "не работает" для большинства
+  // пользователей. Показывается один раз за день, при первой загрузке задач
+  // в этой сессии — не привязана к конкретному времени суток (у бэкенда нет
+  // таймзоны пользователя, чтобы слать это именно утром через push).
+  void _checkDailyReviewTrigger() {
     if (!AppSettings.dailyReviewEnabled) return;
     final todayStr = _formatDate(DateTime.now());
-    if (_dailyReviewShownForDate == todayStr) return; // Уже хвалили сегодня — пропускаем
+    if (_dailyReviewShownForDate == todayStr) return; // Уже показывали сегодня
+    _dailyReviewShownForDate = todayStr;
 
-    final todayTasks = tasks.where((t) => t['due_date'] == todayStr && t['parent_id'] == null).toList();
+    final todayPending = tasks.where((t) => t['due_date'] == todayStr && t['parent_id'] == null && t['is_completed'] != true).length;
+    final overdueCount = tasks.where((t) => _isOverdue(t)).length;
 
-    // Если на сегодня вообще не было задач — ничего не делаем
-    if (todayTasks.isEmpty) return;
-
-    // Проверяем, все ли задачи на сегодня выполнены
-    final allDone = todayTasks.every((t) => t['is_completed'] == true);
-
-    if (allDone) {
-      _dailyReviewShownForDate = todayStr;
-      _showDailyReviewOverlay(todayTasks.length);
-    }
+    _showDailyReviewOverlay(todayCount: todayPending, overdueCount: overdueCount);
   }
   // 4. ЛОГИКА УМНЫХ БУДИЛЬНИКОВ
   void _rebuildAllAlarms() {
@@ -636,6 +631,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
           _rebuildAllAlarms();
         });
         _checkMissedDeadlinesOnStartup();
+        _checkDailyReviewTrigger();
       }
     } catch (e) {
       print("!!! РЕАЛЬНАЯ ОШИБКА БАЗЫ ДАННЫХ: $e");
@@ -838,10 +834,6 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
         // один клик. Оптимистичное обновление выше уже отражает верное
         // состояние — второй, серверный, придёт сам через realtime.
 
-        // ВОТ СЮДА ДОБАВЛЯЕМ ПРОВЕРКУ
-        if (newStatus == true) {
-          _checkDailyReviewTrigger();
-        }
       } catch (e) {
         setState(() {
           task['is_completed'] = currentStatus;
@@ -853,81 +845,58 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     });
   }
 
-void _showDailyReviewOverlay(int taskCount) {
-    _confettiController.play();
-    
+  void _showDailyReviewOverlay({required int todayCount, required int overdueCount}) {
     showGeneralDialog(
       context: context,
-      barrierDismissible: false, // Запрещаем закрывать кликом мимо (юзер должен насладиться)
+      barrierDismissible: true,
+      barrierColor: Colors.black.withValues(alpha: 0.45),
       barrierLabel: 'DailyReview',
       transitionDuration: ClarifyMotion.deliberate,
       pageBuilder: (context, animation, secondaryAnimation) {
-        return Stack(
-          children: [
-            // 1. Тотальное размытие всего приложения (тот самый "Фокус")
-            BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
-              child: Container(color: Colors.black.withOpacity(0.5)),
-            ),
-            
-            // 2. Карточка с поздравлением
-            Center(
-              child: Material(
-                color: Colors.transparent,
-                child: Container(
-                  width: 450 * _s,
-                  padding: EdgeInsets.all(40 * _s),
-                  decoration: BoxDecoration(
-                    color: _tokens.surface2.withValues(alpha: 0.9),
-                    borderRadius: BorderRadius.circular(32 * _s),
-                    border: Border.all(color: _tokens.accent.withValues(alpha: 0.25), width: 2),
-                    boxShadow: [
-                      BoxShadow(color: _tokens.accent.withValues(alpha: 0.2), blurRadius: 40, spreadRadius: 10)
-                    ]
+        final cardWidth = (MediaQuery.sizeOf(context).width - 96).clamp(280.0, 420.0);
+        return Center(
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              width: cardWidth,
+              padding: EdgeInsets.all(32 * _s),
+              decoration: BoxDecoration(
+                color: _tokens.surface2,
+                borderRadius: BorderRadius.circular(28 * _s),
+                border: Border.all(color: _tokens.border),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(LucideIcons.sunrise, size: 44 * _s, color: _tokens.accent),
+                  SizedBox(height: 20 * _s),
+                  Text("Доброе утро!".tr(widget.currentLang), style: TextStyle(color: textColor, fontSize: 24 * _s, fontWeight: FontWeight.w800)),
+                  SizedBox(height: 12 * _s),
+                  Text(
+                    todayCount == 0
+                        ? "На сегодня задач не запланировано.".tr(widget.currentLang)
+                        : "${'Сегодня у вас'.tr(widget.currentLang)} $todayCount ${'задач'.tr(widget.currentLang)}.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: textMuted, fontSize: 16 * _s, height: 1.4),
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text("🎉", style: TextStyle(fontSize: 70 * _s)),
-                      SizedBox(height: 24 * _s),
-                      Text("Отличная работа!".tr(widget.currentLang), style: TextStyle(color: textColor, fontSize: 32 * _s, fontWeight: FontWeight.w900)),
-                      SizedBox(height: 16 * _s),
-                      Text(
-                        "Ты закрыл все задачи на сегодня ($taskCount шт).\nСистема синхронизирована. Можешь со спокойной душой закрывать приложение.\nОтдыхай, ты это заслужил!", 
-                        textAlign: TextAlign.center, 
-                        style: TextStyle(color: textMuted, fontSize: 16 * _s, height: 1.5)
-                      ),
-                      SizedBox(height: 40 * _s),
-                      ClarifyButton(
-                        label: "Завершить день".tr(widget.currentLang),
-                        variant: ClarifyButtonVariant.filled,
-                        scale: _s,
-                        onPressed: () {
-                          _confettiController.stop();
-                          Navigator.pop(context);
-                        },
-                      )
-                    ],
+                  if (overdueCount > 0) ...[
+                    SizedBox(height: 10 * _s),
+                    Text(
+                      "${'Просрочено:'.tr(widget.currentLang)} $overdueCount",
+                      style: TextStyle(color: _tokens.danger, fontSize: 15 * _s, fontWeight: FontWeight.w700),
+                    ),
+                  ],
+                  SizedBox(height: 28 * _s),
+                  ClarifyButton(
+                    label: "Понятно".tr(widget.currentLang),
+                    variant: ClarifyButtonVariant.filled,
+                    scale: _s,
+                    onPressed: () => Navigator.pop(context),
                   ),
-                ),
+                ],
               ),
             ),
-            
-            // 3. Праздничный взрыв конфетти во все стороны
-            Align(
-              alignment: Alignment.center,
-              child: ConfettiWidget(
-                confettiController: _confettiController,
-                blastDirectionality: BlastDirectionality.explosive, // <-- ВЗРЫВ ВО ВСЕ СТОРОНЫ
-                emissionFrequency: 0.05,
-                numberOfParticles: 50, // Увеличили количество частичек для красоты
-                maxBlastForce: 100,
-                minBlastForce: 80,
-                gravity: 0.1, // Сделали падение чуть более плавным (затяжным)
-                colors: [_tokens.accent, _tokens.success, Colors.white, _tokens.warning, _tokens.tagPalette[1]],
-              ),
-            ),
-          ],
+          ),
         );
       },
     );
