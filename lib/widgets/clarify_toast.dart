@@ -156,7 +156,7 @@ class _ToastOverlayState extends State<_ToastOverlay> with SingleTickerProviderS
                           Flexible(
                             child: Text(
                               widget.message,
-                              style: TextStyle(color: t.text, fontWeight: FontWeight.w600, fontSize: 14),
+                              style: TextStyle(color: t.text, fontWeight: FontWeight.w600, fontSize: 14, decoration: TextDecoration.none),
                             ),
                           ),
                           if (widget.actionLabel != null) ...[
@@ -168,7 +168,7 @@ class _ToastOverlayState extends State<_ToastOverlay> with SingleTickerProviderS
                               },
                               child: Text(
                                 widget.actionLabel!,
-                                style: TextStyle(color: accentColor, fontWeight: FontWeight.bold, fontSize: 14),
+                                style: TextStyle(color: accentColor, fontWeight: FontWeight.bold, fontSize: 14, decoration: TextDecoration.none),
                               ),
                             ),
                           ],
