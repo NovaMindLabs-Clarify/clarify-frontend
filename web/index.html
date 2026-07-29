@@ -47,6 +47,16 @@
   <link rel="manifest" href="manifest.json">
 
   <style>
+    /* Flutter Web дублирует текст в скрытые accessibility-узлы (flt-semantics)
+       для скринридеров — iOS Safari накладывает на них нативную проверку
+       орфографии/автозамены (жёлтое/красное подчёркивание), из-за чего
+       обычный текст (например, тосты) выглядит как будто с ошибкой.
+       Подчёркивание чисто визуальное, реального текста в DOM это не касается. */
+    flt-semantics, flt-semantics * {
+      -webkit-text-decoration-line: none !important;
+      text-decoration-line: none !important;
+    }
+
     /* Без этого сброса body сохраняет UA-дефолтный margin (обычно 8px) —
        на мобильном это видно как белую плашку сверху под статус-баром,
        т.к. Flutter не рисует в safe-area, а под ней остаётся голый body. */

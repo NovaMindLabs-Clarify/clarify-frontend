@@ -664,6 +664,14 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     if (_hasCheckedMissedDeadlinesOnStartup) return;
     _hasCheckedMissedDeadlinesOnStartup = true;
 
+    // Костыль ниже — компромисс именно под Windows-.exe без MSIX (см.
+    // комментарий выше). На web/PWA он не нужен и мешает: там уже есть
+    // настоящий фоновый push через /internal/check-due-tasks, и без этой
+    // проверки пользователь получал системное уведомление о просроченных
+    // задачах при КАЖДОМ открытии приложения, а не только когда реально
+    // пропустил дедлайн, пока оно было закрыто.
+    if (kIsWeb) return;
+
     final overdueTasks = tasks.where((t) => _isOverdue(t)).toList();
     if (overdueTasks.isEmpty) return;
 
