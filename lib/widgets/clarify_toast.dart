@@ -140,31 +140,40 @@ class _ToastOverlayState extends State<_ToastOverlay> with SingleTickerProviderS
                   child: ClarifyGlass(
                     borderRadius: BorderRadius.circular(ClarifyRadius.pill),
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(icon, size: 20, color: accentColor),
-                        const SizedBox(width: 12),
-                        Flexible(
-                          child: Text(
-                            widget.message,
-                            style: TextStyle(color: t.text, fontWeight: FontWeight.w600, fontSize: 14),
-                          ),
-                        ),
-                        if (widget.actionLabel != null) ...[
-                          const SizedBox(width: 8),
-                          GestureDetector(
-                            onTap: () {
-                              widget.onAction?.call();
-                              _dismiss();
-                            },
+                    // ЭКСПЕРИМЕНТАЛЬНО: подчёркивание на iOS Safari держалось
+                    // даже после CSS-фикса для flt-semantics — похоже, дело в
+                    // самом accessibility-узле, а не в его стилях (CSS не
+                    // мог перебить встроенную проверку правописания браузера).
+                    // ExcludeSemantics убирает узел целиком вместо попытки
+                    // перекрасить его — тост при этом не объявляется
+                    // скринридером, но он и так исчезает через 3 секунды.
+                    child: ExcludeSemantics(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(icon, size: 20, color: accentColor),
+                          const SizedBox(width: 12),
+                          Flexible(
                             child: Text(
-                              widget.actionLabel!,
-                              style: TextStyle(color: accentColor, fontWeight: FontWeight.bold, fontSize: 14),
+                              widget.message,
+                              style: TextStyle(color: t.text, fontWeight: FontWeight.w600, fontSize: 14),
                             ),
                           ),
+                          if (widget.actionLabel != null) ...[
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: () {
+                                widget.onAction?.call();
+                                _dismiss();
+                              },
+                              child: Text(
+                                widget.actionLabel!,
+                                style: TextStyle(color: accentColor, fontWeight: FontWeight.bold, fontSize: 14),
+                              ),
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   ),
                 ),
