@@ -155,15 +155,33 @@ class MainContentArea extends StatelessWidget {
         targetTasks = filteredTasks.where((t) => t['parent_id'] == null).toList();
       }
 
+      // Одинаковое время (чаще всего — у обеих задач его вообще нет) раньше
+      // ничем не разрешалось, порядок был случайным (как пришло с сервера) —
+      // разнородные по смыслу задачи оказывались вперемешку. Группировка по
+      // первому тегу для таких "ничьих" снижает стоимость переключения
+      // контекста между разными по смыслу задачами, не трогая порядок для
+      // задач, у которых время реально задано и различается.
+      int sameTimeTiebreak(Map<String, dynamic> a, Map<String, dynamic> b) {
+        final tagsA = parseTagsString(a['tags']);
+        final tagsB = parseTagsString(b['tags']);
+        return (tagsA.isEmpty ? '' : tagsA.first).compareTo(tagsB.isEmpty ? '' : tagsB.first);
+      }
+
       final effectiveSortByPriority = sortByPriority && selectedMenu != 'Входящие';
       if (effectiveSortByPriority) {
         targetTasks.sort((a, b) {
           final rankCompare = priorityRank(a['priority']).compareTo(priorityRank(b['priority']));
           if (rankCompare != 0) return rankCompare;
-          return (a['due_time'] ?? '23:59').compareTo(b['due_time'] ?? '23:59');
+          final timeCompare = (a['due_time'] ?? '23:59').compareTo(b['due_time'] ?? '23:59');
+          if (timeCompare != 0) return timeCompare;
+          return sameTimeTiebreak(a, b);
         });
       } else {
-        targetTasks.sort((a, b) => (a['due_time'] ?? '23:59').compareTo(b['due_time'] ?? '23:59'));
+        targetTasks.sort((a, b) {
+          final timeCompare = (a['due_time'] ?? '23:59').compareTo(b['due_time'] ?? '23:59');
+          if (timeCompare != 0) return timeCompare;
+          return sameTimeTiebreak(a, b);
+        });
       }
       if (targetTasks.isEmpty) {
         final String emptyKey;
