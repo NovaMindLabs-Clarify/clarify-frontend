@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../core/checklist.dart';
+import '../../../core/clarify_date_format.dart';
 import '../../../core/theme/design_tokens.dart';
+import '../../../widgets/clarify_quick_actions_sheet.dart';
 import '../../../widgets/clarify_task_checkbox.dart';
 
 /// Внимание: mobile_task_row.dart и task_cards.dart — два отдельных виджета
@@ -26,6 +28,7 @@ class MobileTaskRow extends StatelessWidget {
   final VoidCallback onToggle;
   final VoidCallback onDelete;
   final VoidCallback onTap;
+  final void Function(Map<String, dynamic> updates) onQuickUpdateTask;
   final bool showDate;
 
   const MobileTaskRow({
@@ -38,6 +41,7 @@ class MobileTaskRow extends StatelessWidget {
     required this.onToggle,
     required this.onDelete,
     required this.onTap,
+    required this.onQuickUpdateTask,
     this.showDate = false,
   });
 
@@ -51,6 +55,24 @@ class MobileTaskRow extends StatelessWidget {
     final String? tag = (task['tags'] as String?)?.split(',').first.trim();
     final rotBadge = buildRotBadge(task: task, isDone: isDone, overdue: overdue, tokens: t, currentLang: currentLang);
     final rescheduleBadge = buildRescheduleBadge(task: task, isDone: isDone, tokens: t, currentLang: currentLang);
+    // Тап по бейджу гниения открывает быстрые действия вместо простого
+    // просмотра — см. showTaskRotQuickActions (пассивный бейдж рискует со
+    // временем превратиться в фоновый шум, который перестают замечать).
+    final rotBadgeInteractive = rotBadge == null
+        ? null
+        : Builder(
+            builder: (context) => GestureDetector(
+              onTap: () => showTaskRotQuickActions(
+                context: context,
+                isDark: Theme.of(context).brightness == Brightness.dark,
+                currentLang: currentLang,
+                onDoToday: () => onQuickUpdateTask({'due_date': formatClarifyDate(DateTime.now())}),
+                onClearDeadline: () => onQuickUpdateTask({'due_date': null, 'due_time': null, 'duration_minutes': null}),
+                onDelete: onDelete,
+              ),
+              child: rotBadge,
+            ),
+          );
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -115,7 +137,7 @@ class MobileTaskRow extends StatelessWidget {
                                 ClarifySubtaskBadge(done: cStats['done']!, total: cStats['total']!, tokens: t, icon: LucideIcons.listTodo),
                               if (tag != null && tag.isNotEmpty)
                                 Text('#$tag', style: TextStyle(fontSize: 12, color: t.accent, fontWeight: FontWeight.w600)),
-                              ?rotBadge,
+                              ?rotBadgeInteractive,
                               ?rescheduleBadge,
                             ],
                           ),

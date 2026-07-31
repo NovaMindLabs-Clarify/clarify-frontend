@@ -37,6 +37,8 @@ class MobilePlannerShell extends StatefulWidget {
   final void Function(Map<String, dynamic> task) onToggleTask;
   final void Function(dynamic taskId) onDeleteTask;
   final void Function(Map<String, dynamic> task) onTaskTap;
+  final void Function(dynamic taskId, Map<String, dynamic> updates)
+  onQuickUpdateTask;
   final void Function({DateTime? preselectedDate}) onAddTask;
   final Future<int?> Function(Map<String, dynamic> taskData) createTaskManually;
   final Future<int> Function(String text) onAiParseText;
@@ -67,6 +69,7 @@ class MobilePlannerShell extends StatefulWidget {
     required this.onToggleTask,
     required this.onDeleteTask,
     required this.onTaskTap,
+    required this.onQuickUpdateTask,
     required this.onAddTask,
     required this.createTaskManually,
     required this.onAiParseText,
@@ -141,6 +144,7 @@ class _MobilePlannerShellState extends State<MobilePlannerShell> {
           onToggle: widget.onToggleTask,
           onDelete: widget.onDeleteTask,
           onTap: widget.onTaskTap,
+          onQuickUpdateTask: widget.onQuickUpdateTask,
           onOpenInbox: () => setState(() => _tab = MobileTab.tasks),
           onOpenDate: (date) => setState(() {
             _pendingCalendarDate = date;
@@ -162,6 +166,7 @@ class _MobilePlannerShellState extends State<MobilePlannerShell> {
           onToggle: widget.onToggleTask,
           onDelete: widget.onDeleteTask,
           onTap: widget.onTaskTap,
+          onQuickUpdateTask: widget.onQuickUpdateTask,
         );
       case MobileTab.teams:
         return MobileTeamsScreen(
@@ -180,6 +185,7 @@ class _MobilePlannerShellState extends State<MobilePlannerShell> {
           onToggleTask: widget.onToggleTask,
           onDeleteTask: widget.onDeleteTask,
           onTaskTap: widget.onTaskTap,
+          onQuickUpdateTask: widget.onQuickUpdateTask,
         );
       case MobileTab.settings:
         return MobileSettingsScreen(

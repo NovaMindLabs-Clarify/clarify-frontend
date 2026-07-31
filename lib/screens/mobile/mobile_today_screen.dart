@@ -23,6 +23,8 @@ class MobileTodayScreen extends StatelessWidget {
   final void Function(Map<String, dynamic> task) onToggle;
   final void Function(dynamic taskId) onDelete;
   final void Function(Map<String, dynamic> task) onTap;
+  final void Function(dynamic taskId, Map<String, dynamic> updates)
+  onQuickUpdateTask;
   final VoidCallback onOpenInbox;
   final void Function(DateTime date) onOpenDate;
 
@@ -39,6 +41,7 @@ class MobileTodayScreen extends StatelessWidget {
     required this.onToggle,
     required this.onDelete,
     required this.onTap,
+    required this.onQuickUpdateTask,
     required this.onOpenInbox,
     required this.onOpenDate,
   });
@@ -130,6 +133,7 @@ class MobileTodayScreen extends StatelessWidget {
                         onToggle: () => onToggle(task),
                         onConfirmedDelete: () => onDelete(task['id']),
                         onTap: () => onTap(task),
+                        onQuickUpdateTask: (updates) => onQuickUpdateTask(task['id'], updates),
                       ),
                     );
                   }

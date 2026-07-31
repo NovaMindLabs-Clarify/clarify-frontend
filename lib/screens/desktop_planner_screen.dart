@@ -1191,6 +1191,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
         onToggleTask: _toggleTask,
         onDeleteTask: _deleteTask,
         onTaskTap: _handleTaskTap,
+        onQuickUpdateTask: _updateTaskData,
         onAddTask: ({DateTime? preselectedDate}) => _showManualAddDialog(preselectedDate: preselectedDate),
         createTaskManually: _createTaskManually,
         onAiParseText: _parseTextToTasks,
@@ -1568,6 +1569,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                 onTap: _handleTaskTap,
                                 onTagTap: (tag) => setState(() => activeTagFilter = tag),
                                 onPriorityTap: (priority) => setState(() => activePriorityFilter = priority),
+                                onQuickUpdateTask: _updateTaskData,
                                 buildGlassContainer: _buildGlassContainer,
                               );
                               return MainContentArea(

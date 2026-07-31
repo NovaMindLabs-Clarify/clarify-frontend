@@ -23,6 +23,7 @@ TaskCardBuilders _builders({
     onTap: onTap ?? (_) {},
     onTagTap: onTagTap ?? (_) {},
     onPriorityTap: (_) {},
+    onQuickUpdateTask: (_, _) {},
     buildGlassContainer: ({required child, borderRadius, padding, margin, customColor}) => child,
   );
 }

@@ -19,3 +19,10 @@ DateTime? parseClarifyDate(String? dateStr) {
   }
   return null;
 }
+
+/// Обратная операция — тот же формат DD.MM.YYYY, что и `_formatDate` в
+/// desktop_planner_screen.dart (продублировано по той же причине, см. doc
+/// [parseClarifyDate] выше).
+String formatClarifyDate(DateTime date) {
+  return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+}

@@ -27,6 +27,8 @@ class MobileTeamsScreen extends StatelessWidget {
   final void Function(Map<String, dynamic> task) onToggleTask;
   final void Function(dynamic taskId) onDeleteTask;
   final void Function(Map<String, dynamic> task) onTaskTap;
+  final void Function(dynamic taskId, Map<String, dynamic> updates)
+  onQuickUpdateTask;
 
   const MobileTeamsScreen({
     super.key,
@@ -45,6 +47,7 @@ class MobileTeamsScreen extends StatelessWidget {
     required this.onToggleTask,
     required this.onDeleteTask,
     required this.onTaskTap,
+    required this.onQuickUpdateTask,
   });
 
   @override
@@ -102,6 +105,7 @@ class MobileTeamsScreen extends StatelessWidget {
                                 onToggleTask: onToggleTask,
                                 onDeleteTask: onDeleteTask,
                                 onTaskTap: onTaskTap,
+                                onQuickUpdateTask: onQuickUpdateTask,
                               ),
                             ));
                           },
@@ -152,6 +156,8 @@ class _WorkspaceDetailPage extends StatelessWidget {
   final void Function(Map<String, dynamic> task) onToggleTask;
   final void Function(dynamic taskId) onDeleteTask;
   final void Function(Map<String, dynamic> task) onTaskTap;
+  final void Function(dynamic taskId, Map<String, dynamic> updates)
+  onQuickUpdateTask;
 
   const _WorkspaceDetailPage({
     required this.currentLang,
@@ -168,6 +174,7 @@ class _WorkspaceDetailPage extends StatelessWidget {
     required this.onToggleTask,
     required this.onDeleteTask,
     required this.onTaskTap,
+    required this.onQuickUpdateTask,
   });
 
   @override
@@ -250,6 +257,7 @@ class _WorkspaceDetailPage extends StatelessWidget {
                         onToggle: () => onToggleTask(task),
                         onConfirmedDelete: () => onDeleteTask(task['id']),
                         onTap: () => onTaskTap(task),
+                        onQuickUpdateTask: (updates) => onQuickUpdateTask(task['id'], updates),
                       );
                     },
                   ),

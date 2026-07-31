@@ -22,6 +22,8 @@ class MobileTasksScreen extends StatefulWidget {
   final void Function(Map<String, dynamic> task) onToggle;
   final void Function(dynamic taskId) onDelete;
   final void Function(Map<String, dynamic> task) onTap;
+  final void Function(dynamic taskId, Map<String, dynamic> updates)
+  onQuickUpdateTask;
   final DateTime? initialDate;
   final Set<String> datesWithTasks;
   final Map<String, int> dateLoadMinutes;
@@ -36,6 +38,7 @@ class MobileTasksScreen extends StatefulWidget {
     required this.onToggle,
     required this.onDelete,
     required this.onTap,
+    required this.onQuickUpdateTask,
     required this.datesWithTasks,
     required this.dateLoadMinutes,
     this.initialDate,
@@ -198,6 +201,7 @@ class _MobileTasksScreenState extends State<MobileTasksScreen> {
                               onToggle: () => widget.onToggle(task),
                               onConfirmedDelete: () => widget.onDelete(task['id']),
                               onTap: () => widget.onTap(task),
+                              onQuickUpdateTask: (updates) => widget.onQuickUpdateTask(task['id'], updates),
                             ),
                           ),
                           ReorderableDelayedDragStartListener(

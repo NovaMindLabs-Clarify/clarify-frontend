@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../core/clarify_date_format.dart';
 import '../core/theme/design_tokens.dart';
 import '../core/priority.dart';
 import '../core/checklist.dart';
 import 'clarify_collapsing_task_row.dart';
 import 'clarify_pressable.dart';
+import 'clarify_quick_actions_sheet.dart';
 import 'clarify_task_checkbox.dart';
 
 /// Строит карточки задачи для трёх представлений (список, доска "7 дней",
@@ -24,6 +26,8 @@ class TaskCardBuilders {
   final void Function(Map<String, dynamic> task) onTap;
   final void Function(String tag) onTagTap;
   final void Function(String priority) onPriorityTap;
+  final void Function(dynamic taskId, Map<String, dynamic> updates)
+  onQuickUpdateTask;
   final Widget Function({
     required Widget child,
     BorderRadius? borderRadius,
@@ -46,6 +50,7 @@ class TaskCardBuilders {
     required this.onTap,
     required this.onTagTap,
     required this.onPriorityTap,
+    required this.onQuickUpdateTask,
     required this.buildGlassContainer,
   });
 
@@ -59,14 +64,37 @@ class TaskCardBuilders {
 
   // Реализация — общие функции buildRotBadge/buildRescheduleBadge в
   // clarify_task_checkbox.dart (переиспользуются и mobile_task_row.dart).
+  // Тап по бейджу гниения — не просто визуальная метка, а вход в быстрые
+  // действия (см. showTaskRotQuickActions): пассивный бейдж рискует со
+  // временем стать фоновым шумом, который перестают замечать.
   Widget? _rotBadge(Map<String, dynamic> task, bool isDone, bool overdue) {
-    return buildRotBadge(
+    final badge = buildRotBadge(
       task: task,
       isDone: isDone,
       overdue: overdue,
       tokens: _t,
       currentLang: currentLang,
       scale: _s,
+    );
+    if (badge == null) return null;
+    return Builder(
+      builder: (context) => GestureDetector(
+        onTap: () => showTaskRotQuickActions(
+          context: context,
+          isDark: isDark,
+          currentLang: currentLang,
+          onDoToday: () => onQuickUpdateTask(task['id'], {
+            'due_date': formatClarifyDate(DateTime.now()),
+          }),
+          onClearDeadline: () => onQuickUpdateTask(task['id'], {
+            'due_date': null,
+            'due_time': null,
+            'duration_minutes': null,
+          }),
+          onDelete: () => onDelete(task['id']),
+        ),
+        child: badge,
+      ),
     );
   }
 

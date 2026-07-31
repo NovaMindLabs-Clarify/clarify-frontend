@@ -20,6 +20,7 @@ class SwipeToDeleteTaskRow extends StatefulWidget {
   final VoidCallback onToggle;
   final VoidCallback onTap;
   final VoidCallback onConfirmedDelete;
+  final void Function(Map<String, dynamic> updates) onQuickUpdateTask;
   final bool showDate;
 
   const SwipeToDeleteTaskRow({
@@ -32,6 +33,7 @@ class SwipeToDeleteTaskRow extends StatefulWidget {
     required this.onToggle,
     required this.onTap,
     required this.onConfirmedDelete,
+    required this.onQuickUpdateTask,
     this.showDate = false,
   });
 
@@ -101,6 +103,7 @@ class _SwipeToDeleteTaskRowState extends State<SwipeToDeleteTaskRow> {
         onToggle: widget.onToggle,
         onDelete: _startDelete,
         onTap: widget.onTap,
+        onQuickUpdateTask: widget.onQuickUpdateTask,
         showDate: widget.showDate,
       ),
     );
