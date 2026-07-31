@@ -1127,7 +1127,14 @@ void _checkBurnoutWarning(String dateStr) {
             final newDate = _parseDate(targetDateStr);
             if (oldDate != null && newDate != null && newDate.isAfter(oldDate)) { newRescheduleCount += 1; }
           }
-          _updateTaskData(task['id'], {"title": task['title'], "due_date": targetDateStr, "due_time": task['due_time'], "note": task['note'], "priority": task['priority'], "tags": task['tags'], "recurrence": task['recurrence'], "recurrence_interval": task['recurrence_interval'], "parent_id": task['parent_id'], "is_completed": task['is_completed'] ?? false, "reschedule_count": newRescheduleCount});
+          // await обязателен: _guardedAction держит actionId "занятым" до
+          // завершения этого колбэка (см. _guardedAction выше) — раньше здесь
+          // не было await, поэтому колбэк резолвился сразу же, не дожидаясь
+          // реального обновления+рефетча, и повторный дроп той же задачи
+          // почти сразу успевал прочитать ЕЩЁ старое reschedule_count из
+          // локального `task` — несколько быстрых переносов подряд считались
+          // как один и тот же +1 вместо накопления.
+          await _updateTaskData(task['id'], {"title": task['title'], "due_date": targetDateStr, "due_time": task['due_time'], "note": task['note'], "priority": task['priority'], "tags": task['tags'], "recurrence": task['recurrence'], "recurrence_interval": task['recurrence_interval'], "parent_id": task['parent_id'], "is_completed": task['is_completed'] ?? false, "reschedule_count": newRescheduleCount});
         }
       }
     });
