@@ -13,6 +13,7 @@ TaskCardBuilders _builders({
   return TaskCardBuilders(
     isDark: false,
     scale: 1.0,
+    currentLang: 'ru',
     workspaceMembers: const {},
     getPriorityColor: (priority) => Colors.grey,
     getSubtaskStats: (parentId) => const {'total': 0, 'done': 0},
@@ -22,7 +23,8 @@ TaskCardBuilders _builders({
     onTap: onTap ?? (_) {},
     onTagTap: onTagTap ?? (_) {},
     onPriorityTap: (_) {},
-    buildGlassContainer: ({required child, borderRadius, padding, margin, customColor}) => child,
+    buildGlassContainer:
+        ({required child, borderRadius, padding, margin, customColor}) => child,
   );
 }
 
@@ -31,31 +33,49 @@ void main() {
     testWidgets('показывает заголовок задачи', (tester) async {
       final task = {'id': 1, 'title': 'Купить молоко', 'is_completed': false};
 
-      await tester.pumpWidget(MaterialApp(home: Scaffold(body: _builders().buildListTaskCard(task))));
+      await tester.pumpWidget(
+        MaterialApp(home: Scaffold(body: _builders().buildListTaskCard(task))),
+      );
 
       expect(find.text('Купить молоко'), findsOneWidget);
     });
 
-    testWidgets('нажатие на крестик вызывает onDelete с id задачи', (tester) async {
+    testWidgets('нажатие на крестик вызывает onDelete с id задачи', (
+      tester,
+    ) async {
       dynamic deletedId;
       final task = {'id': 42, 'title': 'Задача', 'is_completed': false};
 
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(body: _builders(onDelete: (id) => deletedId = id).buildListTaskCard(task)),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: _builders(
+              onDelete: (id) => deletedId = id,
+            ).buildListTaskCard(task),
+          ),
+        ),
+      );
       await tester.tap(find.byIcon(LucideIcons.x));
       await tester.pumpAndSettle();
 
       expect(deletedId, 42);
     });
 
-    testWidgets('переключение чекбокса вызывает onToggle с самой задачей', (tester) async {
+    testWidgets('переключение чекбокса вызывает onToggle с самой задачей', (
+      tester,
+    ) async {
       Map<String, dynamic>? toggled;
       final task = {'id': 1, 'title': 'Задача', 'is_completed': false};
 
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(body: _builders(onToggle: (t) => toggled = t).buildListTaskCard(task)),
-      ));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: _builders(
+              onToggle: (t) => toggled = t,
+            ).buildListTaskCard(task),
+          ),
+        ),
+      );
       await tester.tap(find.byType(ClarifyCheckCircle));
 
       expect(toggled, task);

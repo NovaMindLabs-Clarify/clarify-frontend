@@ -31,22 +31,32 @@ class ClarifyCheckCircle extends StatefulWidget {
   State<ClarifyCheckCircle> createState() => _ClarifyCheckCircleState();
 }
 
-class _ClarifyCheckCircleState extends State<ClarifyCheckCircle> with SingleTickerProviderStateMixin {
+class _ClarifyCheckCircleState extends State<ClarifyCheckCircle>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _progress;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: ClarifyMotion.base, value: widget.value ? 1 : 0);
-    _progress = CurvedAnimation(parent: _controller, curve: ClarifyMotion.standard);
+    _controller = AnimationController(
+      vsync: this,
+      duration: ClarifyMotion.base,
+      value: widget.value ? 1 : 0,
+    );
+    _progress = CurvedAnimation(
+      parent: _controller,
+      curve: ClarifyMotion.standard,
+    );
   }
 
   @override
   void didUpdateWidget(covariant ClarifyCheckCircle oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.value != widget.value) {
-      final duration = MediaQuery.of(context).disableAnimations ? Duration.zero : ClarifyMotion.base;
+      final duration = MediaQuery.of(context).disableAnimations
+          ? Duration.zero
+          : ClarifyMotion.base;
       _controller.animateTo(widget.value ? 1 : 0, duration: duration);
     }
   }
@@ -73,12 +83,19 @@ class _ClarifyCheckCircleState extends State<ClarifyCheckCircle> with SingleTick
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: Color.lerp(Colors.transparent, widget.checkedColor, t),
-              border: Border.all(color: Color.lerp(widget.borderColor, widget.checkedColor, t)!, width: widget.borderWidth),
+              border: Border.all(
+                color: Color.lerp(widget.borderColor, widget.checkedColor, t)!,
+                width: widget.borderWidth,
+              ),
             ),
             child: t > 0.02
                 ? Opacity(
                     opacity: t,
-                    child: Icon(LucideIcons.check, size: widget.size * 0.62, color: widget.checkIconColor),
+                    child: Icon(
+                      LucideIcons.check,
+                      size: widget.size * 0.62,
+                      color: widget.checkIconColor,
+                    ),
                   )
                 : null,
           );
@@ -113,27 +130,40 @@ class ClarifyStrikeText extends StatefulWidget {
   State<ClarifyStrikeText> createState() => _ClarifyStrikeTextState();
 }
 
-class _ClarifyStrikeTextState extends State<ClarifyStrikeText> with TickerProviderStateMixin {
+class _ClarifyStrikeTextState extends State<ClarifyStrikeText>
+    with TickerProviderStateMixin {
   // Два раздельных прогресса, а не один реверсируемый: "растворяется" на
   // отмене должно быть затуханием прозрачности уже нарисованной линии, а не
   // тем же сжатием ширины назад, что и рисование при выполнении — иначе
   // (см. баг) на середине анимации отмены линия визуально "проскакивает"
   // мимо короткого текста и обрывается раньше, чем реально дотухла.
-  late final AnimationController _draw; // 0 → 1: линия дорисовывается слева направо
-  late final AnimationController _fade; // 1 → 0: дорисованная линия растворяется
+  late final AnimationController
+  _draw; // 0 → 1: линия дорисовывается слева направо
+  late final AnimationController
+  _fade; // 1 → 0: дорисованная линия растворяется
 
   @override
   void initState() {
     super.initState();
-    _draw = AnimationController(vsync: this, duration: ClarifyMotion.base, value: widget.isDone ? 1 : 0);
-    _fade = AnimationController(vsync: this, duration: ClarifyMotion.base, value: 1);
+    _draw = AnimationController(
+      vsync: this,
+      duration: ClarifyMotion.base,
+      value: widget.isDone ? 1 : 0,
+    );
+    _fade = AnimationController(
+      vsync: this,
+      duration: ClarifyMotion.base,
+      value: 1,
+    );
   }
 
   @override
   void didUpdateWidget(covariant ClarifyStrikeText oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.isDone != widget.isDone) {
-      final duration = MediaQuery.of(context).disableAnimations ? Duration.zero : ClarifyMotion.base;
+      final duration = MediaQuery.of(context).disableAnimations
+          ? Duration.zero
+          : ClarifyMotion.base;
       if (widget.isDone) {
         _fade.value = 1;
         _draw.value = 0;
@@ -168,30 +198,51 @@ class _ClarifyStrikeTextState extends State<ClarifyStrikeText> with TickerProvid
         // TextPainter (с тем же maxLines/overflow, что и у самого Text) —
         // раньше линия растягивалась на всю ширину Expanded-родителя вместо
         // ширины реального текста.
-        final painter = TextPainter(
-          text: TextSpan(text: widget.text, style: widget.style),
-          maxLines: widget.maxLines,
-          textDirection: Directionality.of(context),
-          textScaler: MediaQuery.textScalerOf(context),
-          ellipsis: widget.overflow == TextOverflow.ellipsis ? '…' : null,
-        )..layout(maxWidth: constraints.hasBoundedWidth ? constraints.maxWidth : double.infinity);
+        final painter =
+            TextPainter(
+              text: TextSpan(text: widget.text, style: widget.style),
+              maxLines: widget.maxLines,
+              textDirection: Directionality.of(context),
+              textScaler: MediaQuery.textScalerOf(context),
+              ellipsis: widget.overflow == TextOverflow.ellipsis ? '…' : null,
+            )..layout(
+              maxWidth: constraints.hasBoundedWidth
+                  ? constraints.maxWidth
+                  : double.infinity,
+            );
         final textWidth = painter.width;
 
         return Stack(
           alignment: Alignment.centerLeft,
           children: [
-            Text(widget.text, style: widget.style, maxLines: widget.maxLines, overflow: widget.overflow),
+            Text(
+              widget.text,
+              style: widget.style,
+              maxLines: widget.maxLines,
+              overflow: widget.overflow,
+            ),
             AnimatedBuilder(
               animation: Listenable.merge([_draw, _fade]),
               builder: (context, _) {
-                final width = CurvedAnimation(parent: _draw, curve: ClarifyMotion.standard).value.clamp(0.0, 1.0);
-                final opacity = CurvedAnimation(parent: _fade, curve: ClarifyMotion.standard).value.clamp(0.0, 1.0);
-                if (width <= 0.001 || opacity <= 0.001) return const SizedBox.shrink();
+                final width = CurvedAnimation(
+                  parent: _draw,
+                  curve: ClarifyMotion.standard,
+                ).value.clamp(0.0, 1.0);
+                final opacity = CurvedAnimation(
+                  parent: _fade,
+                  curve: ClarifyMotion.standard,
+                ).value.clamp(0.0, 1.0);
+                if (width <= 0.001 || opacity <= 0.001)
+                  return const SizedBox.shrink();
                 return Align(
                   alignment: Alignment.centerLeft,
                   child: Opacity(
                     opacity: opacity,
-                    child: Container(width: textWidth * width, height: 1.4, color: color),
+                    child: Container(
+                      width: textWidth * width,
+                      height: 1.4,
+                      color: color,
+                    ),
                   ),
                 );
               },
@@ -215,7 +266,14 @@ class ClarifySubtaskBadge extends StatelessWidget {
   final double scale;
   final IconData icon;
 
-  const ClarifySubtaskBadge({super.key, required this.done, required this.total, required this.tokens, this.scale = 1.0, this.icon = LucideIcons.listChecks});
+  const ClarifySubtaskBadge({
+    super.key,
+    required this.done,
+    required this.total,
+    required this.tokens,
+    this.scale = 1.0,
+    this.icon = LucideIcons.listChecks,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -224,13 +282,70 @@ class ClarifySubtaskBadge extends StatelessWidget {
     final Color bg = allDone ? tokens.successSoft : tokens.accentSoft;
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 6 * scale, vertical: 2 * scale),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(ClarifyRadius.sm)),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(ClarifyRadius.sm),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 12 * scale, color: fg),
           SizedBox(width: 3 * scale),
-          Text('$done/$total', style: TextStyle(fontSize: 11.5 * scale, fontWeight: FontWeight.bold, color: fg)),
+          Text(
+            '$done/$total',
+            style: TextStyle(
+              fontSize: 11.5 * scale,
+              fontWeight: FontWeight.bold,
+              color: fg,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Обобщённый бейдж-пилюля (иконка + короткая подпись) — тот же визуальный
+/// язык, что и у [ClarifySubtaskBadge], но без привязки к формату "N/M":
+/// используется для сигналов "задача давно не двигалась" и "перенесена N
+/// раз" на карточках списка/доски (см. task_cards.dart).
+class ClarifyInfoBadge extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color fg;
+  final Color bg;
+  final double scale;
+
+  const ClarifyInfoBadge({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.fg,
+    required this.bg,
+    this.scale = 1.0,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 6 * scale, vertical: 2 * scale),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(ClarifyRadius.sm),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12 * scale, color: fg),
+          SizedBox(width: 3 * scale),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11.5 * scale,
+              fontWeight: FontWeight.bold,
+              color: fg,
+            ),
+          ),
         ],
       ),
     );

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../core/config.dart';
+import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
 import '../core/priority.dart';
 import '../core/checklist.dart';
@@ -14,6 +16,7 @@ import 'clarify_task_checkbox.dart';
 class TaskCardBuilders {
   final bool isDark;
   final double scale;
+  final String currentLang;
   final Map<int, List<Map<String, dynamic>>> workspaceMembers;
   final Color Function(String? priority) getPriorityColor;
   final Map<String, int> Function(dynamic parentId) getSubtaskStats;
@@ -35,6 +38,7 @@ class TaskCardBuilders {
   const TaskCardBuilders({
     required this.isDark,
     required this.scale,
+    required this.currentLang,
     required this.workspaceMembers,
     required this.getPriorityColor,
     required this.getSubtaskStats,
@@ -54,6 +58,54 @@ class TaskCardBuilders {
   Color get glassBorderColor => _t.border;
   Color get doneCardColor =>
       _t.surfaceSunken.withValues(alpha: isDark ? 0.7 : 0.85);
+
+  // "Гниющая" задача (task rot, идея из COMPETITOR_ANALYSIS_UPDATE) —
+  // невыполненная, без активного будущего дедлайна (нет даты или дедлайн уже
+  // прошёл) и созданная давно, никак раньше не выделялась среди свежих задач.
+  // Приоритет 'red' даёт более тревожный (danger, не warning) цвет: важная
+  // задача, которая простаивает — сильнее нуждается во внимании, чем рядовая
+  // (см. идею "срочное вытесняет важное" — здесь это один и тот же механизм
+  // с разной окраской, а не отдельная система).
+  Widget? _rotBadge(Map<String, dynamic> task, bool isDone, bool overdue) {
+    if (isDone) return null;
+    if (!(task['due_date'] == null || overdue)) return null;
+    final createdAt = DateTime.tryParse(task['created_at']?.toString() ?? '');
+    if (createdAt == null) return null;
+    final ageDays = DateTime.now().difference(createdAt).inDays;
+    if (ageDays < AppConfig.taskRotDays) return null;
+    final bool isImportant = task['priority'] == 'red';
+    return Tooltip(
+      message:
+          '${"Задача не двигается уже".tr(currentLang)} $ageDays ${"дн.".tr(currentLang)}',
+      child: ClarifyInfoBadge(
+        icon: LucideIcons.archive,
+        label: '$ageDays ${"дн.".tr(currentLang)}',
+        fg: isImportant ? _t.danger : _t.warning,
+        bg: isImportant ? _t.dangerSoft : _t.warningSoft,
+        scale: _s,
+      ),
+    );
+  }
+
+  // Перенос даты вперёд N+ раз (см. AppConfig.rescheduleWarningCount) —
+  // раньше переносы никак не логировались и не были видны, паттерн был
+  // буквально невозможно заметить, глядя на карточку.
+  Widget? _rescheduleBadge(Map<String, dynamic> task, bool isDone) {
+    if (isDone) return null;
+    final count = task['reschedule_count'] as int?;
+    if (count == null || count < AppConfig.rescheduleWarningCount) return null;
+    return Tooltip(
+      message:
+          '${"Перенесена".tr(currentLang)} $count ${"раз".tr(currentLang)}',
+      child: ClarifyInfoBadge(
+        icon: LucideIcons.history,
+        label: '×$count',
+        fg: _t.warning,
+        bg: _t.warningSoft,
+        scale: _s,
+      ),
+    );
+  }
 
   // Компактная строка для узких колонок (Календарь/7 дней) — только чекбокс,
   // заголовок и (если есть) время второй строкой под ним. Тег/подзадачи/повтор
@@ -288,6 +340,8 @@ class TaskCardBuilders {
                             if (hasRecurrence ||
                                 hasSubtasks ||
                                 hasChecklist ||
+                                _rotBadge(task, isDone, overdue) != null ||
+                                _rescheduleBadge(task, isDone) != null ||
                                 (task['tags'] != null &&
                                     task['tags'].toString().trim().isNotEmpty))
                               Padding(
@@ -318,6 +372,11 @@ class TaskCardBuilders {
                                         scale: _s,
                                         icon: LucideIcons.listTodo,
                                       ),
+                                    if (_rotBadge(task, isDone, overdue) !=
+                                        null)
+                                      _rotBadge(task, isDone, overdue)!,
+                                    if (_rescheduleBadge(task, isDone) != null)
+                                      _rescheduleBadge(task, isDone)!,
                                     if (task['tags'] != null &&
                                         task['tags']
                                             .toString()
@@ -461,6 +520,16 @@ class TaskCardBuilders {
                               icon: LucideIcons.listTodo,
                             ),
                           ),
+                        if (_rotBadge(task, isDone, overdue) != null)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 12),
+                            child: _rotBadge(task, isDone, overdue),
+                          ),
+                        if (_rescheduleBadge(task, isDone) != null)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 12),
+                            child: _rescheduleBadge(task, isDone),
+                          ),
                       ],
                     ),
                     if (task['due_time'] != null ||
@@ -482,7 +551,9 @@ class TaskCardBuilders {
                                       Icon(
                                         LucideIcons.flag,
                                         size: 14,
-                                        color: getPriorityColor(task['priority']),
+                                        color: getPriorityColor(
+                                          task['priority'],
+                                        ),
                                       ),
                                       const SizedBox(width: 3),
                                       Text(
@@ -490,7 +561,9 @@ class TaskCardBuilders {
                                         style: TextStyle(
                                           fontSize: 13,
                                           fontWeight: FontWeight.bold,
-                                          color: getPriorityColor(task['priority']),
+                                          color: getPriorityColor(
+                                            task['priority'],
+                                          ),
                                         ),
                                       ),
                                     ],

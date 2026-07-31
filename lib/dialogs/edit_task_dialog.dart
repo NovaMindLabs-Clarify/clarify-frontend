@@ -7,6 +7,7 @@ import '../widgets/clarify_priority_lever.dart';
 import '../widgets/clarify_surface.dart';
 import '../widgets/clarify_toast.dart';
 import '../widgets/clarify_date_time_picker.dart';
+import '../core/clarify_date_format.dart';
 import '../core/config.dart';
 import '../widgets/clarify_text_field.dart';
 import '../core/localization.dart';
@@ -667,6 +668,24 @@ void showEditTaskDialog({
                           ? formatDate(selectedDate!)
                           : null;
 
+                      // Перенос вперёд на невыполненной задаче — считаем как
+                      // "перенос" (см. clarify_day_load_warning.dart doc и
+                      // AppConfig.rescheduleWarningCount); перенос НАЗАД (или
+                      // вперёд на уже выполненной задаче) не считается.
+                      int newRescheduleCount =
+                          (task['reschedule_count'] as int?) ?? 0;
+                      if (task['is_completed'] != true &&
+                          newDateStr != null &&
+                          newDateStr != task['due_date']) {
+                        final oldDate = parseClarifyDate(task['due_date']);
+                        final newDate = parseClarifyDate(newDateStr);
+                        if (oldDate != null &&
+                            newDate != null &&
+                            newDate.isAfter(oldDate)) {
+                          newRescheduleCount += 1;
+                        }
+                      }
+
                       if (newDateStr != null &&
                           newDateStr != task['due_date']) {
                         final dayCount = tasks
@@ -715,6 +734,7 @@ void showEditTaskDialog({
                         "checklist": checklistItems.isEmpty
                             ? null
                             : encodeChecklist(checklistItems),
+                        "reschedule_count": newRescheduleCount,
                       });
 
                       if (context.mounted) Navigator.of(context).pop();
