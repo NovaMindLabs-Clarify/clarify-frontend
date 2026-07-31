@@ -261,6 +261,13 @@ class ClarifyMotion {
   static const Duration base = Duration(milliseconds: 180);
   static const Duration slow = Duration(milliseconds: 280);
   static const Duration deliberate = Duration(milliseconds: 420);
+  // Отметка задачи выполненной — единый темп для ВСЕХ фронтов этого одного
+  // жеста разом (заливка чекбокса, зачёркивание, фон строки, полоса
+  // приоритета): по прямому запросу пользователя это должно ощущаться как
+  // одно связное движение, а не гонка нескольких анимаций на разной
+  // скорости — раньше именно это и было (base=180мс на одних элементах,
+  // ничего на других).
+  static const Duration completion = Duration(milliseconds: 900);
   static const Curve standard = Cubic(0.2, 0.7, 0.3, 1.0);
   static const Curve spring = Cubic(0.34, 1.56, 0.64, 1.0);
 }

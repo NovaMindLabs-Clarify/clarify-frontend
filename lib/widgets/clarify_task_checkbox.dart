@@ -17,6 +17,11 @@ class ClarifyCheckCircle extends StatefulWidget {
   final Color checkedColor;
   final Color checkIconColor;
   final double borderWidth;
+  // По умолчанию — обычный темп (чек-лист/подзадачи, где отметка должна
+  // ощущаться быстрой). Основная задача в списке передаёт
+  // ClarifyMotion.completion явно — единый темп со strike-through/фоном
+  // строки для одного и того же жеста завершения.
+  final Duration duration;
 
   const ClarifyCheckCircle({
     super.key,
@@ -27,6 +32,7 @@ class ClarifyCheckCircle extends StatefulWidget {
     this.size = 22,
     this.checkIconColor = Colors.white,
     this.borderWidth = 2.0,
+    this.duration = ClarifyMotion.base,
   });
 
   @override
@@ -40,7 +46,7 @@ class _ClarifyCheckCircleState extends State<ClarifyCheckCircle> with SingleTick
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: ClarifyMotion.base, value: widget.value ? 1 : 0);
+    _controller = AnimationController(vsync: this, duration: widget.duration, value: widget.value ? 1 : 0);
     _progress = CurvedAnimation(parent: _controller, curve: ClarifyMotion.standard);
   }
 
@@ -48,7 +54,7 @@ class _ClarifyCheckCircleState extends State<ClarifyCheckCircle> with SingleTick
   void didUpdateWidget(covariant ClarifyCheckCircle oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.value != widget.value) {
-      final duration = MediaQuery.of(context).disableAnimations ? Duration.zero : ClarifyMotion.base;
+      final duration = MediaQuery.of(context).disableAnimations ? Duration.zero : widget.duration;
       _controller.animateTo(widget.value ? 1 : 0, duration: duration);
     }
   }
@@ -124,16 +130,15 @@ class _ClarifyStrikeTextState extends State<ClarifyStrikeText> with TickerProvid
   late final AnimationController _draw; // 0 → 1: линия дорисовывается слева направо
   late final AnimationController _fade; // 1 → 0: дорисованная линия растворяется
 
-  // Дорисовка — заметный, "ощутимый" жест (задача только что закрыта),
-  // поэтому дольше стандартного ClarifyMotion.base (180мс) — тот слишком
-  // быстрый для линии через всё слово, глаз не успевает её заметить.
-  // Растворение при отмене остаётся на base — там жалоб не было.
-  static const Duration _drawDuration = Duration(milliseconds: 900);
-
   @override
   void initState() {
     super.initState();
-    _draw = AnimationController(vsync: this, duration: _drawDuration, value: widget.isDone ? 1 : 0);
+    // Дорисовка — на ClarifyMotion.completion (900мс, единый темп со всеми
+    // остальными фронтами того же жеста завершения — заливка чекбокса, фон
+    // строки, полоса приоритета), а не на общий ClarifyMotion.base (180мс,
+    // слишком быстрый для линии через всё слово). Растворение при отмене
+    // остаётся на base — там жалоб не было.
+    _draw = AnimationController(vsync: this, duration: ClarifyMotion.completion, value: widget.isDone ? 1 : 0);
     _fade = AnimationController(vsync: this, duration: ClarifyMotion.base, value: 1);
   }
 
@@ -146,7 +151,7 @@ class _ClarifyStrikeTextState extends State<ClarifyStrikeText> with TickerProvid
       if (widget.isDone) {
         _fade.value = 1;
         _draw.value = 0;
-        _draw.animateTo(1, duration: reduceMotion ? Duration.zero : _drawDuration);
+        _draw.animateTo(1, duration: reduceMotion ? Duration.zero : ClarifyMotion.completion);
       } else {
         _fade.value = 1;
         _fade.animateTo(0, duration: duration).whenCompleteOrCancel(() {
@@ -280,6 +285,30 @@ class ClarifyBadgeEntrance extends StatelessWidget {
   }
 }
 
+/// Показывает/прячет бейдж (buildRotBadge/buildRescheduleBadge — null, если
+/// неприменимо) с анимацией в ОБЕ стороны, в отличие от [ClarifyBadgeEntrance]
+/// (только вход): AnimatedSwitcher с двумя стабильными ключами
+/// (показан/скрыт) — переключение между ними анимируется, а обновление уже
+/// показанного бейджа (например, счётчик переносов 3→4) ключ не меняет,
+/// значит не перезапускает анимацию на пустом месте.
+Widget clarifyAnimatedBadgeSlot(Widget? badge) {
+  return AnimatedSwitcher(
+    duration: ClarifyMotion.base,
+    switchInCurve: ClarifyMotion.standard,
+    switchOutCurve: ClarifyMotion.standard,
+    transitionBuilder: (child, animation) => FadeTransition(
+      opacity: animation,
+      child: ScaleTransition(
+        scale: Tween<double>(begin: 0.85, end: 1.0).animate(animation),
+        child: child,
+      ),
+    ),
+    child: badge == null
+        ? const SizedBox.shrink(key: ValueKey('clarify-badge-hidden'))
+        : KeyedSubtree(key: const ValueKey('clarify-badge-shown'), child: badge),
+  );
+}
+
 /// Обобщённый бейдж-пилюля (иконка + короткая подпись) — тот же визуальный
 /// язык, что и у [ClarifySubtaskBadge], но без привязки к формату "N/M":
 /// используется для сигналов "задача давно не двигалась" и "перенесена N
@@ -342,16 +371,18 @@ Widget? buildRotBadge({
   final ageDays = DateTime.now().difference(createdAt).inDays;
   if (ageDays < AppConfig.taskRotDays) return null;
   final bool isImportant = task['priority'] == 'red';
-  return ClarifyBadgeEntrance(
-    child: Tooltip(
-      message: '${"Задача не двигается уже".tr(currentLang)} $ageDays ${"дн.".tr(currentLang)}',
-      child: ClarifyInfoBadge(
-        icon: LucideIcons.archive,
-        label: '$ageDays ${"дн.".tr(currentLang)}',
-        fg: isImportant ? tokens.danger : tokens.warning,
-        bg: isImportant ? tokens.dangerSoft : tokens.warningSoft,
-        scale: scale,
-      ),
+  // Не оборачиваем в ClarifyBadgeEntrance здесь — вызывающий код заворачивает
+  // в AnimatedSwitcher (см. task_cards.dart/mobile_task_row.dart), который
+  // сам даёт и вход, и выход одной и той же анимацией; двойная обёртка дала
+  // бы вход дважды и никакого выхода (ClarifyBadgeEntrance не умеет уходить).
+  return Tooltip(
+    message: '${"Задача не двигается уже".tr(currentLang)} $ageDays ${"дн.".tr(currentLang)}',
+    child: ClarifyInfoBadge(
+      icon: LucideIcons.archive,
+      label: '$ageDays ${"дн.".tr(currentLang)}',
+      fg: isImportant ? tokens.danger : tokens.warning,
+      bg: isImportant ? tokens.dangerSoft : tokens.warningSoft,
+      scale: scale,
     ),
   );
 }
@@ -368,16 +399,14 @@ Widget? buildRescheduleBadge({
   if (isDone) return null;
   final count = task['reschedule_count'] as int?;
   if (count == null || count < AppConfig.rescheduleWarningCount) return null;
-  return ClarifyBadgeEntrance(
-    child: Tooltip(
-      message: '${"Перенесена".tr(currentLang)} $count ${"раз".tr(currentLang)}',
-      child: ClarifyInfoBadge(
-        icon: LucideIcons.history,
-        label: '×$count',
-        fg: tokens.warning,
-        bg: tokens.warningSoft,
-        scale: scale,
-      ),
+  return Tooltip(
+    message: '${"Перенесена".tr(currentLang)} $count ${"раз".tr(currentLang)}',
+    child: ClarifyInfoBadge(
+      icon: LucideIcons.history,
+      label: '×$count',
+      fg: tokens.warning,
+      bg: tokens.warningSoft,
+      scale: scale,
     ),
   );
 }

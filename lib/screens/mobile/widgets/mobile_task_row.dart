@@ -101,13 +101,16 @@ class MobileTaskRow extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
         color: isDone ? t.surfaceSunken : (overdue ? t.dangerSoft : t.surface),
-        animationDuration: ClarifyMotion.base,
+        // ClarifyMotion.completion — единый темп с чекбоксом/зачёркиванием,
+        // один и тот же жест (отметка выполнения) не должен состоять из
+        // кусков на разной скорости.
+        animationDuration: ClarifyMotion.completion,
         borderRadius: BorderRadius.circular(ClarifyRadius.md),
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(ClarifyRadius.md),
           child: AnimatedContainer(
-            duration: ClarifyMotion.base,
+            duration: ClarifyMotion.completion,
             curve: ClarifyMotion.standard,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(ClarifyRadius.md),
@@ -134,6 +137,7 @@ class MobileTaskRow extends StatelessWidget {
                       onTap: onToggle,
                       borderColor: overdue ? t.danger : t.text3,
                       checkedColor: t.success,
+                      duration: ClarifyMotion.completion,
                     ),
                   ),
                   Expanded(
@@ -217,8 +221,11 @@ class MobileTaskRow extends StatelessWidget {
                                     child: Icon(LucideIcons.clockAlert, size: 12, color: t.danger),
                                   ),
                                 ),
-                              ?rotBadgeInteractive,
-                              ?rescheduleBadge,
+                              // clarifyAnimatedBadgeSlot — не только вход, но и
+                              // выход анимацией: раньше значки просто исчезали
+                              // из Wrap мгновенно, когда становились null.
+                              clarifyAnimatedBadgeSlot(rotBadgeInteractive),
+                              clarifyAnimatedBadgeSlot(rescheduleBadge),
                             ],
                           ),
                         ],

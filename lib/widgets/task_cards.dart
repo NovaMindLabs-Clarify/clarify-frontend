@@ -388,10 +388,8 @@ class TaskCardBuilders {
                                                 icon: LucideIcons.listTodo,
                                               ),
                                       ),
-                                    if (_rotBadge(task, isDone, overdue) != null)
-                                      _rotBadge(task, isDone, overdue)!,
-                                    if (_rescheduleBadge(task, isDone) != null)
-                                      _rescheduleBadge(task, isDone)!,
+                                    clarifyAnimatedBadgeSlot(_rotBadge(task, isDone, overdue)),
+                                    clarifyAnimatedBadgeSlot(_rescheduleBadge(task, isDone)),
                                     if (task['tags'] != null &&
                                         task['tags']
                                             .toString()
@@ -549,15 +547,22 @@ class TaskCardBuilders {
                                     ),
                             ),
                           ),
+                        // Точечно — только вход через ClarifyBadgeEntrance, не
+                        // полный AnimatedSwitcher: эта строка существует и по
+                        // другим причинам (due_time/note/tags/приоритет), и
+                        // если всегда резервировать здесь слот под оба бейджа,
+                        // у ЛЮБОЙ обычной задачи (без гниения/переноса, но,
+                        // скажем, с временем) появлялся бы постоянный мёртвый
+                        // отступ — хуже отсутствующей анимации выхода.
                         if (_rotBadge(task, isDone, overdue) != null)
                           Padding(
                             padding: const EdgeInsets.only(left: 12),
-                            child: _rotBadge(task, isDone, overdue),
+                            child: ClarifyBadgeEntrance(child: _rotBadge(task, isDone, overdue)!),
                           ),
                         if (_rescheduleBadge(task, isDone) != null)
                           Padding(
                             padding: const EdgeInsets.only(left: 12),
-                            child: _rescheduleBadge(task, isDone),
+                            child: ClarifyBadgeEntrance(child: _rescheduleBadge(task, isDone)!),
                           ),
                       ],
                     ),
