@@ -180,7 +180,7 @@ class MobileTaskRow extends StatelessWidget {
                               // по аналогии с остальными анимациями отметки.
                               if (hasSubtasks)
                                 AnimatedSize(
-                                  duration: ClarifyMotion.base,
+                                  duration: ClarifyMotion.completion,
                                   curve: ClarifyMotion.standard,
                                   child: isDone
                                       ? const SizedBox.shrink()
@@ -188,7 +188,7 @@ class MobileTaskRow extends StatelessWidget {
                                 ),
                               if (hasChecklist)
                                 AnimatedSize(
-                                  duration: ClarifyMotion.base,
+                                  duration: ClarifyMotion.completion,
                                   curve: ClarifyMotion.standard,
                                   child: isDone
                                       ? const SizedBox.shrink()
@@ -219,7 +219,7 @@ class MobileTaskRow extends StatelessWidget {
                                   height: 12,
                                   child: AnimatedOpacity(
                                     opacity: isDone ? 0 : 1,
-                                    duration: ClarifyMotion.base,
+                                    duration: ClarifyMotion.completion,
                                     curve: ClarifyMotion.standard,
                                     child: Icon(LucideIcons.clockAlert, size: 12, color: t.danger),
                                   ),

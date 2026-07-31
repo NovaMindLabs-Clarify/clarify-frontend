@@ -363,7 +363,7 @@ class TaskCardBuilders {
                                     // всей задачи целиком.
                                     if (hasSubtasks)
                                       AnimatedSize(
-                                        duration: ClarifyMotion.base,
+                                        duration: ClarifyMotion.completion,
                                         curve: ClarifyMotion.standard,
                                         child: isDone
                                             ? const SizedBox.shrink()
@@ -376,7 +376,7 @@ class TaskCardBuilders {
                                       ),
                                     if (hasChecklist)
                                       AnimatedSize(
-                                        duration: ClarifyMotion.base,
+                                        duration: ClarifyMotion.completion,
                                         curve: ClarifyMotion.standard,
                                         child: isDone
                                             ? const SizedBox.shrink()
@@ -520,7 +520,7 @@ class TaskCardBuilders {
                           Padding(
                             padding: const EdgeInsets.only(left: 12),
                             child: AnimatedSize(
-                              duration: ClarifyMotion.base,
+                              duration: ClarifyMotion.completion,
                               curve: ClarifyMotion.standard,
                               child: isDone
                                   ? const SizedBox.shrink()
@@ -535,7 +535,7 @@ class TaskCardBuilders {
                           Padding(
                             padding: const EdgeInsets.only(left: 12),
                             child: AnimatedSize(
-                              duration: ClarifyMotion.base,
+                              duration: ClarifyMotion.completion,
                               curve: ClarifyMotion.standard,
                               child: isDone
                                   ? const SizedBox.shrink()

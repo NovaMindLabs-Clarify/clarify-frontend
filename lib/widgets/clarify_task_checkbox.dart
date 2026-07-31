@@ -298,12 +298,12 @@ class ClarifyBadgeEntrance extends StatelessWidget {
 /// уход, не только вход.
 Widget clarifyAnimatedBadgeSlot(Widget? badge) {
   return AnimatedSize(
-    duration: ClarifyMotion.base,
+    duration: ClarifyMotion.completion,
     curve: ClarifyMotion.standard,
     alignment: Alignment.centerLeft,
     child: AnimatedOpacity(
       opacity: badge == null ? 0 : 1,
-      duration: ClarifyMotion.base,
+      duration: ClarifyMotion.completion,
       curve: ClarifyMotion.standard,
       child: badge ?? const SizedBox.shrink(),
     ),
