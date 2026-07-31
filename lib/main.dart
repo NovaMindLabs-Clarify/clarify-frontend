@@ -338,10 +338,6 @@ class _AuthScreenState extends State<AuthScreen> {
   AuthMode _mode = AuthMode.login;
 
   bool get isDark => widget.isDark;
-  
-  String get bgImagePath => isDark 
-    ? 'assets/images/bg_dark.jpg' 
-    : 'assets/images/bg_light.jpg';
 
   late AppLinks _appLinks;
   StreamSubscription<Uri>? _linkSubscription;
@@ -417,9 +413,9 @@ class _AuthScreenState extends State<AuthScreen> {
     final textMuted = isDark ? Colors.white70 : Colors.black54;
 
     return Scaffold(
-      body: Container(
+      backgroundColor: context.tokens.bg,
+      body: SizedBox(
         width: double.infinity,
-        decoration: BoxDecoration(image: DecorationImage(image: AssetImage(bgImagePath), fit: BoxFit.cover)),
         child: Center(
           child: SizedBox(
             width: 420,
@@ -804,7 +800,6 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
   Uint8List? _avatarBytes; 
 
   bool get isDark => widget.isDark;
-  String get bgImagePath => isDark ? 'assets/images/bg_dark.jpg' : 'assets/images/bg_light.jpg';
 
   Future<void> _pickAndUploadAvatar() async {
     try {
@@ -962,9 +957,9 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
     final textMuted = isDark ? Colors.white70 : Colors.black54;
 
     return Scaffold(
-      body: Container(
+      backgroundColor: t.bg,
+      body: SizedBox(
         width: double.infinity,
-        decoration: BoxDecoration(image: DecorationImage(image: AssetImage(bgImagePath), fit: BoxFit.cover)),
         child: Center(
           child: SizedBox(
             width: 450,
