@@ -116,7 +116,6 @@ class _MobilePlannerShellState extends State<MobilePlannerShell> {
       case MobileTab.today:
         return MobileTodayScreen(
           currentLang: widget.currentLang,
-          userInitial: widget.userInitial,
           todayTasks: _todayTasks,
           inboxCount: _inboxCount,
           datesWithTasks: _datesWithTasks,

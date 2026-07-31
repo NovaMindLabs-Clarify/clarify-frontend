@@ -13,7 +13,6 @@ import 'widgets/swipe_to_delete_task_row.dart';
 /// на реальном разнообразии контента (длинные заголовки, теги, подзадачи).
 class MobileTodayScreen extends StatelessWidget {
   final String currentLang;
-  final String userInitial;
   final List<Map<String, dynamic>> todayTasks;
   final int inboxCount;
   final Set<String> datesWithTasks;
@@ -29,7 +28,6 @@ class MobileTodayScreen extends StatelessWidget {
   const MobileTodayScreen({
     super.key,
     required this.currentLang,
-    required this.userInitial,
     required this.todayTasks,
     required this.inboxCount,
     required this.datesWithTasks,
@@ -70,18 +68,12 @@ class MobileTodayScreen extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Мой день'.tr(currentLang), style: TextStyle(fontFamily: 'Unbounded', fontSize: 22, fontWeight: FontWeight.w700, color: t.text)),
-                  const SizedBox(height: 2),
-                  Text(dateLabel, style: TextStyle(fontSize: 13, color: t.text3)),
-                ],
-              ),
-              CircleAvatar(radius: 18, backgroundColor: t.accentSoft, child: Text(userInitial, style: TextStyle(color: t.accent, fontWeight: FontWeight.bold))),
+              Text('Мой день'.tr(currentLang), style: TextStyle(fontFamily: 'Unbounded', fontSize: 22, fontWeight: FontWeight.w700, color: t.text)),
+              const SizedBox(height: 2),
+              Text(dateLabel, style: TextStyle(fontSize: 13, color: t.text3)),
             ],
           ),
         ),
