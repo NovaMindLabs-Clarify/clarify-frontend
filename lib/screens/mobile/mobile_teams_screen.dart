@@ -63,7 +63,22 @@ class MobileTeamsScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('Команды'.tr(currentLang), style: TextStyle(fontFamily: 'Golos Text', fontSize: 22, fontWeight: FontWeight.w700, color: t.text)),
-              ClarifyIconButton(icon: LucideIcons.plus, onPressed: onAddWorkspace, tooltip: 'Новая команда'.tr(currentLang)),
+              // Не ClarifyIconButton — у того стоковый минимальный тап-таргет
+              // IconButton 48×48, который в этом Row (spaceBetween, стандартный
+              // crossAxisAlignment.center) растягивал высоту всей строки и
+              // визуально центрировал заголовок НИЖЕ, чем на остальных трёх
+              // вкладках (у них в этой же строке нет второго элемента).
+              Tooltip(
+                message: 'Новая команда'.tr(currentLang),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(ClarifyRadius.sm),
+                  onTap: onAddWorkspace,
+                  child: Padding(
+                    padding: const EdgeInsets.all(2),
+                    child: Icon(LucideIcons.plus, size: 24, color: t.text2),
+                  ),
+                ),
+              ),
             ],
           ),
         ),

@@ -370,6 +370,12 @@ class _FriendsPage extends StatelessWidget {
             builder: (_) => ConversationScreen(currentLang: currentLang, partnerId: partnerId, partnerName: name),
           )),
         ),
+        // Прямая кнопка "написать" на самой строке друга — раньше единственный
+        // способ дойти до чата был через профиль (тап по строке → модалка →
+        // кнопка "Написать"), лишний прыжок по прямому запросу пользователя.
+        onOpenConversation: (partnerId, name) => Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => ConversationScreen(currentLang: currentLang, partnerId: partnerId, partnerName: name),
+        )),
       ),
     );
   }

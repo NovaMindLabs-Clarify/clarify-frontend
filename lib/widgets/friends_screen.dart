@@ -17,12 +17,16 @@ class FriendsScreen extends StatefulWidget {
   final double scale;
   final Widget Function({required Widget child, EdgeInsetsGeometry? margin, EdgeInsetsGeometry? padding, Color? customColor}) buildGlassContainer;
   final void Function(String userId)? onOpenProfile;
+  // Прямая кнопка "написать" на строке друга — раньше единственный путь к
+  // чату был через профиль (тап по строке → модалка → "Написать"), лишний
+  // прыжок по прямому запросу пользователя.
+  final void Function(String userId, String name)? onOpenConversation;
   // На десктопе (внутри MainContentArea) заголовок отсюда — единственный.
   // На мобильном экран уже открывается со своим AppBar(title: "Друзья") в
   // MobilePlannerShell — без этого флага заголовок дублировался бы дважды.
   final bool showHeader;
 
-  const FriendsScreen({super.key, required this.currentLang, this.scale = 1.0, required this.buildGlassContainer, this.onOpenProfile, this.showHeader = true});
+  const FriendsScreen({super.key, required this.currentLang, this.scale = 1.0, required this.buildGlassContainer, this.onOpenProfile, this.onOpenConversation, this.showHeader = true});
 
   @override
   State<FriendsScreen> createState() => _FriendsScreenState();
@@ -145,11 +149,19 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
       itemCount: _friends!.length,
       itemBuilder: (context, index) {
         final f = _friends![index];
+        final displayName = (f['full_name'] as String?) ?? 'Без имени'.tr(widget.currentLang);
         return _PersonRow(
-          name: (f['full_name'] as String?) ?? 'Без имени',
+          name: displayName,
           avatarUrl: f['avatar_url'] as String?,
           onTap: widget.onOpenProfile != null ? () => widget.onOpenProfile!(f['user_id'] as String) : null,
           buildGlassContainer: widget.buildGlassContainer,
+          trailing: widget.onOpenConversation == null
+              ? null
+              : IconButton(
+                  icon: Icon(LucideIcons.messageCircle, color: t.accent),
+                  tooltip: 'Написать'.tr(widget.currentLang),
+                  onPressed: () => widget.onOpenConversation!(f['user_id'] as String, displayName),
+                ),
         );
       },
     );

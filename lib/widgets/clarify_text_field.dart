@@ -76,6 +76,21 @@ class _ClarifyTextFieldState extends State<ClarifyTextField> with SingleTickerPr
   void _handleFocusChange() {
     final duration = MediaQuery.of(context).disableAnimations ? Duration.zero : ClarifyMotion.base;
     _line.animateTo(_focusNode.hasFocus ? 1 : 0, duration: duration, curve: ClarifyMotion.standard);
+
+    // Поле внутри прокручиваемого контейнера (напр. мобильная форма "Новая
+    // задача" в SingleChildScrollView) само по себе НЕ гарантирует, что при
+    // появлении клавиатуры сфокусированное поле останется видно — раньше это
+    // отдавалось на откуп нативному scroll-into-view браузера, что на мобильном
+    // Safari/PWA ненадёжно. Явный ensureVisible работает независимо от
+    // платформы. Задержка на кадр — чтобы сработать уже после того, как
+    // Scrollable узнает о новых viewInsets от клавиатуры.
+    if (_focusNode.hasFocus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && Scrollable.maybeOf(context) != null) {
+          Scrollable.ensureVisible(context, alignment: 0.2, duration: ClarifyMotion.base, curve: ClarifyMotion.standard);
+        }
+      });
+    }
   }
 
   @override

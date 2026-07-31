@@ -407,6 +407,7 @@ class MainContentArea extends StatelessWidget {
           currentLang: currentLang,
           onOpenConversation: (partnerId, name) => onOpenDirectChat?.call(partnerId, name),
         ),
+        onOpenConversation: (partnerId, name) => onOpenDirectChat?.call(partnerId, name),
       );
     }
     else if (selectedMenu == 'Сообщения') {

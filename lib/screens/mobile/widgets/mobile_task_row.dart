@@ -15,6 +15,29 @@ import '../../../widgets/clarify_task_checkbox.dart';
 /// придётся (см. историю бага: бейджи появились только на десктопе, потому
 /// что при добавлении забыли про этот файл).
 
+// `overdue`, переданный этому виджету, уже вычислен через isOverdue(task)
+// колбэком экрана, который сам возвращает false для выполненных задач (см.
+// desktop_planner_screen.dart._isOverdue). Из-за этого `overdue` и `isDone`
+// становятся false/true ОДНОВРЕМЕННО в один и тот же ребилд — резервировать
+// место под иконку по условию `if (overdue)` не работает, значение уже
+// схлопнулось к false к моменту, когда задача отмечена выполненной. Эта
+// функция — та же проверка "дедлайн уже прошёл", но БЕЗ раннего return по
+// is_completed, специально для резервирования места под иконку.
+bool _wasPastDue(Map<String, dynamic> task) {
+  if (task['due_date'] == null) return false;
+  final date = parseClarifyDate(task['due_date']);
+  if (date == null) return false;
+  int hour = 23;
+  int minute = 59;
+  if (task['due_time'] != null && task['due_time'].toString().contains(':')) {
+    final parts = task['due_time'].toString().split(':');
+    hour = int.tryParse(parts[0]) ?? 23;
+    minute = int.tryParse(parts[1]) ?? 59;
+  }
+  final dueDateTime = DateTime(date.year, date.month, date.day, hour, minute);
+  return DateTime.now().isAfter(dueDateTime);
+}
+
 /// Строка задачи, общая для "Сегодня", "Задачи" и "Команды" на мобильной
 /// версии — левая полоса цвета приоритета вместо отдельного кружка-чекбокса
 /// с цветной обводкой, как на десктопе (там мышь, здесь палец — крупнее
@@ -78,11 +101,14 @@ class MobileTaskRow extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
         color: isDone ? t.surfaceSunken : (overdue ? t.dangerSoft : t.surface),
+        animationDuration: ClarifyMotion.base,
         borderRadius: BorderRadius.circular(ClarifyRadius.md),
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(ClarifyRadius.md),
-          child: Container(
+          child: AnimatedContainer(
+            duration: ClarifyMotion.base,
+            curve: ClarifyMotion.standard,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(ClarifyRadius.md),
               // Полоса — канал приоритета ТОЛЬКО (§6.4 REDESIGN_V4_PLAN.md);
@@ -95,29 +121,35 @@ class MobileTaskRow extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  GestureDetector(
-                    onTap: onToggle,
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 2, right: 10),
-                      child: Icon(
-                        isDone ? LucideIcons.checkCircle : LucideIcons.circle,
-                        size: 22,
-                        color: isDone ? t.success : (overdue ? t.danger : t.text3),
-                      ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2, right: 10),
+                    // ClarifyCheckCircle/ClarifyStrikeText — те же анимированные
+                    // примитивы, что и на десктопе (TaskCardBuilders); здесь
+                    // раньше стояла голая статичная Icon() без единой анимации,
+                    // отметка/снятие выполнения выглядели как мгновенный "скачок"
+                    // на всех фронтах сразу (иконка/зачёркивание/цвет).
+                    child: ClarifyCheckCircle(
+                      size: 22,
+                      value: isDone,
+                      onTap: onToggle,
+                      borderColor: overdue ? t.danger : t.text3,
+                      checkedColor: t.success,
                     ),
                   ),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          task['title'] ?? '',
+                        ClarifyStrikeText(
+                          text: task['title'] ?? '',
+                          isDone: isDone,
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
-                            decoration: isDone ? TextDecoration.lineThrough : TextDecoration.none,
                             color: isDone ? t.text3 : t.text,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         if (showDate && task['due_date'] != null || task['due_time'] != null || hasSubtasks || hasChecklist || tag != null || rotBadge != null || rescheduleBadge != null) ...[
                           const SizedBox(height: 4),
@@ -125,15 +157,22 @@ class MobileTaskRow extends StatelessWidget {
                             spacing: 8,
                             runSpacing: 4,
                             children: [
-                              // Слот иконки просрочки закреплён по ширине, пока
-                              // задача была просрочена — раньше при отметке
-                              // выполненной иконка исчезала целиком и дата
-                              // видимо "прыгала" влево на освободившееся место.
-                              if (overdue)
+                              // Слот иконки просрочки закреплён по ширине, если
+                              // дедлайн задачи вообще был в прошлом (см.
+                              // _wasPastDue) — НЕ по `overdue`, который сам уже
+                              // false для выполненных задач: иначе слот и не
+                              // появился бы в тот же ребилд, где isDone стал true,
+                              // и дата всё равно "прыгала" бы влево.
+                              if (_wasPastDue(task))
                                 SizedBox(
                                   width: 12,
                                   height: 12,
-                                  child: isDone ? null : Icon(LucideIcons.clockAlert, size: 12, color: t.danger),
+                                  child: AnimatedOpacity(
+                                    opacity: isDone ? 0 : 1,
+                                    duration: ClarifyMotion.base,
+                                    curve: ClarifyMotion.standard,
+                                    child: Icon(LucideIcons.clockAlert, size: 12, color: t.danger),
+                                  ),
                                 ),
                               if (showDate && task['due_date'] != null)
                                 Text(task['due_date'], style: TextStyle(fontSize: 12, color: overdue && !isDone ? t.danger : t.text3, fontWeight: FontWeight.w600)),
