@@ -287,25 +287,26 @@ class ClarifyBadgeEntrance extends StatelessWidget {
 
 /// Показывает/прячет бейдж (buildRotBadge/buildRescheduleBadge — null, если
 /// неприменимо) с анимацией в ОБЕ стороны, в отличие от [ClarifyBadgeEntrance]
-/// (только вход): AnimatedSwitcher с двумя стабильными ключами
-/// (показан/скрыт) — переключение между ними анимируется, а обновление уже
-/// показанного бейджа (например, счётчик переносов 3→4) ключ не меняет,
-/// значит не перезапускает анимацию на пустом месте.
+/// (только вход). Первая попытка была на AnimatedSwitcher — на практике
+/// исчезновение "дёргалось по кадрам": его дефолтный layoutBuilder кладёт
+/// уходящий виджет в Stack, размер которого сразу схлопывается до размера
+/// ВХОДЯЩЕГО (нулевого) ребёнка — уходящий виджet зажимался в этот нулевой
+/// Stack раньше, чем успевал реально дотухнуть по прозрачности. AnimatedSize
+/// (тот же, уже проверенный приём, что и у бейджа подзадач ниже) меняет
+/// размер контейнера плавно кадр за кадром, а не одним скачком через Stack —
+/// вместе с AnimatedOpacity для самого затухания получается настоящий плавный
+/// уход, не только вход.
 Widget clarifyAnimatedBadgeSlot(Widget? badge) {
-  return AnimatedSwitcher(
+  return AnimatedSize(
     duration: ClarifyMotion.base,
-    switchInCurve: ClarifyMotion.standard,
-    switchOutCurve: ClarifyMotion.standard,
-    transitionBuilder: (child, animation) => FadeTransition(
-      opacity: animation,
-      child: ScaleTransition(
-        scale: Tween<double>(begin: 0.85, end: 1.0).animate(animation),
-        child: child,
-      ),
+    curve: ClarifyMotion.standard,
+    alignment: Alignment.centerLeft,
+    child: AnimatedOpacity(
+      opacity: badge == null ? 0 : 1,
+      duration: ClarifyMotion.base,
+      curve: ClarifyMotion.standard,
+      child: badge ?? const SizedBox.shrink(),
     ),
-    child: badge == null
-        ? const SizedBox.shrink(key: ValueKey('clarify-badge-hidden'))
-        : KeyedSubtree(key: const ValueKey('clarify-badge-shown'), child: badge),
   );
 }
 

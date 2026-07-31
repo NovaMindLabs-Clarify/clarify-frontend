@@ -100,11 +100,13 @@ class MobileTaskRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
-        color: isDone ? t.surfaceSunken : (overdue ? t.dangerSoft : t.surface),
-        // ClarifyMotion.completion — единый темп с чекбоксом/зачёркиванием,
-        // один и тот же жест (отметка выполнения) не должен состоять из
-        // кусков на разной скорости.
-        animationDuration: ClarifyMotion.completion,
+        // Прозрачный: заливка теперь красится в AnimatedContainer ниже — у
+        // Material.animationDuration нет гарантии анимировать color в этой
+        // конфигурации (проверено фактическим прогоном — фон всё равно
+        // менялся мгновенно), а AnimatedContainer это делает надёжно
+        // (implicit-анимация BoxDecoration — обкатанный Flutter-механизм).
+        // Material остаётся только ради InkWell-ряби по тапу.
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(ClarifyRadius.md),
         child: InkWell(
           onTap: onTap,
@@ -113,6 +115,7 @@ class MobileTaskRow extends StatelessWidget {
             duration: ClarifyMotion.completion,
             curve: ClarifyMotion.standard,
             decoration: BoxDecoration(
+              color: isDone ? t.surfaceSunken : (overdue ? t.dangerSoft : t.surface),
               borderRadius: BorderRadius.circular(ClarifyRadius.md),
               // Полоса — канал приоритета ТОЛЬКО (§6.4 REDESIGN_V4_PLAN.md);
               // просрочка теперь читается через фон строки + иконку часов
