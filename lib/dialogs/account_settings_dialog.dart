@@ -519,525 +519,518 @@ void showAccountSettingsDialog({
             // (MobileSettingsScreen), эта страница на мобильном — только
             // профиль (аватар/имя/код друга/email/пароль/выход).
             if (!isMobileContext) ...[
-              ClarifySettingsCard(
-                icon: LucideIcons.globe,
-                title: "Язык".tr(currentLang),
-                trailing: Container(
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: glassColor,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: glassBorderColor),
+            ClarifySettingsCard(
+              icon: LucideIcons.globe,
+              title: "Язык".tr(currentLang),
+              trailing: Container(
+                height: 36,
+                decoration: BoxDecoration(
+                  color: glassColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: glassBorderColor),
+                ),
+                child: ToggleButtons(
+                  borderRadius: BorderRadius.circular(12),
+                  borderColor: Colors.transparent,
+                  selectedBorderColor: Colors.transparent,
+                  fillColor: t.accentSoft,
+                  selectedColor: t.accent,
+                  color: textMuted,
+                  constraints: const BoxConstraints(
+                    minHeight: 36,
+                    minWidth: 48,
                   ),
-                  child: ToggleButtons(
-                    borderRadius: BorderRadius.circular(12),
-                    borderColor: Colors.transparent,
-                    selectedBorderColor: Colors.transparent,
-                    fillColor: t.accentSoft,
-                    selectedColor: t.accent,
-                    color: textMuted,
-                    constraints: const BoxConstraints(
-                      minHeight: 36,
-                      minWidth: 48,
+                  isSelected: [currentLang == 'ru', currentLang == 'en'],
+                  onPressed: (index) {
+                    changeLang(index == 0 ? 'ru' : 'en');
+                    Navigator.pop(context);
+                  },
+                  children: const [
+                    Text(
+                      "RU",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
                     ),
-                    isSelected: [currentLang == 'ru', currentLang == 'en'],
-                    onPressed: (index) {
-                      changeLang(index == 0 ? 'ru' : 'en');
-                      Navigator.pop(context);
-                    },
-                    children: const [
-                      Text(
-                        "RU",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
+                    Text(
+                      "EN",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // --- УВЕДОМЛЕНИЯ / ФОКУС-РЕЖИМ / ЕЖЕДНЕВНЫЙ ОБЗОР ---
+            ClarifySettingsCard(
+              icon: LucideIcons.bell,
+              title: "Уведомления".tr(currentLang),
+              trailing: Switch(
+                value: AppSettings.notificationsEnabled,
+                activeColor: t.accent,
+                onChanged: (val) => setStateDialog(
+                  () => AppSettings.notificationsEnabled = val,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            ClarifySettingsCard(
+              icon: LucideIcons.timer,
+              title: "Длительность фокус-режима".tr(currentLang),
+              trailing: DropdownButton<int>(
+                value: AppSettings.zenDurationMinutes,
+                dropdownColor: t.surface2,
+                underline: const SizedBox(),
+                style: TextStyle(fontSize: 14, color: textColor),
+                items: [15, 25, 45, 60, 90]
+                    .map(
+                      (m) => DropdownMenuItem(
+                        value: m,
+                        child: Text(
+                          '$m ${"мин".tr(currentLang)}',
+                          style: TextStyle(color: textColor),
                         ),
                       ),
-                      Text(
-                        "EN",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
+                    )
+                    .toList(),
+                onChanged: (val) =>
+                    setStateDialog(() => AppSettings.zenDurationMinutes = val!),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            ClarifySettingsCard(
+              icon: LucideIcons.calendarCheck,
+              title: "Ежедневный обзор".tr(currentLang),
+              trailing: Switch(
+                value: AppSettings.dailyReviewEnabled,
+                activeColor: t.accent,
+                onChanged: (val) =>
+                    setStateDialog(() => AppSettings.dailyReviewEnabled = val),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // --- ВНЕШНИЙ ВИД И ПОВЕДЕНИЕ ---
+            ClarifySettingsCard(
+              icon: LucideIcons.palette,
+              title: "Акцентный цвет".tr(currentLang),
+              onTap: () =>
+                  setStateDialog(() => showAccentPicker = !showAccentPicker),
+              isExpanded: showAccentPicker,
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 18,
+                    height: 18,
+                    decoration: BoxDecoration(
+                      color: ClarifyAccentPresets
+                          .values[AppSettings.accentPresetIndex.value],
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Icon(
+                    showAccentPicker
+                        ? LucideIcons.chevronUp
+                        : LucideIcons.chevronDown,
+                    color: textMuted,
+                    size: 18,
+                  ),
+                ],
+              ),
+              expandedChild: Column(
+                children: [
+                  Divider(color: t.border, height: 17),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: List.generate(
+                      ClarifyAccentPresets.values.length,
+                      (i) {
+                        final color = ClarifyAccentPresets.values[i];
+                        final isSelected =
+                            AppSettings.accentPresetIndex.value == i;
+                        return GestureDetector(
+                          onTap: () => setStateDialog(
+                            () => AppSettings.setAccentPresetIndex(i),
+                          ),
+                          child: Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: color,
+                              shape: BoxShape.circle,
+                              border: isSelected
+                                  ? Border.all(color: textColor, width: 2)
+                                  : null,
+                            ),
+                            child: isSelected
+                                ? Icon(
+                                    LucideIcons.check,
+                                    size: 16,
+                                    color: Colors.white,
+                                  )
+                                : null,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            ClarifySettingsCard(
+              icon: LucideIcons.zapOff,
+              title: "Меньше анимаций".tr(currentLang),
+              trailing: Switch(
+                value: AppSettings.reducedMotionOverride.value,
+                activeColor: t.accent,
+                onChanged: (val) => setStateDialog(
+                  () => AppSettings.setReducedMotionOverride(val),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            ClarifySettingsCard(
+              icon: LucideIcons.listPlus,
+              title: "Быстрое добавление".tr(currentLang),
+              onTap: () => setStateDialog(
+                () => showQuickAddDefaults = !showQuickAddDefaults,
+              ),
+              isExpanded: showQuickAddDefaults,
+              trailing: Icon(
+                showQuickAddDefaults
+                    ? LucideIcons.chevronUp
+                    : LucideIcons.chevronDown,
+                color: textMuted,
+                size: 18,
+              ),
+              expandedChild: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Divider(color: t.border, height: 17),
+                  Text(
+                    "Приоритет по умолчанию".tr(currentLang),
+                    style: TextStyle(color: textMuted, fontSize: 12.5),
+                  ),
+                  const SizedBox(height: 8),
+                  ClarifyPriorityLever(
+                    value: AppSettings.quickAddDefaultPriority,
+                    onChanged: (val) => setStateDialog(
+                      () => AppSettings.quickAddDefaultPriority = val,
+                    ),
+                    getPriorityColor: (pVal) {
+                      switch (pVal) {
+                        case 'red':
+                          return t.danger;
+                        case 'orange':
+                          return t.warning;
+                        case 'blue':
+                          return t.accent;
+                        case 'gray':
+                          return textMuted;
+                        default:
+                          return Colors.transparent;
+                      }
+                    },
+                    textMuted: textMuted,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    "Повтор по умолчанию".tr(currentLang),
+                    style: TextStyle(color: textMuted, fontSize: 12.5),
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButton<String>(
+                    value: AppSettings.quickAddDefaultRecurrence,
+                    dropdownColor: t.surface2,
+                    underline: const SizedBox(),
+                    style: TextStyle(fontSize: 14, color: textColor),
+                    items: [
+                      DropdownMenuItem(
+                        value: 'none',
+                        child: Text(
+                          "Без повтора".tr(currentLang),
+                          style: TextStyle(color: textColor),
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 'daily',
+                        child: Text(
+                          "Каждый день".tr(currentLang),
+                          style: TextStyle(color: textColor),
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 'weekdays',
+                        child: Text(
+                          "По будням".tr(currentLang),
+                          style: TextStyle(color: textColor),
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 'weekly',
+                        child: Text(
+                          "Каждую неделю".tr(currentLang),
+                          style: TextStyle(color: textColor),
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 'monthly',
+                        child: Text(
+                          "Каждый месяц".tr(currentLang),
+                          style: TextStyle(color: textColor),
                         ),
                       ),
                     ],
+                    onChanged: (val) => setStateDialog(
+                      () => AppSettings.quickAddDefaultRecurrence = val!,
+                    ),
                   ),
-                ),
+                ],
               ),
-              const SizedBox(height: 16),
+            ),
+            const SizedBox(height: 16),
 
-              // --- УВЕДОМЛЕНИЯ / ФОКУС-РЕЖИМ / ЕЖЕДНЕВНЫЙ ОБЗОР ---
-              ClarifySettingsCard(
-                icon: LucideIcons.bell,
-                title: "Уведомления".tr(currentLang),
-                trailing: Switch(
-                  value: AppSettings.notificationsEnabled,
-                  activeColor: t.accent,
-                  onChanged: (val) => setStateDialog(
-                    () => AppSettings.notificationsEnabled = val,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              ClarifySettingsCard(
-                icon: LucideIcons.timer,
-                title: "Длительность фокус-режима".tr(currentLang),
-                trailing: DropdownButton<int>(
-                  value: AppSettings.zenDurationMinutes,
-                  dropdownColor: t.surface2,
-                  underline: const SizedBox(),
-                  style: TextStyle(fontSize: 14, color: textColor),
-                  items: [15, 25, 45, 60, 90]
-                      .map(
-                        (m) => DropdownMenuItem(
-                          value: m,
-                          child: Text(
-                            '$m ${"мин".tr(currentLang)}',
-                            style: TextStyle(color: textColor),
-                          ),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (val) => setStateDialog(
-                    () => AppSettings.zenDurationMinutes = val!,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              ClarifySettingsCard(
-                icon: LucideIcons.calendarCheck,
-                title: "Ежедневный обзор".tr(currentLang),
-                trailing: Switch(
-                  value: AppSettings.dailyReviewEnabled,
-                  activeColor: t.accent,
-                  onChanged: (val) => setStateDialog(
-                    () => AppSettings.dailyReviewEnabled = val,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              // --- ВНЕШНИЙ ВИД И ПОВЕДЕНИЕ ---
-              ClarifySettingsCard(
-                icon: LucideIcons.palette,
-                title: "Акцентный цвет".tr(currentLang),
-                onTap: () =>
-                    setStateDialog(() => showAccentPicker = !showAccentPicker),
-                isExpanded: showAccentPicker,
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 18,
-                      height: 18,
-                      decoration: BoxDecoration(
-                        color: ClarifyAccentPresets
-                            .values[AppSettings.accentPresetIndex.value],
-                        shape: BoxShape.circle,
+            // --- ПЛАН: текущий тариф + сравнение Free/Pro ---
+            // Только каркас — реальной оплаты нет, см. REDESIGN_V2_PLAN.md §4.
+            ClarifySettingsCard(
+              icon: LucideIcons.crown,
+              iconColor: t.warning,
+              title: "План".tr(currentLang),
+              onTap: () =>
+                  setStateDialog(() => showPlanDetails = !showPlanDetails),
+              isExpanded: showPlanDetails,
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: t.accentSoft,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      "Free",
+                      style: TextStyle(
+                        color: t.accent,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    Icon(
-                      showAccentPicker
-                          ? LucideIcons.chevronUp
-                          : LucideIcons.chevronDown,
-                      color: textMuted,
-                      size: 18,
+                  ),
+                  const SizedBox(width: 6),
+                  Icon(
+                    showPlanDetails
+                        ? LucideIcons.chevronUp
+                        : LucideIcons.chevronDown,
+                    color: textMuted,
+                    size: 18,
+                  ),
+                ],
+              ),
+              expandedChild: Column(
+                children: [
+                  Divider(color: t.border, height: 17),
+                  _PlanRow(
+                    label: "AI-запросы в месяц".tr(currentLang),
+                    free: "50",
+                    pro: "Без лимита".tr(currentLang),
+                    textColor: textColor,
+                    textMuted: textMuted,
+                  ),
+                  _PlanRow(
+                    label: "Участников в команде".tr(currentLang),
+                    free: "3",
+                    pro: "Без лимита".tr(currentLang),
+                    textColor: textColor,
+                    textMuted: textMuted,
+                  ),
+                  _PlanRow(
+                    label: "Синхронизация с Яндекс.Календарём".tr(currentLang),
+                    freeCheck: false,
+                    textColor: textColor,
+                    textMuted: textMuted,
+                    accent: t.accent,
+                    danger: t.danger,
+                  ),
+                  _PlanRow(
+                    label: "Расширенная статистика".tr(currentLang),
+                    freeCheck: false,
+                    textColor: textColor,
+                    textMuted: textMuted,
+                    accent: t.accent,
+                    danger: t.danger,
+                  ),
+                  const SizedBox(height: 12),
+                  ClarifyButton(
+                    label: "Оформить Pro — 199 ₽/мес".tr(currentLang),
+                    variant: ClarifyButtonVariant.filled,
+                    fullWidth: true,
+                    onPressed: () => ClarifyToast.show(
+                      context,
+                      "Оплата Pro скоро будет доступна".tr(currentLang),
+                      variant: ClarifyToastVariant.info,
                     ),
-                  ],
-                ),
-                expandedChild: Column(
-                  children: [
-                    Divider(color: t.border, height: 17),
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: List.generate(
-                        ClarifyAccentPresets.values.length,
-                        (i) {
-                          final color = ClarifyAccentPresets.values[i];
-                          final isSelected =
-                              AppSettings.accentPresetIndex.value == i;
-                          return GestureDetector(
-                            onTap: () => setStateDialog(
-                              () => AppSettings.setAccentPresetIndex(i),
-                            ),
-                            child: Container(
-                              width: 32,
-                              height: 32,
-                              decoration: BoxDecoration(
-                                color: color,
-                                shape: BoxShape.circle,
-                                border: isSelected
-                                    ? Border.all(color: textColor, width: 2)
-                                    : null,
-                              ),
-                              child: isSelected
-                                  ? Icon(
-                                      LucideIcons.check,
-                                      size: 16,
-                                      color: Colors.white,
-                                    )
-                                  : null,
-                            ),
-                          );
-                        },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // --- КАЛЕНДАРИ: внешние интеграции (P2.4 IMPROVEMENT_PLAN.md) ---
+            ClarifySettingsCard(
+              icon: LucideIcons.calendarSync,
+              title: "Календари".tr(currentLang),
+              onTap: () => setStateDialog(() => showCalendars = !showCalendars),
+              isExpanded: showCalendars,
+              trailing: Icon(
+                showCalendars ? LucideIcons.chevronUp : LucideIcons.chevronDown,
+                color: textMuted,
+                size: 18,
+              ),
+              expandedChild: Column(
+                children: [
+                  Divider(color: t.border, height: 17),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      LucideIcons.calendarDays,
+                      color: textColor,
+                      size: 22,
+                    ),
+                    title: Text(
+                      "Яндекс.Календарь".tr(currentLang),
+                      style: TextStyle(
+                        color: textColor,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              ClarifySettingsCard(
-                icon: LucideIcons.zapOff,
-                title: "Меньше анимаций".tr(currentLang),
-                trailing: Switch(
-                  value: AppSettings.reducedMotionOverride.value,
-                  activeColor: t.accent,
-                  onChanged: (val) => setStateDialog(
-                    () => AppSettings.setReducedMotionOverride(val),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              ClarifySettingsCard(
-                icon: LucideIcons.listPlus,
-                title: "Быстрое добавление".tr(currentLang),
-                onTap: () => setStateDialog(
-                  () => showQuickAddDefaults = !showQuickAddDefaults,
-                ),
-                isExpanded: showQuickAddDefaults,
-                trailing: Icon(
-                  showQuickAddDefaults
-                      ? LucideIcons.chevronUp
-                      : LucideIcons.chevronDown,
-                  color: textMuted,
-                  size: 18,
-                ),
-                expandedChild: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Divider(color: t.border, height: 17),
-                    Text(
-                      "Приоритет по умолчанию".tr(currentLang),
+                    subtitle: Text(
+                      "Требует Pro".tr(currentLang),
                       style: TextStyle(color: textMuted, fontSize: 12.5),
                     ),
-                    const SizedBox(height: 8),
-                    ClarifyPriorityLever(
-                      value: AppSettings.quickAddDefaultPriority,
-                      onChanged: (val) => setStateDialog(
-                        () => AppSettings.quickAddDefaultPriority = val,
-                      ),
-                      getPriorityColor: (pVal) {
-                        switch (pVal) {
-                          case 'red':
-                            return t.danger;
-                          case 'orange':
-                            return t.warning;
-                          case 'blue':
-                            return t.accent;
-                          case 'gray':
-                            return textMuted;
-                          default:
-                            return Colors.transparent;
-                        }
-                      },
-                      textMuted: textMuted,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      "Повтор по умолчанию".tr(currentLang),
-                      style: TextStyle(color: textMuted, fontSize: 12.5),
-                    ),
-                    const SizedBox(height: 8),
-                    DropdownButton<String>(
-                      value: AppSettings.quickAddDefaultRecurrence,
-                      dropdownColor: t.surface2,
-                      underline: const SizedBox(),
-                      style: TextStyle(fontSize: 14, color: textColor),
-                      items: [
-                        DropdownMenuItem(
-                          value: 'none',
-                          child: Text(
-                            "Без повтора".tr(currentLang),
-                            style: TextStyle(color: textColor),
-                          ),
-                        ),
-                        DropdownMenuItem(
-                          value: 'daily',
-                          child: Text(
-                            "Каждый день".tr(currentLang),
-                            style: TextStyle(color: textColor),
-                          ),
-                        ),
-                        DropdownMenuItem(
-                          value: 'weekdays',
-                          child: Text(
-                            "По будням".tr(currentLang),
-                            style: TextStyle(color: textColor),
-                          ),
-                        ),
-                        DropdownMenuItem(
-                          value: 'weekly',
-                          child: Text(
-                            "Каждую неделю".tr(currentLang),
-                            style: TextStyle(color: textColor),
-                          ),
-                        ),
-                        DropdownMenuItem(
-                          value: 'monthly',
-                          child: Text(
-                            "Каждый месяц".tr(currentLang),
-                            style: TextStyle(color: textColor),
-                          ),
-                        ),
-                      ],
-                      onChanged: (val) => setStateDialog(
-                        () => AppSettings.quickAddDefaultRecurrence = val!,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // --- ПЛАН: текущий тариф + сравнение Free/Pro ---
-              // Только каркас — реальной оплаты нет, см. REDESIGN_V2_PLAN.md §4.
-              ClarifySettingsCard(
-                icon: LucideIcons.crown,
-                iconColor: t.warning,
-                title: "План".tr(currentLang),
-                onTap: () =>
-                    setStateDialog(() => showPlanDetails = !showPlanDetails),
-                isExpanded: showPlanDetails,
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: t.accentSoft,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        "Free",
-                        style: TextStyle(
-                          color: t.accent,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Icon(
-                      showPlanDetails
-                          ? LucideIcons.chevronUp
-                          : LucideIcons.chevronDown,
-                      color: textMuted,
-                      size: 18,
-                    ),
-                  ],
-                ),
-                expandedChild: Column(
-                  children: [
-                    Divider(color: t.border, height: 17),
-                    _PlanRow(
-                      label: "AI-запросы в месяц".tr(currentLang),
-                      free: "50",
-                      pro: "Без лимита".tr(currentLang),
-                      textColor: textColor,
-                      textMuted: textMuted,
-                    ),
-                    _PlanRow(
-                      label: "Участников в команде".tr(currentLang),
-                      free: "3",
-                      pro: "Без лимита".tr(currentLang),
-                      textColor: textColor,
-                      textMuted: textMuted,
-                    ),
-                    _PlanRow(
-                      label: "Синхронизация с Яндекс.Календарём".tr(
-                        currentLang,
-                      ),
-                      freeCheck: false,
-                      textColor: textColor,
-                      textMuted: textMuted,
-                      accent: t.accent,
-                      danger: t.danger,
-                    ),
-                    _PlanRow(
-                      label: "Расширенная статистика".tr(currentLang),
-                      freeCheck: false,
-                      textColor: textColor,
-                      textMuted: textMuted,
-                      accent: t.accent,
-                      danger: t.danger,
-                    ),
-                    const SizedBox(height: 12),
-                    ClarifyButton(
-                      label: "Оформить Pro — 199 ₽/мес".tr(currentLang),
-                      variant: ClarifyButtonVariant.filled,
-                      fullWidth: true,
+                    trailing: ClarifyButton(
+                      label: "Подключить".tr(currentLang),
+                      variant: ClarifyButtonVariant.outline,
                       onPressed: () => ClarifyToast.show(
                         context,
-                        "Оплата Pro скоро будет доступна".tr(currentLang),
+                        "Интеграция скоро будет доступна".tr(currentLang),
                         variant: ClarifyToastVariant.info,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
+            ),
+            const SizedBox(height: 16),
 
-              // --- КАЛЕНДАРИ: внешние интеграции (P2.4 IMPROVEMENT_PLAN.md) ---
-              ClarifySettingsCard(
-                icon: LucideIcons.calendarSync,
-                title: "Календари".tr(currentLang),
-                onTap: () =>
-                    setStateDialog(() => showCalendars = !showCalendars),
-                isExpanded: showCalendars,
-                trailing: Icon(
-                  showCalendars
-                      ? LucideIcons.chevronUp
-                      : LucideIcons.chevronDown,
-                  color: textMuted,
-                  size: 18,
-                ),
-                expandedChild: Column(
-                  children: [
-                    Divider(color: t.border, height: 17),
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: Icon(
-                        LucideIcons.calendarDays,
+            // --- ДАННЫЕ: локальный кэш + экспорт в CSV ---
+            ClarifySettingsCard(
+              icon: LucideIcons.database,
+              title: "Локальный кэш".tr(currentLang),
+              onTap: () =>
+                  setStateDialog(() => showCacheDetails = !showCacheDetails),
+              isExpanded: showCacheDetails,
+              trailing: Icon(
+                showCacheDetails
+                    ? LucideIcons.chevronUp
+                    : LucideIcons.chevronDown,
+                color: textMuted,
+                size: 18,
+              ),
+              expandedChild: Column(
+                children: [
+                  Divider(color: t.border, height: 17),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      LucideIcons.hardDrive,
+                      color: textColor,
+                      size: 22,
+                    ),
+                    title: Text(
+                      "Размер кэша".tr(currentLang),
+                      style: TextStyle(
                         color: textColor,
-                        size: 22,
-                      ),
-                      title: Text(
-                        "Яндекс.Календарь".tr(currentLang),
-                        style: TextStyle(
-                          color: textColor,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      subtitle: Text(
-                        "Требует Pro".tr(currentLang),
-                        style: TextStyle(color: textMuted, fontSize: 12.5),
-                      ),
-                      trailing: ClarifyButton(
-                        label: "Подключить".tr(currentLang),
-                        variant: ClarifyButtonVariant.outline,
-                        onPressed: () => ClarifyToast.show(
-                          context,
-                          "Интеграция скоро будет доступна".tr(currentLang),
-                          variant: ClarifyToastVariant.info,
-                        ),
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // --- ДАННЫЕ: локальный кэш + экспорт в CSV ---
-              ClarifySettingsCard(
-                icon: LucideIcons.database,
-                title: "Локальный кэш".tr(currentLang),
-                onTap: () =>
-                    setStateDialog(() => showCacheDetails = !showCacheDetails),
-                isExpanded: showCacheDetails,
-                trailing: Icon(
-                  showCacheDetails
-                      ? LucideIcons.chevronUp
-                      : LucideIcons.chevronDown,
-                  color: textMuted,
-                  size: 18,
-                ),
-                expandedChild: Column(
-                  children: [
-                    Divider(color: t.border, height: 17),
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: Icon(
-                        LucideIcons.hardDrive,
-                        color: textColor,
-                        size: 22,
-                      ),
-                      title: Text(
-                        "Размер кэша".tr(currentLang),
-                        style: TextStyle(
-                          color: textColor,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      subtitle: Text(
-                        cacheSizeLabel(),
-                        style: TextStyle(color: textMuted, fontSize: 12.5),
-                      ),
-                      trailing: ClarifyButton(
-                        label: "Очистить кэш".tr(currentLang),
-                        variant: ClarifyButtonVariant.danger,
-                        onPressed: clearCache,
-                      ),
+                    subtitle: Text(
+                      cacheSizeLabel(),
+                      style: TextStyle(color: textMuted, fontSize: 12.5),
                     ),
-                  ],
-                ),
+                    trailing: ClarifyButton(
+                      label: "Очистить кэш".tr(currentLang),
+                      variant: ClarifyButtonVariant.danger,
+                      onPressed: clearCache,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
+            ),
+            const SizedBox(height: 12),
 
-              ClarifySettingsCard(
-                icon: LucideIcons.fileDown,
-                title: "Экспорт задач в CSV".tr(currentLang),
-                trailing: ClarifyButton(
-                  label: "Экспортировать".tr(currentLang),
-                  variant: ClarifyButtonVariant.outline,
-                  onPressed: exportTasksCsv,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              ClarifyButton(
-                icon: LucideIcons.send,
-                label: "Поддержка".tr(currentLang),
+            ClarifySettingsCard(
+              icon: LucideIcons.fileDown,
+              title: "Экспорт задач в CSV".tr(currentLang),
+              trailing: ClarifyButton(
+                label: "Экспортировать".tr(currentLang),
                 variant: ClarifyButtonVariant.outline,
-                fullWidth: true,
-                onPressed: () async {
-                  final Uri url = Uri.parse(AppConfig.telegramSupportUrl);
-                  if (await canLaunchUrl(url)) {
-                    await launchUrl(url, mode: LaunchMode.externalApplication);
-                  } else {
-                    if (context.mounted) {
-                      ClarifyToast.show(
-                        context,
-                        "Не удалось открыть Telegram".tr(currentLang),
-                        variant: ClarifyToastVariant.danger,
-                      );
-                    }
+                onPressed: exportTasksCsv,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            ClarifyButton(
+              icon: LucideIcons.send,
+              label: "Поддержка".tr(currentLang),
+              variant: ClarifyButtonVariant.outline,
+              fullWidth: true,
+              onPressed: () async {
+                final Uri url = Uri.parse(AppConfig.telegramSupportUrl);
+                if (await canLaunchUrl(url)) {
+                  await launchUrl(url, mode: LaunchMode.externalApplication);
+                } else {
+                  if (context.mounted) {
+                    ClarifyToast.show(
+                      context,
+                      "Не удалось открыть Telegram".tr(currentLang),
+                      variant: ClarifyToastVariant.danger,
+                    );
                   }
-                },
-              ),
-              const SizedBox(height: 12),
+                }
+              },
+            ),
+            const SizedBox(height: 12),
 
-              ClarifyButton(
-                icon: LucideIcons.fileText,
-                label: "Политика конфиденциальности".tr(currentLang),
-                variant: ClarifyButtonVariant.outline,
-                fullWidth: true,
-                onPressed: () => showPrivacyPolicyDialog(
-                  context: context,
-                  isDark: isDark,
-                  currentLang: currentLang,
-                ),
+            ClarifyButton(
+              icon: LucideIcons.fileText,
+              label: "Политика конфиденциальности".tr(currentLang),
+              variant: ClarifyButtonVariant.outline,
+              fullWidth: true,
+              onPressed: () => showPrivacyPolicyDialog(
+                context: context,
+                isDark: isDark,
+                currentLang: currentLang,
               ),
+            ),
 
-              const SizedBox(height: 16),
+            const SizedBox(height: 16),
             ], // if (!isMobileContext) — общие настройки приложения
 
             ClarifyTextField(
