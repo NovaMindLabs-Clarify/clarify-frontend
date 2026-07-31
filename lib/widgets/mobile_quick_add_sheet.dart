@@ -310,6 +310,7 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
                   child: ClarifyDurationChips(
                     selectedMinutes: _duration,
                     currentLang: widget.currentLang,
+                    isDark: Theme.of(context).brightness == Brightness.dark,
                     onChanged: (minutes) => setState(() => _duration = minutes),
                   ),
                 ),

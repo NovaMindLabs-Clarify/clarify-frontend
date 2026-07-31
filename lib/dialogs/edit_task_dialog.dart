@@ -254,6 +254,7 @@ void showEditTaskDialog({
                             child: ClarifyDurationChips(
                               selectedMinutes: selectedDuration,
                               currentLang: currentLang,
+                              isDark: isDark,
                               onChanged: (minutes) => setStateDialog(
                                 () => selectedDuration = minutes,
                               ),
