@@ -75,8 +75,7 @@ class TaskCardBuilders {
     if (ageDays < AppConfig.taskRotDays) return null;
     final bool isImportant = task['priority'] == 'red';
     return Tooltip(
-      message:
-          '${"Задача не двигается уже".tr(currentLang)} $ageDays ${"дн.".tr(currentLang)}',
+      message: '${"Задача не двигается уже".tr(currentLang)} $ageDays ${"дн.".tr(currentLang)}',
       child: ClarifyInfoBadge(
         icon: LucideIcons.archive,
         label: '$ageDays ${"дн.".tr(currentLang)}',
@@ -95,8 +94,7 @@ class TaskCardBuilders {
     final count = task['reschedule_count'] as int?;
     if (count == null || count < AppConfig.rescheduleWarningCount) return null;
     return Tooltip(
-      message:
-          '${"Перенесена".tr(currentLang)} $count ${"раз".tr(currentLang)}',
+      message: '${"Перенесена".tr(currentLang)} $count ${"раз".tr(currentLang)}',
       child: ClarifyInfoBadge(
         icon: LucideIcons.history,
         label: '×$count',
@@ -372,8 +370,7 @@ class TaskCardBuilders {
                                         scale: _s,
                                         icon: LucideIcons.listTodo,
                                       ),
-                                    if (_rotBadge(task, isDone, overdue) !=
-                                        null)
+                                    if (_rotBadge(task, isDone, overdue) != null)
                                       _rotBadge(task, isDone, overdue)!,
                                     if (_rescheduleBadge(task, isDone) != null)
                                       _rescheduleBadge(task, isDone)!,
@@ -551,9 +548,7 @@ class TaskCardBuilders {
                                       Icon(
                                         LucideIcons.flag,
                                         size: 14,
-                                        color: getPriorityColor(
-                                          task['priority'],
-                                        ),
+                                        color: getPriorityColor(task['priority']),
                                       ),
                                       const SizedBox(width: 3),
                                       Text(
@@ -561,9 +556,7 @@ class TaskCardBuilders {
                                         style: TextStyle(
                                           fontSize: 13,
                                           fontWeight: FontWeight.bold,
-                                          color: getPriorityColor(
-                                            task['priority'],
-                                          ),
+                                          color: getPriorityColor(task['priority']),
                                         ),
                                       ),
                                     ],
