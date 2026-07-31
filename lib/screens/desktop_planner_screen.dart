@@ -845,55 +845,82 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     });
   }
 
+  // Приветствие зависит от текущего часа — раньше всегда было "Доброе утро!"
+  // независимо от времени суток, потому что показ этого оверлея не привязан
+  // к конкретному часу (см. комментарий у _checkDailyReviewTrigger — у
+  // бэкенда нет таймзоны пользователя для push именно утром).
+  String _greetingForNow() {
+    final hour = DateTime.now().hour;
+    if (hour >= 5 && hour < 12) return "Доброе утро!";
+    if (hour >= 12 && hour < 18) return "Добрый день!";
+    if (hour >= 18 && hour < 23) return "Добрый вечер!";
+    return "Доброй ночи!";
+  }
+
   void _showDailyReviewOverlay({required int todayCount, required int overdueCount}) {
-    showGeneralDialog(
+    final greeting = _greetingForNow();
+
+    showClarifyResponsiveSurface(
       context: context,
-      barrierDismissible: true,
       barrierColor: Colors.black.withValues(alpha: 0.45),
-      barrierLabel: 'DailyReview',
-      transitionDuration: ClarifyMotion.deliberate,
-      pageBuilder: (context, animation, secondaryAnimation) {
-        final cardWidth = (MediaQuery.sizeOf(context).width - 96).clamp(280.0, 420.0);
+      builder: (context) {
+        final mobile = isClarifyDialogMobile(context);
+        final iconSize = mobile ? 36.0 : 44.0 * _s;
+        final titleSize = mobile ? 20.0 : 24.0 * _s;
+        final bodySize = mobile ? 15.0 : 16.0 * _s;
+        final overdueSize = mobile ? 14.0 : 15.0 * _s;
+
+        final content = Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(LucideIcons.sunrise, size: iconSize, color: _tokens.accent),
+            SizedBox(height: mobile ? 14 : 20 * _s),
+            Text(greeting.tr(widget.currentLang), style: TextStyle(color: textColor, fontSize: titleSize, fontWeight: FontWeight.w800)),
+            SizedBox(height: mobile ? 8 : 12 * _s),
+            Text(
+              todayCount == 0
+                  ? "На сегодня задач не запланировано.".tr(widget.currentLang)
+                  : "${'Сегодня у вас'.tr(widget.currentLang)} $todayCount ${'задач'.tr(widget.currentLang)}.",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: textMuted, fontSize: bodySize, height: 1.4),
+            ),
+            if (overdueCount > 0) ...[
+              SizedBox(height: mobile ? 8 : 10 * _s),
+              Text(
+                "${'Просрочено:'.tr(widget.currentLang)} $overdueCount",
+                style: TextStyle(color: _tokens.danger, fontSize: overdueSize, fontWeight: FontWeight.w700),
+              ),
+            ],
+            SizedBox(height: mobile ? 20 : 28 * _s),
+            ClarifyButton(
+              label: "Понятно".tr(widget.currentLang),
+              variant: ClarifyButtonVariant.filled,
+              scale: mobile ? 1.0 : _s,
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
+        );
+
+        // Мобильный — bottom sheet (showClarifyResponsiveSurface уже даёт
+        // форму/ширину/drag-to-dismiss через showClarifyBottomSheet), десктоп
+        // — прежняя плавающая карточка по центру. Раньше этот диалог был
+        // одинаковым на обеих платформах — "плавающая карточка" на мобильном
+        // выглядела как урезанный десктоп, а не как остальные мобильные шторки.
+        if (mobile) {
+          return Padding(
+            padding: EdgeInsets.fromLTRB(20, 4, 20, MediaQuery.of(context).padding.bottom + 20),
+            child: content,
+          );
+        }
         return Center(
           child: Material(
             color: Colors.transparent,
-            child: Container(
-              width: cardWidth,
+            child: _buildGlassContainer(
+              borderRadius: BorderRadius.circular(28 * _s),
               padding: EdgeInsets.all(32 * _s),
-              decoration: BoxDecoration(
-                color: _tokens.surface2,
-                borderRadius: BorderRadius.circular(28 * _s),
-                border: Border.all(color: _tokens.border),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(LucideIcons.sunrise, size: 44 * _s, color: _tokens.accent),
-                  SizedBox(height: 20 * _s),
-                  Text("Доброе утро!".tr(widget.currentLang), style: TextStyle(color: textColor, fontSize: 24 * _s, fontWeight: FontWeight.w800)),
-                  SizedBox(height: 12 * _s),
-                  Text(
-                    todayCount == 0
-                        ? "На сегодня задач не запланировано.".tr(widget.currentLang)
-                        : "${'Сегодня у вас'.tr(widget.currentLang)} $todayCount ${'задач'.tr(widget.currentLang)}.",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: textMuted, fontSize: 16 * _s, height: 1.4),
-                  ),
-                  if (overdueCount > 0) ...[
-                    SizedBox(height: 10 * _s),
-                    Text(
-                      "${'Просрочено:'.tr(widget.currentLang)} $overdueCount",
-                      style: TextStyle(color: _tokens.danger, fontSize: 15 * _s, fontWeight: FontWeight.w700),
-                    ),
-                  ],
-                  SizedBox(height: 28 * _s),
-                  ClarifyButton(
-                    label: "Понятно".tr(widget.currentLang),
-                    variant: ClarifyButtonVariant.filled,
-                    scale: _s,
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
+              child: SizedBox(
+                width: (MediaQuery.sizeOf(context).width - 96).clamp(280.0, 420.0),
+                child: content,
               ),
             ),
           ),
