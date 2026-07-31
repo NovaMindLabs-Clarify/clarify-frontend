@@ -21,6 +21,7 @@ import 'core/app_settings.dart';
 import 'core/config.dart';
 import 'core/last_tap_tracker.dart';
 import 'core/localization.dart';
+import 'core/privacy_policy_text.dart';
 import 'core/theme/design_tokens.dart';
 import 'widgets/clarify_button.dart';
 import 'widgets/clarify_glass.dart';
@@ -28,6 +29,7 @@ import 'widgets/clarify_surface.dart';
 import 'widgets/clarify_toast.dart';
 import 'screens/desktop_planner_screen.dart';
 import 'screens/onboarding_flow.dart';
+import 'screens/privacy_consent_screen.dart';
 import 'services/status_bar_style.dart';
 // Вставь это где-то среди других импортов
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -140,6 +142,7 @@ class _SmartPlannerAppState extends State<SmartPlannerApp> with TrayListener {
   bool _isAuthenticated = false;
   bool _hasName = false;
   bool _hasSeenOnboarding = false;
+  bool _hasAcceptedPrivacyPolicy = false;
 
   @override
   void initState() {
@@ -156,6 +159,9 @@ class _SmartPlannerAppState extends State<SmartPlannerApp> with TrayListener {
     isDark =
         Hive.box('settings').get('is_dark_theme', defaultValue: false) as bool;
     StatusBarStyle.apply(isDark);
+    _hasAcceptedPrivacyPolicy =
+        Hive.box('settings').get('privacy_policy_accepted_version') ==
+        kPrivacyPolicyVersion;
 
     final user = Supabase.instance.client.auth.currentUser;
     _isAuthenticated = user != null;
@@ -333,7 +339,14 @@ class _SmartPlannerAppState extends State<SmartPlannerApp> with TrayListener {
             extensions: [darkTokens],
             useMaterial3: true,
           ),
-          home: !_isAuthenticated
+          home: !_hasAcceptedPrivacyPolicy
+              ? PrivacyConsentScreen(
+                  isDark: isDark,
+                  currentLang: currentLang,
+                  onAccepted: () =>
+                      setState(() => _hasAcceptedPrivacyPolicy = true),
+                )
+              : !_isAuthenticated
               ? (_hasSeenOnboarding
                     ? AuthScreen(
                         isDark: isDark,

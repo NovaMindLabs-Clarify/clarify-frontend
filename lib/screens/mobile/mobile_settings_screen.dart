@@ -11,6 +11,7 @@ import '../../core/app_settings.dart';
 import '../../core/config.dart';
 import '../../core/localization.dart';
 import '../../core/theme/design_tokens.dart';
+import '../../dialogs/privacy_policy_dialog.dart';
 import '../../services/push_registration.dart';
 import '../../widgets/clarify_button.dart';
 import '../../widgets/clarify_priority_lever.dart';
@@ -72,9 +73,15 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
     _loadUnreadMessagesCount();
     // Обновляем бейдж, пока пользователь на экране настроек — не только при
     // заходе, чтобы не выглядело так, будто новое сообщение не заметилось.
-    _messagesChannel = Supabase.instance.client.channel('settings_messages_badge')
-      ..onPostgresChanges(event: PostgresChangeEvent.all, schema: 'public', table: 'messages', callback: (_) => _loadUnreadMessagesCount())
-      ..subscribe();
+    _messagesChannel =
+        Supabase.instance.client.channel('settings_messages_badge')
+          ..onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'messages',
+            callback: (_) => _loadUnreadMessagesCount(),
+          )
+          ..subscribe();
   }
 
   @override
@@ -86,8 +93,10 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
   Future<void> _loadUnreadMessagesCount() async {
     try {
       final data = await Supabase.instance.client.rpc('list_conversations');
-      final total = List<Map<String, dynamic>>.from(data)
-          .fold<int>(0, (sum, c) => sum + ((c['unread_count'] as num?)?.toInt() ?? 0));
+      final total = List<Map<String, dynamic>>.from(data).fold<int>(
+        0,
+        (sum, c) => sum + ((c['unread_count'] as num?)?.toInt() ?? 0),
+      );
       if (mounted) setState(() => _unreadMessagesCount = total);
     } catch (_) {
       // Бейдж — не критичная информация, молча оставляем прежнее значение.
@@ -104,14 +113,22 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
   void _clearCache() {
     Hive.box('tasks_cache').delete('all_tasks');
     setState(() {});
-    ClarifyToast.show(context, 'Кэш очищен'.tr(currentLang), variant: ClarifyToastVariant.success);
+    ClarifyToast.show(
+      context,
+      'Кэш очищен'.tr(currentLang),
+      variant: ClarifyToastVariant.success,
+    );
   }
 
   Future<void> _exportTasksCsv() async {
     final raw = Hive.box('tasks_cache').get('all_tasks') as String?;
     final tasks = raw == null ? const [] : (json.decode(raw) as List);
     if (tasks.isEmpty) {
-      ClarifyToast.show(context, 'Задач нет — нечего экспортировать'.tr(currentLang), variant: ClarifyToastVariant.info);
+      ClarifyToast.show(
+        context,
+        'Задач нет — нечего экспортировать'.tr(currentLang),
+        variant: ClarifyToastVariant.info,
+      );
       return;
     }
 
@@ -124,19 +141,23 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
     }
 
     final buffer = StringBuffer('﻿');
-    buffer.writeln('title,due_date,due_time,priority,recurrence,is_completed,folder,note');
+    buffer.writeln(
+      'title,due_date,due_time,priority,recurrence,is_completed,folder,note',
+    );
     for (final item in tasks) {
       final task = Map<String, dynamic>.from(item as Map);
-      buffer.writeln([
-        esc(task['title']),
-        esc(task['due_date']),
-        esc(task['due_time']),
-        esc(task['priority']),
-        esc(task['recurrence']),
-        esc(task['is_completed']),
-        esc(task['folder']),
-        esc(task['note']),
-      ].join(','));
+      buffer.writeln(
+        [
+          esc(task['title']),
+          esc(task['due_date']),
+          esc(task['due_time']),
+          esc(task['priority']),
+          esc(task['recurrence']),
+          esc(task['is_completed']),
+          esc(task['folder']),
+          esc(task['note']),
+        ].join(','),
+      );
     }
 
     final path = await FilePicker.platform.saveFile(
@@ -147,7 +168,12 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
     );
     if (path == null) return;
     await File(path).writeAsBytes(utf8.encode(buffer.toString()));
-    if (mounted) ClarifyToast.show(context, 'Файл сохранён'.tr(currentLang), variant: ClarifyToastVariant.success);
+    if (mounted)
+      ClarifyToast.show(
+        context,
+        'Файл сохранён'.tr(currentLang),
+        variant: ClarifyToastVariant.success,
+      );
   }
 
   @override
@@ -158,7 +184,15 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
       children: [
-        Text('Настройки'.tr(currentLang), style: TextStyle(fontFamily: 'Golos Text', fontSize: 22, fontWeight: FontWeight.w700, color: t.text)),
+        Text(
+          'Настройки'.tr(currentLang),
+          style: TextStyle(
+            fontFamily: 'Golos Text',
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+            color: t.text,
+          ),
+        ),
         const SizedBox(height: 16),
 
         Material(
@@ -171,16 +205,39 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
               padding: const EdgeInsets.all(14),
               child: Row(
                 children: [
-                  CircleAvatar(radius: 24, backgroundColor: t.accentSoft, child: Text(widget.userInitial, style: TextStyle(color: t.accent, fontWeight: FontWeight.bold, fontSize: 18))),
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundColor: t.accentSoft,
+                    child: Text(
+                      widget.userInitial,
+                      style: TextStyle(
+                        color: t.accent,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(widget.userFullName.isNotEmpty ? widget.userFullName : 'Без имени'.tr(currentLang), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: t.text)),
+                        Text(
+                          widget.userFullName.isNotEmpty
+                              ? widget.userFullName
+                              : 'Без имени'.tr(currentLang),
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: t.text,
+                          ),
+                        ),
                         if (email.isNotEmpty) ...[
                           const SizedBox(height: 2),
-                          Text(email, style: TextStyle(fontSize: 12.5, color: t.text3)),
+                          Text(
+                            email,
+                            style: TextStyle(fontSize: 12.5, color: t.text3),
+                          ),
                         ],
                       ],
                     ),
@@ -210,9 +267,22 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
             children: [
               if (_unreadMessagesCount > 0) ...[
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(color: t.accent, borderRadius: BorderRadius.circular(ClarifyRadius.pill)),
-                  child: Text('$_unreadMessagesCount', style: TextStyle(color: t.onAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: t.accent,
+                    borderRadius: BorderRadius.circular(ClarifyRadius.pill),
+                  ),
+                  child: Text(
+                    '$_unreadMessagesCount',
+                    style: TextStyle(
+                      color: t.onAccent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 8),
               ],
@@ -239,11 +309,17 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
             onChanged: (val) async {
               if (kIsWeb) {
                 final error = val
-                    ? await PushRegistrationWeb.register(AppConfig.vapidPublicKey)
+                    ? await PushRegistrationWeb.register(
+                        AppConfig.vapidPublicKey,
+                      )
                     : await PushRegistrationWeb.unregister();
                 if (val && error != null) {
                   if (context.mounted) {
-                    ClarifyToast.show(context, error, variant: ClarifyToastVariant.warning);
+                    ClarifyToast.show(
+                      context,
+                      error,
+                      variant: ClarifyToastVariant.warning,
+                    );
                   }
                   setState(() {});
                   return;
@@ -263,7 +339,8 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
           trailing: Switch(
             value: AppSettings.dailyReviewEnabled,
             activeColor: t.accent,
-            onChanged: (val) => setState(() => AppSettings.dailyReviewEnabled = val),
+            onChanged: (val) =>
+                setState(() => AppSettings.dailyReviewEnabled = val),
           ),
         ),
 
@@ -278,9 +355,18 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
             underline: const SizedBox(),
             style: TextStyle(fontSize: 14, color: t.text),
             items: [15, 25, 45, 60, 90]
-                .map((m) => DropdownMenuItem(value: m, child: Text('$m ${"мин".tr(currentLang)}', style: TextStyle(color: t.text))))
+                .map(
+                  (m) => DropdownMenuItem(
+                    value: m,
+                    child: Text(
+                      '$m ${"мин".tr(currentLang)}',
+                      style: TextStyle(color: t.text),
+                    ),
+                  ),
+                )
                 .toList(),
-            onChanged: (val) => setState(() => AppSettings.zenDurationMinutes = val!),
+            onChanged: (val) =>
+                setState(() => AppSettings.zenDurationMinutes = val!),
           ),
         ),
 
@@ -290,7 +376,11 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
           icon: LucideIcons.crown,
           title: 'Управление подпиской'.tr(currentLang),
           trailing: Icon(LucideIcons.chevronRight, size: 18, color: t.text3),
-          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _PlanPage(currentLang: currentLang))),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => _PlanPage(currentLang: currentLang),
+            ),
+          ),
         ),
 
         const SizedBox(height: 20),
@@ -299,7 +389,11 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
           icon: LucideIcons.calendarSync,
           title: 'Календари'.tr(currentLang),
           trailing: Icon(LucideIcons.chevronRight, size: 18, color: t.text3),
-          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _CalendarsPage(currentLang: currentLang))),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => _CalendarsPage(currentLang: currentLang),
+            ),
+          ),
         ),
 
         const SizedBox(height: 20),
@@ -307,7 +401,11 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
         ClarifySettingsCard(
           icon: widget.isDark ? LucideIcons.moon : LucideIcons.sun,
           title: 'Тёмная тема'.tr(currentLang),
-          trailing: Switch(value: widget.isDark, activeColor: t.accent, onChanged: (_) => widget.toggleTheme()),
+          trailing: Switch(
+            value: widget.isDark,
+            activeColor: t.accent,
+            onChanged: (_) => widget.toggleTheme(),
+          ),
         ),
         const SizedBox(height: 8),
         ClarifySettingsCard(
@@ -318,9 +416,23 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(width: 18, height: 18, decoration: BoxDecoration(color: ClarifyAccentPresets.values[AppSettings.accentPresetIndex.value], shape: BoxShape.circle)),
+              Container(
+                width: 18,
+                height: 18,
+                decoration: BoxDecoration(
+                  color: ClarifyAccentPresets
+                      .values[AppSettings.accentPresetIndex.value],
+                  shape: BoxShape.circle,
+                ),
+              ),
               const SizedBox(width: 6),
-              Icon(showAccentPicker ? LucideIcons.chevronUp : LucideIcons.chevronDown, color: t.text3, size: 18),
+              Icon(
+                showAccentPicker
+                    ? LucideIcons.chevronUp
+                    : LucideIcons.chevronDown,
+                color: t.text3,
+                size: 18,
+              ),
             ],
           ),
           expandedChild: Column(
@@ -329,16 +441,31 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
               Wrap(
                 spacing: 12,
                 runSpacing: 12,
-                children: List.generate(ClarifyAccentPresets.values.length, (i) {
+                children: List.generate(ClarifyAccentPresets.values.length, (
+                  i,
+                ) {
                   final color = ClarifyAccentPresets.values[i];
                   final isSelected = AppSettings.accentPresetIndex.value == i;
                   return GestureDetector(
-                    onTap: () => setState(() => AppSettings.setAccentPresetIndex(i)),
+                    onTap: () =>
+                        setState(() => AppSettings.setAccentPresetIndex(i)),
                     child: Container(
                       width: 32,
                       height: 32,
-                      decoration: BoxDecoration(color: color, shape: BoxShape.circle, border: isSelected ? Border.all(color: t.text, width: 2) : null),
-                      child: isSelected ? const Icon(LucideIcons.check, size: 16, color: Colors.white) : null,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                        border: isSelected
+                            ? Border.all(color: t.text, width: 2)
+                            : null,
+                      ),
+                      child: isSelected
+                          ? const Icon(
+                              LucideIcons.check,
+                              size: 16,
+                              color: Colors.white,
+                            )
+                          : null,
                     ),
                   );
                 }),
@@ -353,7 +480,8 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
           trailing: Switch(
             value: AppSettings.reducedMotionOverride.value,
             activeColor: t.accent,
-            onChanged: (val) => setState(() => AppSettings.setReducedMotionOverride(val)),
+            onChanged: (val) =>
+                setState(() => AppSettings.setReducedMotionOverride(val)),
           ),
         ),
         const SizedBox(height: 8),
@@ -363,9 +491,17 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _LangButton(label: 'RU', active: currentLang == 'ru', onTap: () => widget.changeLang('ru')),
+              _LangButton(
+                label: 'RU',
+                active: currentLang == 'ru',
+                onTap: () => widget.changeLang('ru'),
+              ),
               const SizedBox(width: 6),
-              _LangButton(label: 'EN', active: currentLang == 'en', onTap: () => widget.changeLang('en')),
+              _LangButton(
+                label: 'EN',
+                active: currentLang == 'en',
+                onTap: () => widget.changeLang('en'),
+              ),
             ],
           ),
         ),
@@ -375,18 +511,29 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
         ClarifySettingsCard(
           icon: LucideIcons.listPlus,
           title: 'Быстрое добавление'.tr(currentLang),
-          onTap: () => setState(() => showQuickAddDefaults = !showQuickAddDefaults),
+          onTap: () =>
+              setState(() => showQuickAddDefaults = !showQuickAddDefaults),
           isExpanded: showQuickAddDefaults,
-          trailing: Icon(showQuickAddDefaults ? LucideIcons.chevronUp : LucideIcons.chevronDown, color: t.text3, size: 18),
+          trailing: Icon(
+            showQuickAddDefaults
+                ? LucideIcons.chevronUp
+                : LucideIcons.chevronDown,
+            color: t.text3,
+            size: 18,
+          ),
           expandedChild: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Divider(color: t.border, height: 17),
-              Text('Приоритет по умолчанию'.tr(currentLang), style: TextStyle(color: t.text3, fontSize: 12.5)),
+              Text(
+                'Приоритет по умолчанию'.tr(currentLang),
+                style: TextStyle(color: t.text3, fontSize: 12.5),
+              ),
               const SizedBox(height: 8),
               ClarifyPriorityLever(
                 value: AppSettings.quickAddDefaultPriority,
-                onChanged: (val) => setState(() => AppSettings.quickAddDefaultPriority = val),
+                onChanged: (val) =>
+                    setState(() => AppSettings.quickAddDefaultPriority = val),
                 getPriorityColor: (pVal) {
                   switch (pVal) {
                     case 'red':
@@ -404,7 +551,10 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
                 textMuted: t.text3,
               ),
               const SizedBox(height: 16),
-              Text('Повтор по умолчанию'.tr(currentLang), style: TextStyle(color: t.text3, fontSize: 12.5)),
+              Text(
+                'Повтор по умолчанию'.tr(currentLang),
+                style: TextStyle(color: t.text3, fontSize: 12.5),
+              ),
               const SizedBox(height: 8),
               DropdownButton<String>(
                 value: AppSettings.quickAddDefaultRecurrence,
@@ -412,13 +562,45 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
                 underline: const SizedBox(),
                 style: TextStyle(fontSize: 14, color: t.text),
                 items: [
-                  DropdownMenuItem(value: 'none', child: Text('Без повтора'.tr(currentLang), style: TextStyle(color: t.text))),
-                  DropdownMenuItem(value: 'daily', child: Text('Каждый день'.tr(currentLang), style: TextStyle(color: t.text))),
-                  DropdownMenuItem(value: 'weekdays', child: Text('По будням'.tr(currentLang), style: TextStyle(color: t.text))),
-                  DropdownMenuItem(value: 'weekly', child: Text('Каждую неделю'.tr(currentLang), style: TextStyle(color: t.text))),
-                  DropdownMenuItem(value: 'monthly', child: Text('Каждый месяц'.tr(currentLang), style: TextStyle(color: t.text))),
+                  DropdownMenuItem(
+                    value: 'none',
+                    child: Text(
+                      'Без повтора'.tr(currentLang),
+                      style: TextStyle(color: t.text),
+                    ),
+                  ),
+                  DropdownMenuItem(
+                    value: 'daily',
+                    child: Text(
+                      'Каждый день'.tr(currentLang),
+                      style: TextStyle(color: t.text),
+                    ),
+                  ),
+                  DropdownMenuItem(
+                    value: 'weekdays',
+                    child: Text(
+                      'По будням'.tr(currentLang),
+                      style: TextStyle(color: t.text),
+                    ),
+                  ),
+                  DropdownMenuItem(
+                    value: 'weekly',
+                    child: Text(
+                      'Каждую неделю'.tr(currentLang),
+                      style: TextStyle(color: t.text),
+                    ),
+                  ),
+                  DropdownMenuItem(
+                    value: 'monthly',
+                    child: Text(
+                      'Каждый месяц'.tr(currentLang),
+                      style: TextStyle(color: t.text),
+                    ),
+                  ),
                 ],
-                onChanged: (val) => setState(() => AppSettings.quickAddDefaultRecurrence = val!),
+                onChanged: (val) => setState(
+                  () => AppSettings.quickAddDefaultRecurrence = val!,
+                ),
               ),
             ],
           ),
@@ -431,7 +613,11 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
           title: 'Локальный кэш'.tr(currentLang),
           onTap: () => setState(() => showCacheDetails = !showCacheDetails),
           isExpanded: showCacheDetails,
-          trailing: Icon(showCacheDetails ? LucideIcons.chevronUp : LucideIcons.chevronDown, color: t.text3, size: 18),
+          trailing: Icon(
+            showCacheDetails ? LucideIcons.chevronUp : LucideIcons.chevronDown,
+            color: t.text3,
+            size: 18,
+          ),
           expandedChild: Column(
             children: [
               Divider(color: t.border, height: 17),
@@ -439,8 +625,16 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
                 children: [
                   Icon(LucideIcons.hardDrive, color: t.text, size: 18),
                   const SizedBox(width: 8),
-                  Expanded(child: Text('Размер кэша'.tr(currentLang), style: TextStyle(color: t.text, fontSize: 13))),
-                  Text(_cacheSizeLabel(), style: TextStyle(color: t.text3, fontSize: 13)),
+                  Expanded(
+                    child: Text(
+                      'Размер кэша'.tr(currentLang),
+                      style: TextStyle(color: t.text, fontSize: 13),
+                    ),
+                  ),
+                  Text(
+                    _cacheSizeLabel(),
+                    style: TextStyle(color: t.text3, fontSize: 13),
+                  ),
                 ],
               ),
               const SizedBox(height: 10),
@@ -477,9 +671,25 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
             if (await canLaunchUrl(url)) {
               await launchUrl(url, mode: LaunchMode.externalApplication);
             } else if (context.mounted) {
-              ClarifyToast.show(context, 'Не удалось открыть Telegram'.tr(currentLang), variant: ClarifyToastVariant.danger);
+              ClarifyToast.show(
+                context,
+                'Не удалось открыть Telegram'.tr(currentLang),
+                variant: ClarifyToastVariant.danger,
+              );
             }
           },
+        ),
+        const SizedBox(height: 12),
+        ClarifyButton(
+          label: 'Политика конфиденциальности'.tr(currentLang),
+          icon: LucideIcons.fileText,
+          variant: ClarifyButtonVariant.outline,
+          fullWidth: true,
+          onPressed: () => showPrivacyPolicyDialog(
+            context: context,
+            isDark: widget.isDark,
+            currentLang: currentLang,
+          ),
         ),
       ],
     );
@@ -495,42 +705,121 @@ class _PlanPage extends StatelessWidget {
     final t = context.tokens;
     return Scaffold(
       backgroundColor: t.bg,
-      appBar: AppBar(backgroundColor: t.bg, elevation: 0, foregroundColor: t.text, title: Text('Тариф'.tr(currentLang), style: const TextStyle(fontFamily: 'Golos Text', fontWeight: FontWeight.w700))),
+      appBar: AppBar(
+        backgroundColor: t.bg,
+        elevation: 0,
+        foregroundColor: t.text,
+        title: Text(
+          'Тариф'.tr(currentLang),
+          style: const TextStyle(
+            fontFamily: 'Golos Text',
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(color: t.accentSoft, borderRadius: BorderRadius.circular(999)),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(LucideIcons.crown, size: 14, color: t.accent),
-              const SizedBox(width: 6),
-              Text('Текущий тариф: Free'.tr(currentLang), style: TextStyle(color: t.accent, fontSize: 12.5, fontWeight: FontWeight.w700)),
-            ]),
+            decoration: BoxDecoration(
+              color: t.accentSoft,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(LucideIcons.crown, size: 14, color: t.accent),
+                const SizedBox(width: 6),
+                Text(
+                  'Текущий тариф: Free'.tr(currentLang),
+                  style: TextStyle(
+                    color: t.accent,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 20),
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: t.surface, borderRadius: BorderRadius.circular(ClarifyRadius.md)),
-            child: Column(children: [
-              Row(children: [
-                const Expanded(flex: 3, child: SizedBox()),
-                Expanded(flex: 2, child: Center(child: Text('Free', style: TextStyle(color: t.text3, fontWeight: FontWeight.w700, fontSize: 12.5)))),
-                Expanded(flex: 2, child: Center(child: Text('Pro', style: TextStyle(color: t.accent, fontWeight: FontWeight.w700, fontSize: 12.5)))),
-              ]),
-              const Divider(height: 20),
-              _PlanCompareRow(t: t, label: 'AI-запросы в месяц'.tr(currentLang), free: '50', pro: '∞'),
-              _PlanCompareRow(t: t, label: 'Участников в команде'.tr(currentLang), free: '3', pro: '∞'),
-              _PlanCompareRow(t: t, label: 'Яндекс.Календарь'.tr(currentLang), free: null, pro: null),
-              _PlanCompareRow(t: t, label: 'Расширенная статистика'.tr(currentLang), free: null, pro: null),
-            ]),
+            decoration: BoxDecoration(
+              color: t.surface,
+              borderRadius: BorderRadius.circular(ClarifyRadius.md),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    const Expanded(flex: 3, child: SizedBox()),
+                    Expanded(
+                      flex: 2,
+                      child: Center(
+                        child: Text(
+                          'Free',
+                          style: TextStyle(
+                            color: t.text3,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: Center(
+                        child: Text(
+                          'Pro',
+                          style: TextStyle(
+                            color: t.accent,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const Divider(height: 20),
+                _PlanCompareRow(
+                  t: t,
+                  label: 'AI-запросы в месяц'.tr(currentLang),
+                  free: '50',
+                  pro: '∞',
+                ),
+                _PlanCompareRow(
+                  t: t,
+                  label: 'Участников в команде'.tr(currentLang),
+                  free: '3',
+                  pro: '∞',
+                ),
+                _PlanCompareRow(
+                  t: t,
+                  label: 'Яндекс.Календарь'.tr(currentLang),
+                  free: null,
+                  pro: null,
+                ),
+                _PlanCompareRow(
+                  t: t,
+                  label: 'Расширенная статистика'.tr(currentLang),
+                  free: null,
+                  pro: null,
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 20),
           ClarifyButton(
             label: 'Оформить Pro — 199 ₽/мес'.tr(currentLang),
             variant: ClarifyButtonVariant.filled,
             fullWidth: true,
-            onPressed: () => ClarifyToast.show(context, 'Оплата Pro скоро будет доступна'.tr(currentLang), variant: ClarifyToastVariant.info),
+            onPressed: () => ClarifyToast.show(
+              context,
+              'Оплата Pro скоро будет доступна'.tr(currentLang),
+              variant: ClarifyToastVariant.info,
+            ),
           ),
         ],
       ),
@@ -543,17 +832,55 @@ class _PlanCompareRow extends StatelessWidget {
   final String label;
   final String? free;
   final String? pro;
-  const _PlanCompareRow({required this.t, required this.label, this.free, this.pro});
+  const _PlanCompareRow({
+    required this.t,
+    required this.label,
+    this.free,
+    this.pro,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(children: [
-        Expanded(flex: 3, child: Text(label, style: TextStyle(color: t.text, fontSize: 13))),
-        Expanded(flex: 2, child: Center(child: free != null ? Text(free!, style: TextStyle(color: t.text3, fontWeight: FontWeight.w600, fontSize: 13)) : Icon(LucideIcons.x, size: 15, color: t.danger))),
-        Expanded(flex: 2, child: Center(child: pro != null ? Text(pro!, style: TextStyle(color: t.accent, fontWeight: FontWeight.w700, fontSize: 13)) : Icon(LucideIcons.check, size: 15, color: t.accent))),
-      ]),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: Text(label, style: TextStyle(color: t.text, fontSize: 13)),
+          ),
+          Expanded(
+            flex: 2,
+            child: Center(
+              child: free != null
+                  ? Text(
+                      free!,
+                      style: TextStyle(
+                        color: t.text3,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    )
+                  : Icon(LucideIcons.x, size: 15, color: t.danger),
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Center(
+              child: pro != null
+                  ? Text(
+                      pro!,
+                      style: TextStyle(
+                        color: t.accent,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    )
+                  : Icon(LucideIcons.check, size: 15, color: t.accent),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -567,7 +894,18 @@ class _CalendarsPage extends StatelessWidget {
     final t = context.tokens;
     return Scaffold(
       backgroundColor: t.bg,
-      appBar: AppBar(backgroundColor: t.bg, elevation: 0, foregroundColor: t.text, title: Text('Календари'.tr(currentLang), style: const TextStyle(fontFamily: 'Golos Text', fontWeight: FontWeight.w700))),
+      appBar: AppBar(
+        backgroundColor: t.bg,
+        elevation: 0,
+        foregroundColor: t.text,
+        title: Text(
+          'Календари'.tr(currentLang),
+          style: const TextStyle(
+            fontFamily: 'Golos Text',
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
@@ -576,23 +914,42 @@ class _CalendarsPage extends StatelessWidget {
             borderRadius: BorderRadius.circular(ClarifyRadius.md),
             child: Padding(
               padding: const EdgeInsets.all(14),
-              child: Row(children: [
-                Icon(LucideIcons.calendarDays, color: t.text2, size: 22),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('Яндекс.Календарь'.tr(currentLang), style: TextStyle(color: t.text, fontWeight: FontWeight.w600, fontSize: 14.5)),
-                    const SizedBox(height: 2),
-                    Text('Требует Pro'.tr(currentLang), style: TextStyle(color: t.text3, fontSize: 12)),
-                  ]),
-                ),
-                ClarifyButton(
-                  label: 'Подключить'.tr(currentLang),
-                  variant: ClarifyButtonVariant.outline,
-                  scale: 0.85,
-                  onPressed: () => ClarifyToast.show(context, 'Интеграция скоро будет доступна'.tr(currentLang), variant: ClarifyToastVariant.info),
-                ),
-              ]),
+              child: Row(
+                children: [
+                  Icon(LucideIcons.calendarDays, color: t.text2, size: 22),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Яндекс.Календарь'.tr(currentLang),
+                          style: TextStyle(
+                            color: t.text,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14.5,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Требует Pro'.tr(currentLang),
+                          style: TextStyle(color: t.text3, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                  ClarifyButton(
+                    label: 'Подключить'.tr(currentLang),
+                    variant: ClarifyButtonVariant.outline,
+                    scale: 0.85,
+                    onPressed: () => ClarifyToast.show(
+                      context,
+                      'Интеграция скоро будет доступна'.tr(currentLang),
+                      variant: ClarifyToastVariant.info,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -610,7 +967,15 @@ class _SectionLabel extends StatelessWidget {
     final t = context.tokens;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8, left: 4),
-      child: Text(text.toUpperCase(), style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: t.text3, letterSpacing: 0.6)),
+      child: Text(
+        text.toUpperCase(),
+        style: TextStyle(
+          fontSize: 11.5,
+          fontWeight: FontWeight.w700,
+          color: t.text3,
+          letterSpacing: 0.6,
+        ),
+      ),
     );
   }
 }
@@ -619,7 +984,11 @@ class _LangButton extends StatelessWidget {
   final String label;
   final bool active;
   final VoidCallback onTap;
-  const _LangButton({required this.label, required this.active, required this.onTap});
+  const _LangButton({
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -629,8 +998,18 @@ class _LangButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(ClarifyRadius.sm),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(color: active ? t.accentSoft : Colors.transparent, borderRadius: BorderRadius.circular(ClarifyRadius.sm)),
-        child: Text(label, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: active ? t.accent : t.text3)),
+        decoration: BoxDecoration(
+          color: active ? t.accentSoft : Colors.transparent,
+          borderRadius: BorderRadius.circular(ClarifyRadius.sm),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w700,
+            color: active ? t.accent : t.text3,
+          ),
+        ),
       ),
     );
   }
