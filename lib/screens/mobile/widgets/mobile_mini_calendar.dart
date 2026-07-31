@@ -10,12 +10,14 @@ import '../../../core/theme/design_tokens.dart';
 class MobileMiniCalendar extends StatefulWidget {
   final String currentLang;
   final DateTime selectedDate;
+  final Set<String> datesWithTasks;
   final void Function(DateTime date) onDaySelected;
 
   const MobileMiniCalendar({
     super.key,
     required this.currentLang,
     required this.selectedDate,
+    required this.datesWithTasks,
     required this.onDaySelected,
   });
 
@@ -31,6 +33,13 @@ class _MobileMiniCalendarState extends State<MobileMiniCalendar> {
   static const _weekdaysRu = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
   bool _isSameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
+
+  // Тот же формат, что и task['due_date'] по всему приложению (dd.MM.yyyy) —
+  // см. DesktopPlannerScreen._formatDate — иначе сравнение с datesWithTasks
+  // молча ничего не найдёт.
+  String _formatDate(DateTime d) => '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+
+  bool _hasTasks(DateTime day) => widget.datesWithTasks.contains(_formatDate(day));
 
   List<DateTime> _currentWeek() {
     final today = widget.selectedDate;
@@ -90,6 +99,7 @@ class _MobileMiniCalendarState extends State<MobileMiniCalendar> {
               label: _weekdaysRu[day.weekday - 1].tr(widget.currentLang),
               isToday: _isSameDay(day, today),
               isSelected: _isSameDay(day, widget.selectedDate),
+              hasTasks: _hasTasks(day),
               onTap: () => widget.onDaySelected(day),
             )).toList(),
       ),
@@ -130,7 +140,7 @@ class _MobileMiniCalendarState extends State<MobileMiniCalendar> {
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 7, childAspectRatio: 1.4, mainAxisExtent: 36),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 7, childAspectRatio: 1.4, mainAxisExtent: 42),
             itemCount: rows * 7,
             itemBuilder: (context, index) {
               if (index < startOffset || index >= startOffset + totalDays) return const SizedBox.shrink();
@@ -141,6 +151,7 @@ class _MobileMiniCalendarState extends State<MobileMiniCalendar> {
                 label: '$dayNumber',
                 isToday: _isSameDay(day, today),
                 isSelected: _isSameDay(day, widget.selectedDate),
+                hasTasks: _hasTasks(day),
                 onTap: () {
                   widget.onDaySelected(day);
                   setState(() => _expanded = false);
@@ -159,33 +170,50 @@ class _DayCell extends StatelessWidget {
   final String label;
   final bool isToday;
   final bool isSelected;
+  final bool hasTasks;
   final VoidCallback onTap;
 
-  const _DayCell({required this.day, required this.label, required this.isToday, required this.isSelected, required this.onTap});
+  const _DayCell({required this.day, required this.label, required this.isToday, required this.isSelected, required this.hasTasks, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
+    // Точка — вне круга дня, а не поверх него: иначе на выбранном/сегодняшнем
+    // дне (уже залитом акцентом или с обводкой) индикатор той же точки цвета
+    // просто терялся бы на фоне.
     return InkWell(
       onTap: onTap,
       customBorder: const CircleBorder(),
-      child: Container(
-        width: 32,
-        height: 32,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: isSelected ? t.accent : Colors.transparent,
-          border: isToday && !isSelected ? Border.all(color: t.accent, width: 1.5) : null,
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: isSelected || isToday ? FontWeight.bold : FontWeight.w500,
-            color: isSelected ? t.onAccent : (isToday ? t.accent : t.text2),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isSelected ? t.accent : Colors.transparent,
+              border: isToday && !isSelected ? Border.all(color: t.accent, width: 1.5) : null,
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected || isToday ? FontWeight.bold : FontWeight.w500,
+                color: isSelected ? t.onAccent : (isToday ? t.accent : t.text2),
+              ),
+            ),
           ),
-        ),
+          const SizedBox(height: 3),
+          SizedBox(
+            width: 5,
+            height: 5,
+            child: hasTasks
+                ? DecoratedBox(decoration: BoxDecoration(shape: BoxShape.circle, color: isSelected ? t.accent : t.text3))
+                : null,
+          ),
+        ],
       ),
     );
   }

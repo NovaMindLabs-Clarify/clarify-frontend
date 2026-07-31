@@ -102,6 +102,15 @@ class _MobilePlannerShellState extends State<MobilePlannerShell> {
 
   int get _inboxCount => widget.tasks.where((t) => (t['due_date'] == null || t['due_date'] == '') && t['parent_id'] == null).length;
 
+  // Для точек-индикаторов в мини-календаре (MobileMiniCalendar) — без этого
+  // календарь был чистым датапикером, никак не показывающим, где вообще есть
+  // задачи. Считаем один раз здесь и прокидываем в оба экрана, использующих
+  // календарь, а не дублируем этот проход по tasks в каждом из них.
+  Set<String> get _datesWithTasks => widget.tasks
+      .where((t) => t['due_date'] != null && t['due_date'] != '' && t['parent_id'] == null)
+      .map((t) => t['due_date'] as String)
+      .toSet();
+
   Widget _buildTab(MobileTab tab) {
     switch (tab) {
       case MobileTab.today:
@@ -110,6 +119,7 @@ class _MobilePlannerShellState extends State<MobilePlannerShell> {
           userInitial: widget.userInitial,
           todayTasks: _todayTasks,
           inboxCount: _inboxCount,
+          datesWithTasks: _datesWithTasks,
           getPriorityColor: widget.getPriorityColor,
           getSubtaskStats: widget.getSubtaskStats,
           isOverdue: widget.isOverdue,
@@ -129,6 +139,7 @@ class _MobilePlannerShellState extends State<MobilePlannerShell> {
           currentLang: widget.currentLang,
           tasks: widget.tasks,
           initialDate: initialDate,
+          datesWithTasks: _datesWithTasks,
           getPriorityColor: widget.getPriorityColor,
           getSubtaskStats: widget.getSubtaskStats,
           isOverdue: widget.isOverdue,

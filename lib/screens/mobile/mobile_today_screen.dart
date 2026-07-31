@@ -16,6 +16,7 @@ class MobileTodayScreen extends StatelessWidget {
   final String userInitial;
   final List<Map<String, dynamic>> todayTasks;
   final int inboxCount;
+  final Set<String> datesWithTasks;
   final Color Function(String? priority) getPriorityColor;
   final Map<String, int> Function(dynamic parentId) getSubtaskStats;
   final bool Function(Map<String, dynamic> task) isOverdue;
@@ -31,6 +32,7 @@ class MobileTodayScreen extends StatelessWidget {
     required this.userInitial,
     required this.todayTasks,
     required this.inboxCount,
+    required this.datesWithTasks,
     required this.getPriorityColor,
     required this.getSubtaskStats,
     required this.isOverdue,
@@ -87,6 +89,7 @@ class MobileTodayScreen extends StatelessWidget {
         MobileMiniCalendar(
           currentLang: currentLang,
           selectedDate: now,
+          datesWithTasks: datesWithTasks,
           onDaySelected: (day) {
             if (!(day.year == now.year && day.month == now.month && day.day == now.day)) onOpenDate(day);
           },
