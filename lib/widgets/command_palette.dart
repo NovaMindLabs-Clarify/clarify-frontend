@@ -59,6 +59,30 @@ _PaletteEntry? _findByKey(List<_PaletteEntry> entries, String key) {
   return null;
 }
 
+/// Нечёткое совпадение (subsequence-match, как в Sublime Text/VS Code) —
+/// раньше поиск был строгим `.contains()`, любая опечатка или сокращение
+/// («крч тск» не находит «Создать задачу») давали пустой результат (см.
+/// docs/COMPETITOR_ANALYSIS_UPDATE_2026-07-31.md §2, пункт 3). Символы query
+/// должны встретиться в text по порядку, не обязательно подряд.
+bool _fuzzyMatches(String text, String query) {
+  if (query.isEmpty) return true;
+  final lowerText = text.toLowerCase();
+  final lowerQuery = query.toLowerCase();
+  var qi = 0;
+  for (var ti = 0; ti < lowerText.length && qi < lowerQuery.length; ti++) {
+    if (lowerText[ti] == lowerQuery[qi]) qi++;
+  }
+  return qi == lowerQuery.length;
+}
+
+/// Ниже — релевантнее (для сортировки по возрастанию): точное вхождение
+/// подстроки побеждает любой нечёткий матч, и чем раньше оно встречается,
+/// тем выше результат.
+int _fuzzyScore(String text, String query) {
+  final index = text.toLowerCase().indexOf(query.toLowerCase());
+  return index >= 0 ? index : 1 << 20;
+}
+
 /// Командная палитра (Ctrl+K, REDESIGN_V4_PLAN.md §6.6) — навигация, быстрые
 /// действия и поиск задач в одном месте. Архитектурно по мотивам AppFlowy
 /// command_palette.dart (см. план §6.6): 4 состояния (пустой запрос →
@@ -87,7 +111,8 @@ void showCommandPalette({
     EdgeInsetsGeometry? padding,
     EdgeInsetsGeometry? margin,
     Color? customColor,
-  }) buildGlassContainer,
+  })
+  buildGlassContainer,
 }) {
   showClarifySurface(
     context: context,
@@ -131,7 +156,8 @@ class _CommandPalette extends StatefulWidget {
     EdgeInsetsGeometry? padding,
     EdgeInsetsGeometry? margin,
     Color? customColor,
-  }) buildGlassContainer;
+  })
+  buildGlassContainer;
 
   const _CommandPalette({
     required this.currentLang,
@@ -159,12 +185,49 @@ class _CommandPaletteState extends State<_CommandPalette> {
   String _debouncedQuery = '';
   Timer? _debounce;
   int _highlightIndex = 0;
+  List<GlobalKey> _itemKeys = [];
 
   @override
   void dispose() {
     _debounce?.cancel();
     _controller.dispose();
     super.dispose();
+  }
+
+  // Клавиатурная подсветка и мышь раньше жили отдельно друг от друга —
+  // наведение мышью никак не двигало _highlightIndex, в отличие от
+  // Linear/Raycast/VS Code, где это работает в обе стороны (см.
+  // docs/COMPETITOR_ANALYSIS_UPDATE_2026-07-31.md §2, пункт 1).
+  void _ensureItemKeys(int count) {
+    if (_itemKeys.length != count) {
+      _itemKeys = List.generate(count, (_) => GlobalKey());
+    }
+  }
+
+  void _setHighlight(int index) {
+    if (index == _highlightIndex) return;
+    setState(() => _highlightIndex = index);
+  }
+
+  // Без этого стрелки могли увести подсветку за пределы видимой области
+  // ConstrainedBox(maxHeight: 380) без прокрутки списка вслед — известный
+  // сбой, который Linear/Raycast явно решают (см. тот же §2, пункт 2).
+  void _scrollToHighlight() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          _highlightIndex < 0 ||
+          _highlightIndex >= _itemKeys.length) {
+        return;
+      }
+      final ctx = _itemKeys[_highlightIndex].currentContext;
+      if (ctx != null) {
+        Scrollable.ensureVisible(
+          ctx,
+          duration: const Duration(milliseconds: 120),
+          alignment: 0.5,
+        );
+      }
+    });
   }
 
   void _handleChanged(String value) {
@@ -215,13 +278,20 @@ class _CommandPaletteState extends State<_CommandPalette> {
   }
 
   List<_PaletteEntry> _taskEntries(String query) {
-    final lower = query.toLowerCase();
-    return widget.tasks.where((task) {
-      if (lower.isEmpty) return true;
-      final title = task['title']?.toString().toLowerCase() ?? '';
-      final note = task['note']?.toString().toLowerCase() ?? '';
-      return title.contains(lower) || note.contains(lower);
-    }).map((task) {
+    var tasks = widget.tasks;
+    if (query.isNotEmpty) {
+      tasks =
+          tasks.where((task) {
+            final title = task['title']?.toString() ?? '';
+            final note = task['note']?.toString() ?? '';
+            return _fuzzyMatches(title, query) || _fuzzyMatches(note, query);
+          }).toList()..sort((a, b) {
+            final scoreA = _fuzzyScore((a['title'] ?? '').toString(), query);
+            final scoreB = _fuzzyScore((b['title'] ?? '').toString(), query);
+            return scoreA.compareTo(scoreB);
+          });
+    }
+    return tasks.map((task) {
       final isDone = task['is_completed'] == true;
       return _PaletteEntry(
         key: 'task:${task['id']}',
@@ -250,10 +320,15 @@ class _CommandPaletteState extends State<_CommandPalette> {
     if (visible.isEmpty) return KeyEventResult.ignored;
     if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
       setState(() => _highlightIndex = (_highlightIndex + 1) % visible.length);
+      _scrollToHighlight();
       return KeyEventResult.handled;
     }
     if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-      setState(() => _highlightIndex = (_highlightIndex - 1 + visible.length) % visible.length);
+      setState(
+        () => _highlightIndex =
+            (_highlightIndex - 1 + visible.length) % visible.length,
+      );
+      _scrollToHighlight();
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
@@ -264,45 +339,69 @@ class _CommandPaletteState extends State<_CommandPalette> {
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
       child: Text(
         title,
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: widget.textMuted, letterSpacing: 0.4),
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: widget.textMuted,
+          letterSpacing: 0.4,
+        ),
       ),
     );
   }
 
-  Widget _entryTile(_PaletteEntry entry, bool highlighted, ClarifyTokens t) {
-    return Material(
-      color: highlighted ? t.accent.withOpacity(0.12) : Colors.transparent,
-      borderRadius: BorderRadius.circular(ClarifyRadius.sm),
-      child: InkWell(
+  Widget _entryTile(
+    _PaletteEntry entry,
+    bool highlighted,
+    ClarifyTokens t, {
+    int? index,
+  }) {
+    return MouseRegion(
+      onEnter: index == null ? null : (_) => _setHighlight(index),
+      child: Material(
+        color: highlighted ? t.accent.withOpacity(0.12) : Colors.transparent,
         borderRadius: BorderRadius.circular(ClarifyRadius.sm),
-        onTap: () => _activate(entry),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(
-            children: [
-              Icon(entry.icon, size: 18, color: highlighted ? t.accent : widget.textMuted),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      entry.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: widget.textColor, fontWeight: FontWeight.w600, fontSize: 14),
-                    ),
-                    if (entry.subtitle != null && entry.subtitle!.isNotEmpty)
+        child: InkWell(
+          borderRadius: BorderRadius.circular(ClarifyRadius.sm),
+          onTap: () => _activate(entry),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                Icon(
+                  entry.icon,
+                  size: 18,
+                  color: highlighted ? t.accent : widget.textMuted,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        entry.subtitle!,
+                        entry.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: widget.textMuted, fontSize: 12),
+                        style: TextStyle(
+                          color: widget.textColor,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
                       ),
-                  ],
+                      if (entry.subtitle != null && entry.subtitle!.isNotEmpty)
+                        Text(
+                          entry.subtitle!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: widget.textMuted,
+                            fontSize: 12,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -317,8 +416,16 @@ class _CommandPaletteState extends State<_CommandPalette> {
     final isEmptyQuery = _query.isEmpty;
     final isLoading = !isEmptyQuery && _query != _debouncedQuery;
 
-    List<_PaletteEntry> visible;
+    List<_PaletteEntry> visible = const [];
     Widget resultsChild;
+
+    Widget tile(_PaletteEntry entry) {
+      final idx = visible.indexOf(entry);
+      return KeyedSubtree(
+        key: idx >= 0 && idx < _itemKeys.length ? _itemKeys[idx] : null,
+        child: _entryTile(entry, idx == _highlightIndex, t, index: idx),
+      );
+    }
 
     if (isEmptyQuery) {
       final allEntries = [...quickActions, ..._taskEntries('')];
@@ -327,15 +434,20 @@ class _CommandPaletteState extends State<_CommandPalette> {
           .whereType<_PaletteEntry>()
           .toList();
       visible = [...recentEntries, ...quickActions];
+      _ensureItemKeys(visible.length);
       final rows = <Widget>[
         if (recentEntries.isNotEmpty) ...[
           _sectionHeader("Недавние".tr(lang), t),
-          for (final entry in recentEntries) _entryTile(entry, visible.indexOf(entry) == _highlightIndex, t),
+          for (final entry in recentEntries) tile(entry),
         ],
         _sectionHeader("Быстрые действия".tr(lang), t),
-        for (final entry in quickActions) _entryTile(entry, visible.indexOf(entry) == _highlightIndex, t),
+        for (final entry in quickActions) tile(entry),
       ];
-      resultsChild = ListView(shrinkWrap: true, padding: EdgeInsets.zero, children: rows);
+      resultsChild = ListView(
+        shrinkWrap: true,
+        padding: EdgeInsets.zero,
+        children: rows,
+      );
     } else if (isLoading) {
       visible = const [];
       resultsChild = Padding(
@@ -349,10 +461,17 @@ class _CommandPaletteState extends State<_CommandPalette> {
         ),
       );
     } else {
-      final matches = [
-        ...quickActions.where((a) => a.title.toLowerCase().contains(_debouncedQuery.toLowerCase())),
-        ..._taskEntries(_debouncedQuery),
-      ];
+      final matchingActions =
+          quickActions
+              .where((a) => _fuzzyMatches(a.title, _debouncedQuery))
+              .toList()
+            ..sort(
+              (a, b) => _fuzzyScore(
+                a.title,
+                _debouncedQuery,
+              ).compareTo(_fuzzyScore(b.title, _debouncedQuery)),
+            );
+      final matches = [...matchingActions, ..._taskEntries(_debouncedQuery)];
       if (matches.isEmpty) {
         final askEntry = _PaletteEntry(
           key: 'suggestion:askAi',
@@ -361,23 +480,28 @@ class _CommandPaletteState extends State<_CommandPalette> {
           onSelect: () => widget.onAskAi(_debouncedQuery),
         );
         visible = [askEntry];
+        _ensureItemKeys(visible.length);
         resultsChild = ListView(
           shrinkWrap: true,
           padding: EdgeInsets.zero,
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-              child: Text("Ничего не найдено".tr(lang), style: TextStyle(color: widget.textMuted)),
+              child: Text(
+                "Ничего не найдено".tr(lang),
+                style: TextStyle(color: widget.textMuted),
+              ),
             ),
-            _entryTile(askEntry, 0 == _highlightIndex, t),
+            tile(askEntry),
           ],
         );
       } else {
         visible = matches;
+        _ensureItemKeys(visible.length);
         resultsChild = ListView(
           shrinkWrap: true,
           padding: EdgeInsets.zero,
-          children: [for (final entry in matches) _entryTile(entry, visible.indexOf(entry) == _highlightIndex, t)],
+          children: [for (final entry in matches) tile(entry)],
         );
       }
     }
@@ -401,16 +525,25 @@ class _CommandPaletteState extends State<_CommandPalette> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   widget.buildGlassContainer(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
                     child: ClarifyTextField(
                       controller: _controller,
                       autofocus: true,
                       style: TextStyle(color: widget.textColor, fontSize: 18),
                       hintText: "Команда, раздел или задача...".tr(lang),
-                      prefixIcon: Icon(LucideIcons.search, color: t.accent, size: 24),
+                      prefixIcon: Icon(
+                        LucideIcons.search,
+                        color: t.accent,
+                        size: 24,
+                      ),
                       onChanged: _handleChanged,
                       onSubmitted: (_) {
-                        if (effectiveIndex >= 0) _activate(visible[effectiveIndex]);
+                        if (effectiveIndex >= 0) {
+                          _activate(visible[effectiveIndex]);
+                        }
                       },
                     ),
                   ),
