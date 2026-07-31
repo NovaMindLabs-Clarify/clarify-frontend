@@ -32,6 +32,15 @@ class AppSettings {
   static bool get dailyReviewEnabled => _box.get('daily_review_enabled', defaultValue: true) as bool;
   static set dailyReviewEnabled(bool value) => _box.put('daily_review_enabled', value);
 
+  /// Дата (YYYY-MM-DD), для которой уже показывался "ежедневный обзор" —
+  /// раньше хранилась только в памяти (поле State), поэтому на мобильном
+  /// PWA, где браузер/ОС часто убивает вкладку в фоне и пересоздаёт State
+  /// заново, обзор фактически показывался при КАЖДОМ заходе в приложение
+  /// вместо одного раза в день. Персист в Hive переживает пересоздание
+  /// процесса.
+  static String? get lastDailyReviewDate => _box.get('last_daily_review_date') as String?;
+  static set lastDailyReviewDate(String? value) => _box.put('last_daily_review_date', value);
+
   static String get quickAddDefaultPriority => _box.get('quick_add_default_priority', defaultValue: 'none') as String;
   static set quickAddDefaultPriority(String value) => _box.put('quick_add_default_priority', value);
 

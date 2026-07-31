@@ -283,10 +283,6 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     );
   }
 
-  // Храним дату (ДД.ММ.ГГГГ), для которой уже показывали обзор — а не просто bool,
-  // иначе сводка не повторится на следующий день без перезапуска приложения.
-  String? _dailyReviewShownForDate;
-
   // Даты, для которых уже показали предупреждение о перегрузке — чтобы не спамить
   // диалогом на каждой 11-й, 12-й и т.д. задаче после смены `== 10` на `>= 10`.
   final Set<String> _burnoutWarnedDates = {};
@@ -469,14 +465,18 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   // просрочено), не поздравление с закрытием всех задач (как было раньше) —
   // та версия срабатывала только в узком случае "все задачи на сегодня
   // выполнены", из-за чего выглядела как "не работает" для большинства
-  // пользователей. Показывается один раз за день, при первой загрузке задач
-  // в этой сессии — не привязана к конкретному времени суток (у бэкенда нет
-  // таймзоны пользователя, чтобы слать это именно утром через push).
+  // пользователей. Показывается один раз за день — не привязана к конкретному
+  // времени суток (у бэкенда нет таймзоны пользователя, чтобы слать это
+  // именно утром через push). Дата последнего показа — в Hive
+  // (AppSettings.lastDailyReviewDate), не в поле State: на мобильном PWA
+  // браузер/ОС часто убивает вкладку в фоне и пересоздаёт State при каждом
+  // возврате в приложение, из-за чего обзор с чисто in-memory отметкой
+  // показывался практически при каждом заходе вместо одного раза в день.
   void _checkDailyReviewTrigger() {
     if (!AppSettings.dailyReviewEnabled) return;
     final todayStr = _formatDate(DateTime.now());
-    if (_dailyReviewShownForDate == todayStr) return; // Уже показывали сегодня
-    _dailyReviewShownForDate = todayStr;
+    if (AppSettings.lastDailyReviewDate == todayStr) return; // Уже показывали сегодня
+    AppSettings.lastDailyReviewDate = todayStr;
 
     final todayPending = tasks.where((t) => t['due_date'] == todayStr && t['parent_id'] == null && t['is_completed'] != true).length;
     final overdueCount = tasks.where((t) => _isOverdue(t)).length;

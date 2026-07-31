@@ -80,32 +80,45 @@ class _SwipeToDeleteTaskRowState extends State<SwipeToDeleteTaskRow> {
 
   @override
   Widget build(BuildContext context) {
-    if (_pendingDelete) return const SizedBox.shrink();
-
     final t = context.tokens;
-    return Dismissible(
-      key: ValueKey('swipe_delete_${widget.task['id']}'),
-      direction: DismissDirection.endToStart,
-      onDismissed: (_) => _startDelete(),
-      background: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        alignment: Alignment.centerRight,
-        decoration: BoxDecoration(color: t.danger, borderRadius: BorderRadius.circular(ClarifyRadius.md)),
-        child: Icon(LucideIcons.trash2, color: t.onAccent),
-      ),
-      child: MobileTaskRow(
-        task: widget.task,
-        priorityColor: widget.priorityColor,
-        subtaskStats: widget.subtaskStats,
-        overdue: widget.overdue,
-        currentLang: widget.currentLang,
-        onToggle: widget.onToggle,
-        onDelete: _startDelete,
-        onTap: widget.onTap,
-        onQuickUpdateTask: widget.onQuickUpdateTask,
-        showDate: widget.showDate,
-      ),
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
+    // Раньше при удалении/отмене этот виджет мгновенно схлопывался в
+    // SizedBox.shrink() ровно на этом месте — сама задача пропадала/
+    // появлялась одним кадром, а соседние строки в ReorderableListView
+    // дёргались на её место так же резко. AnimatedSize вместо голого if —
+    // высота едет плавно в обе стороны, и остальные задачи сами уезжают
+    // вверх/вниз вместе с ней, без отдельной анимации на каждую соседнюю
+    // строку.
+    return AnimatedSize(
+      duration: reduceMotion ? Duration.zero : ClarifyMotion.slow,
+      curve: ClarifyMotion.standard,
+      alignment: Alignment.topCenter,
+      child: _pendingDelete
+          ? const SizedBox.shrink()
+          : Dismissible(
+              key: ValueKey('swipe_delete_${widget.task['id']}'),
+              direction: DismissDirection.endToStart,
+              onDismissed: (_) => _startDelete(),
+              background: Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                alignment: Alignment.centerRight,
+                decoration: BoxDecoration(color: t.danger, borderRadius: BorderRadius.circular(ClarifyRadius.md)),
+                child: Icon(LucideIcons.trash2, color: t.onAccent),
+              ),
+              child: MobileTaskRow(
+                task: widget.task,
+                priorityColor: widget.priorityColor,
+                subtaskStats: widget.subtaskStats,
+                overdue: widget.overdue,
+                currentLang: widget.currentLang,
+                onToggle: widget.onToggle,
+                onDelete: _startDelete,
+                onTap: widget.onTap,
+                onQuickUpdateTask: widget.onQuickUpdateTask,
+                showDate: widget.showDate,
+              ),
+            ),
     );
   }
 }

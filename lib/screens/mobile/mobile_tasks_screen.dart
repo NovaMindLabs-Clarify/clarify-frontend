@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/localization.dart';
 import '../../core/theme/design_tokens.dart';
 import '../../widgets/clarify_cascade_item.dart';
@@ -167,10 +166,14 @@ class _MobileTasksScreenState extends State<MobileTasksScreen> {
                     ),
                   ),
                 )
-              // Long-press drag-handle для переупорядочивания — тот же жест, что и
-              // в десктопном «Мой день» (REDESIGN_V3_PLAN.md §3.13/5.13). Свайп
-              // (удаление) — горизонтальный, драг — вертикальный за отдельную
-              // ручку, конфликта между жестами на одной строке нет.
+              // Долгое нажатие прямо на строке задачи запускает переупорядочивание —
+              // без отдельной ручки-хвата: она вносила визуальный шум и не
+              // схлопывалась вместе со строкой при удалении/отмене (оставалась
+              // висеть "осиротевшей" точкой, пока SwipeToDeleteTaskRow был уже
+              // схлопнут). ReorderableDelayedDragStartListener ждёт задержку перед
+              // стартом драга, поэтому не конфликтует с мгновенным горизонтальным
+              // свайпом-удалением внутри SwipeToDeleteTaskRow — жесты различаются
+              // по направлению и по задержке распознавания.
               : ReorderableListView.builder(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
                   itemCount: tasks.length,
@@ -186,32 +189,21 @@ class _MobileTasksScreenState extends State<MobileTasksScreen> {
                     return ClarifyCascadeItem(
                       key: ValueKey('cascade_${task['id']}'),
                       index: index,
-                      child: Row(
+                      child: ReorderableDelayedDragStartListener(
                         key: ValueKey(task['id'].toString()),
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Expanded(
-                            child: SwipeToDeleteTaskRow(
-                              task: task,
-                              currentLang: widget.currentLang,
-                              showDate: _filter != _TaskFilter.today,
-                              priorityColor: widget.getPriorityColor(task['priority']),
-                              subtaskStats: widget.getSubtaskStats(task['id']),
-                              overdue: widget.isOverdue(task),
-                              onToggle: () => widget.onToggle(task),
-                              onConfirmedDelete: () => widget.onDelete(task['id']),
-                              onTap: () => widget.onTap(task),
-                              onQuickUpdateTask: (updates) => widget.onQuickUpdateTask(task['id'], updates),
-                            ),
-                          ),
-                          ReorderableDelayedDragStartListener(
-                            index: index,
-                            child: Padding(
-                              padding: const EdgeInsets.only(left: 4, bottom: 8),
-                              child: Icon(LucideIcons.gripVertical, size: 20, color: t.text3),
-                            ),
-                          ),
-                        ],
+                        index: index,
+                        child: SwipeToDeleteTaskRow(
+                          task: task,
+                          currentLang: widget.currentLang,
+                          showDate: _filter != _TaskFilter.today,
+                          priorityColor: widget.getPriorityColor(task['priority']),
+                          subtaskStats: widget.getSubtaskStats(task['id']),
+                          overdue: widget.isOverdue(task),
+                          onToggle: () => widget.onToggle(task),
+                          onConfirmedDelete: () => widget.onDelete(task['id']),
+                          onTap: () => widget.onTap(task),
+                          onQuickUpdateTask: (updates) => widget.onQuickUpdateTask(task['id'], updates),
+                        ),
                       ),
                     );
                   },
