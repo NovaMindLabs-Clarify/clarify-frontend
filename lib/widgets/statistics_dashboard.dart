@@ -1,8 +1,11 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../core/config.dart';
 import '../core/localization.dart';
 import '../core/tags.dart';
 import '../core/theme/design_tokens.dart';
+import 'clarify_day_load_warning.dart' show dayLoadMinutes;
 
 enum _ActivityPeriod { week, month, year }
 
@@ -125,6 +128,31 @@ class _StatisticsDashboardState extends State<StatisticsDashboard> {
         }
       }
     }
+
+    // "Здоровье недели" — сводка по трём уже отслеживаемым по отдельным
+    // задачам сигналам (значки гниения/переноса на карточках, предупреждение
+    // о загрузке дня при планировании), сведённая в одно место: раньше их
+    // можно было заметить только по одной задаче за раз, листая список, а не
+    // как общую картину недели. Условия здесь намеренно зеркалят
+    // buildRotBadge/buildRescheduleBadge (clarify_task_checkbox.dart) —
+    // цифра в дайджесте не должна расходиться с тем, что показывает бейдж на
+    // самой задаче.
+    int rotCount = 0;
+    int rescheduleCount = 0;
+    for (final task in tasks) {
+      if (task['is_completed'] == true) continue;
+      if (task['due_date'] == null || isOverdue(task)) {
+        final createdAt = DateTime.tryParse(task['created_at']?.toString() ?? '');
+        if (createdAt != null && now.difference(createdAt).inDays >= AppConfig.taskRotDays) rotCount++;
+      }
+      final rescheduled = task['reschedule_count'] as int?;
+      if (rescheduled != null && rescheduled >= AppConfig.rescheduleWarningCount) rescheduleCount++;
+    }
+    String fmtDate(DateTime d) => "${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}";
+    final todayDateOnly = DateTime(now.year, now.month, now.day);
+    final overloadedDaysCount = List.generate(7, (i) => todayDateOnly.add(Duration(days: i)))
+        .where((d) => dayLoadMinutes(tasks, fmtDate(d)) >= AppConfig.dailyLoadWarningMinutes)
+        .length;
 
     final activityBuckets = _activityBuckets(now);
     final activityTotal = activityBuckets.fold<int>(0, (a, b) => a + b);
@@ -314,6 +342,36 @@ class _StatisticsDashboardState extends State<StatisticsDashboard> {
       );
     }
 
+    Widget buildHealthRow(IconData icon, String label, String detail, int count) {
+      final ok = count == 0;
+      final color = ok ? t.success : t.warning;
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(color: color.withValues(alpha: 0.15), shape: BoxShape.circle),
+              alignment: Alignment.center,
+              child: Icon(ok ? LucideIcons.check : icon, size: 18, color: color),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.w600)),
+                  Text(detail, style: TextStyle(color: textMuted, fontSize: 12)),
+                ],
+              ),
+            ),
+            Text('$count', style: TextStyle(fontFamily: 'Unbounded', fontSize: 20, fontWeight: FontWeight.w700, color: color)),
+          ],
+        ),
+      );
+    }
+
     Widget buildHeatCell(String label, int count, int maxCount) {
       final intensity = maxCount == 0 ? 0.0 : count / maxCount;
       final bg = Color.lerp(t.surfaceSunken, t.accent, intensity.clamp(0.0, 1.0))!;
@@ -359,6 +417,36 @@ class _StatisticsDashboardState extends State<StatisticsDashboard> {
               const SizedBox(width: 16),
               buildKpiCard("Серия дней подряд", "$streak"),
             ],
+          ),
+          const SizedBox(height: 24),
+
+          buildGlassContainer(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text("Здоровье недели".tr(currentLang), style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                buildHealthRow(
+                  LucideIcons.archive,
+                  "Гниющие задачи".tr(currentLang),
+                  "${"Без движения дольше".tr(currentLang)} ${AppConfig.taskRotDays} ${"дн.".tr(currentLang)}",
+                  rotCount,
+                ),
+                buildHealthRow(
+                  LucideIcons.history,
+                  "Часто переносятся".tr(currentLang),
+                  "${"Перенесены".tr(currentLang)} ${AppConfig.rescheduleWarningCount}+ ${"раз".tr(currentLang)}",
+                  rescheduleCount,
+                ),
+                buildHealthRow(
+                  LucideIcons.triangleAlert,
+                  "Перегруженные дни".tr(currentLang),
+                  "${"Из ближайших 7".tr(currentLang)}",
+                  overloadedDaysCount,
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 24),
 

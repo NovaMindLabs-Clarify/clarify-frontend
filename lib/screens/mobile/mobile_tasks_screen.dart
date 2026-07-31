@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/localization.dart';
 import '../../core/theme/design_tokens.dart';
 import '../../widgets/clarify_cascade_item.dart';
 import '../../widgets/clarify_illustrations.dart';
+import 'mobile_search_screen.dart';
 import 'widgets/mobile_mini_calendar.dart';
 import 'widgets/swipe_to_delete_task_row.dart';
 
@@ -111,16 +113,39 @@ class _MobileTasksScreenState extends State<MobileTasksScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-          child: Column(
+          padding: const EdgeInsets.fromLTRB(20, 20, 12, 12),
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Задачи'.tr(widget.currentLang), style: TextStyle(fontFamily: 'Golos Text', fontSize: 22, fontWeight: FontWeight.w700, color: t.text)),
-              const SizedBox(height: 2),
-              // Невидимый плейсхолдер той же высоты, что подпись даты на "Мой
-              // день" (MobileTodayScreen) — без него календарная плашка и
-              // пустое состояние оказываются на разной высоте между вкладками.
-              Opacity(opacity: 0, child: Text('.', style: TextStyle(fontSize: 13, color: t.text3))),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Задачи'.tr(widget.currentLang), style: TextStyle(fontFamily: 'Golos Text', fontSize: 22, fontWeight: FontWeight.w700, color: t.text)),
+                    const SizedBox(height: 2),
+                    // Невидимый плейсхолдер той же высоты, что подпись даты на "Мой
+                    // день" (MobileTodayScreen) — без него календарная плашка и
+                    // пустое состояние оказываются на разной высоте между вкладками.
+                    Opacity(opacity: 0, child: Text('.', style: TextStyle(fontSize: 13, color: t.text3))),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: Icon(LucideIcons.search, color: t.text2),
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => MobileSearchScreen(
+                    currentLang: widget.currentLang,
+                    tasks: widget.tasks,
+                    getPriorityColor: widget.getPriorityColor,
+                    getSubtaskStats: widget.getSubtaskStats,
+                    isOverdue: widget.isOverdue,
+                    onToggle: widget.onToggle,
+                    onDelete: widget.onDelete,
+                    onTap: widget.onTap,
+                    onQuickUpdateTask: widget.onQuickUpdateTask,
+                  ),
+                )),
+              ),
             ],
           ),
         ),

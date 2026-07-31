@@ -64,7 +64,10 @@ _PaletteEntry? _findByKey(List<_PaletteEntry> entries, String key) {
 /// («крч тск» не находит «Создать задачу») давали пустой результат (см.
 /// docs/COMPETITOR_ANALYSIS_UPDATE_2026-07-31.md §2, пункт 3). Символы query
 /// должны встретиться в text по порядку, не обязательно подряд.
-bool _fuzzyMatches(String text, String query) {
+/// Публичная (не `_`-приватная) — переиспользуется мобильным поиском
+/// (mobile_search_screen.dart), у которого нет ни клавиатурной палитры, ни
+/// самого доступа к private-функциям этого файла.
+bool fuzzyMatches(String text, String query) {
   if (query.isEmpty) return true;
   final lowerText = text.toLowerCase();
   final lowerQuery = query.toLowerCase();
@@ -78,7 +81,7 @@ bool _fuzzyMatches(String text, String query) {
 /// Ниже — релевантнее (для сортировки по возрастанию): точное вхождение
 /// подстроки побеждает любой нечёткий матч, и чем раньше оно встречается,
 /// тем выше результат.
-int _fuzzyScore(String text, String query) {
+int fuzzyScore(String text, String query) {
   final index = text.toLowerCase().indexOf(query.toLowerCase());
   return index >= 0 ? index : 1 << 20;
 }
@@ -284,10 +287,10 @@ class _CommandPaletteState extends State<_CommandPalette> {
           tasks.where((task) {
             final title = task['title']?.toString() ?? '';
             final note = task['note']?.toString() ?? '';
-            return _fuzzyMatches(title, query) || _fuzzyMatches(note, query);
+            return fuzzyMatches(title, query) || fuzzyMatches(note, query);
           }).toList()..sort((a, b) {
-            final scoreA = _fuzzyScore((a['title'] ?? '').toString(), query);
-            final scoreB = _fuzzyScore((b['title'] ?? '').toString(), query);
+            final scoreA = fuzzyScore((a['title'] ?? '').toString(), query);
+            final scoreB = fuzzyScore((b['title'] ?? '').toString(), query);
             return scoreA.compareTo(scoreB);
           });
     }
@@ -463,13 +466,13 @@ class _CommandPaletteState extends State<_CommandPalette> {
     } else {
       final matchingActions =
           quickActions
-              .where((a) => _fuzzyMatches(a.title, _debouncedQuery))
+              .where((a) => fuzzyMatches(a.title, _debouncedQuery))
               .toList()
             ..sort(
-              (a, b) => _fuzzyScore(
+              (a, b) => fuzzyScore(
                 a.title,
                 _debouncedQuery,
-              ).compareTo(_fuzzyScore(b.title, _debouncedQuery)),
+              ).compareTo(fuzzyScore(b.title, _debouncedQuery)),
             );
       final matches = [...matchingActions, ..._taskEntries(_debouncedQuery)];
       if (matches.isEmpty) {
