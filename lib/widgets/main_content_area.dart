@@ -12,7 +12,6 @@ import 'clarify_press_glow.dart';
 import 'clarify_surface.dart';
 import 'friends_screen.dart';
 import 'messenger_shell.dart';
-import 'user_profile_modal.dart';
 import 'project_kanban_board.dart';
 import 'projects_screen.dart';
 
@@ -401,12 +400,6 @@ class MainContentArea extends StatelessWidget {
         currentLang: currentLang,
         scale: scale,
         buildGlassContainer: buildGlassContainer,
-        onOpenProfile: (userId) => showUserProfileModal(
-          context: context,
-          userId: userId,
-          currentLang: currentLang,
-          onOpenConversation: (partnerId, name) => onOpenDirectChat?.call(partnerId, name),
-        ),
         onOpenConversation: (partnerId, name) => onOpenDirectChat?.call(partnerId, name),
       );
     }

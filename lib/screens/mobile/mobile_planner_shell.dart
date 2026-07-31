@@ -7,7 +7,6 @@ import '../../widgets/clarify_day_load_warning.dart';
 import '../../widgets/clarify_glass.dart';
 import '../../widgets/clarify_pressable.dart';
 import '../../widgets/friends_screen.dart';
-import '../../widgets/user_profile_modal.dart';
 import '../../widgets/conversations_screen.dart';
 import '../../widgets/mobile_quick_add_sheet.dart';
 import 'mobile_today_screen.dart';
@@ -362,17 +361,8 @@ class _FriendsPage extends StatelessWidget {
         currentLang: currentLang,
         showHeader: false,
         buildGlassContainer: ({required child, margin, padding, customColor}) => ClarifyGlass(margin: margin, padding: padding, customColor: customColor, child: child),
-        onOpenProfile: (userId) => showUserProfileModal(
-          context: context,
-          userId: userId,
-          currentLang: currentLang,
-          onOpenConversation: (partnerId, name) => Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => ConversationScreen(currentLang: currentLang, partnerId: partnerId, partnerName: name),
-          )),
-        ),
-        // Прямая кнопка "написать" на самой строке друга — раньше единственный
-        // способ дойти до чата был через профиль (тап по строке → модалка →
-        // кнопка "Написать"), лишний прыжок по прямому запросу пользователя.
+        // Единственное действие на строке друга — кнопка "написать", без
+        // промежуточного перехода в профиль (убран по прямому запросу).
         onOpenConversation: (partnerId, name) => Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => ConversationScreen(currentLang: currentLang, partnerId: partnerId, partnerName: name),
         )),

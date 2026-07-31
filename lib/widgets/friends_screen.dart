@@ -16,17 +16,16 @@ class FriendsScreen extends StatefulWidget {
   final String currentLang;
   final double scale;
   final Widget Function({required Widget child, EdgeInsetsGeometry? margin, EdgeInsetsGeometry? padding, Color? customColor}) buildGlassContainer;
-  final void Function(String userId)? onOpenProfile;
-  // Прямая кнопка "написать" на строке друга — раньше единственный путь к
-  // чату был через профиль (тап по строке → модалка → "Написать"), лишний
-  // прыжок по прямому запросу пользователя.
+  // Переход в профиль друга по тапу на строку убран по прямому запросу —
+  // единственное действие на строке теперь кнопка "написать" ниже, без
+  // промежуточного экрана профиля.
   final void Function(String userId, String name)? onOpenConversation;
   // На десктопе (внутри MainContentArea) заголовок отсюда — единственный.
   // На мобильном экран уже открывается со своим AppBar(title: "Друзья") в
   // MobilePlannerShell — без этого флага заголовок дублировался бы дважды.
   final bool showHeader;
 
-  const FriendsScreen({super.key, required this.currentLang, this.scale = 1.0, required this.buildGlassContainer, this.onOpenProfile, this.onOpenConversation, this.showHeader = true});
+  const FriendsScreen({super.key, required this.currentLang, this.scale = 1.0, required this.buildGlassContainer, this.onOpenConversation, this.showHeader = true});
 
   @override
   State<FriendsScreen> createState() => _FriendsScreenState();
@@ -153,7 +152,6 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
         return _PersonRow(
           name: displayName,
           avatarUrl: f['avatar_url'] as String?,
-          onTap: widget.onOpenProfile != null ? () => widget.onOpenProfile!(f['user_id'] as String) : null,
           buildGlassContainer: widget.buildGlassContainer,
           trailing: widget.onOpenConversation == null
               ? null
@@ -229,11 +227,10 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
 class _PersonRow extends StatelessWidget {
   final String name;
   final String? avatarUrl;
-  final VoidCallback? onTap;
   final Widget? trailing;
   final Widget Function({required Widget child, EdgeInsetsGeometry? margin, EdgeInsetsGeometry? padding, Color? customColor}) buildGlassContainer;
 
-  const _PersonRow({required this.name, this.avatarUrl, this.onTap, this.trailing, required this.buildGlassContainer});
+  const _PersonRow({required this.name, this.avatarUrl, this.trailing, required this.buildGlassContainer});
 
   @override
   Widget build(BuildContext context) {
@@ -241,7 +238,6 @@ class _PersonRow extends StatelessWidget {
     return buildGlassContainer(
       margin: const EdgeInsets.only(bottom: 10),
       child: ListTile(
-        onTap: onTap,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         leading: CircleAvatar(
           radius: 18,

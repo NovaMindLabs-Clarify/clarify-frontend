@@ -176,6 +176,11 @@ class _ClarifyStrikeTextState extends State<ClarifyStrikeText> with TickerProvid
           textDirection: Directionality.of(context),
           textScaler: MediaQuery.textScalerOf(context),
           ellipsis: widget.overflow == TextOverflow.ellipsis ? '…' : null,
+          // TextWidthBasis.parent (дефолт) отдаёт в .width практически весь
+          // maxWidth констрейнта, а не фактическую ширину глифов — если строка
+          // короче доступного места (обычный случай в Expanded), черта
+          // рисовалась на всю ширину слота, а не по факту символов текста.
+          textWidthBasis: TextWidthBasis.longestLine,
         )..layout(maxWidth: constraints.hasBoundedWidth ? constraints.maxWidth : double.infinity);
         final textWidth = painter.width;
 
