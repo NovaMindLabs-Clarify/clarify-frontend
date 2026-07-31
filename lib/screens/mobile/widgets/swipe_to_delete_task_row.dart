@@ -97,6 +97,7 @@ class _SwipeToDeleteTaskRowState extends State<SwipeToDeleteTaskRow> {
         priorityColor: widget.priorityColor,
         subtaskStats: widget.subtaskStats,
         overdue: widget.overdue,
+        currentLang: widget.currentLang,
         onToggle: widget.onToggle,
         onDelete: _startDelete,
         onTap: widget.onTap,

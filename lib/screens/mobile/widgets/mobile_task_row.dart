@@ -4,6 +4,15 @@ import '../../../core/checklist.dart';
 import '../../../core/theme/design_tokens.dart';
 import '../../../widgets/clarify_task_checkbox.dart';
 
+/// Внимание: mobile_task_row.dart и task_cards.dart — два отдельных виджета
+/// для одного и того же визуального смысла (десктоп/мобильный ряд задачи),
+/// не связаны наследованием. Любой новый бейдж на карточке задачи нужно
+/// добавлять в ОБА места — реализация вынесена в общие buildRotBadge/
+/// buildRescheduleBadge (clarify_task_checkbox.dart) именно чтобы не
+/// дублировать саму логику, но сам факт вызова в каждом виджете дублировать
+/// придётся (см. историю бага: бейджи появились только на десктопе, потому
+/// что при добавлении забыли про этот файл).
+
 /// Строка задачи, общая для "Сегодня", "Задачи" и "Команды" на мобильной
 /// версии — левая полоса цвета приоритета вместо отдельного кружка-чекбокса
 /// с цветной обводкой, как на десктопе (там мышь, здесь палец — крупнее
@@ -13,6 +22,7 @@ class MobileTaskRow extends StatelessWidget {
   final Color priorityColor;
   final Map<String, int> subtaskStats;
   final bool overdue;
+  final String currentLang;
   final VoidCallback onToggle;
   final VoidCallback onDelete;
   final VoidCallback onTap;
@@ -24,6 +34,7 @@ class MobileTaskRow extends StatelessWidget {
     required this.priorityColor,
     required this.subtaskStats,
     required this.overdue,
+    required this.currentLang,
     required this.onToggle,
     required this.onDelete,
     required this.onTap,
@@ -38,6 +49,8 @@ class MobileTaskRow extends StatelessWidget {
     final cStats = checklistStats(task['checklist']);
     final bool hasChecklist = cStats['total']! > 0;
     final String? tag = (task['tags'] as String?)?.split(',').first.trim();
+    final rotBadge = buildRotBadge(task: task, isDone: isDone, overdue: overdue, tokens: t, currentLang: currentLang);
+    final rescheduleBadge = buildRescheduleBadge(task: task, isDone: isDone, tokens: t, currentLang: currentLang);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -84,7 +97,7 @@ class MobileTaskRow extends StatelessWidget {
                             color: isDone ? t.text3 : t.text,
                           ),
                         ),
-                        if (showDate && task['due_date'] != null || task['due_time'] != null || hasSubtasks || hasChecklist || tag != null) ...[
+                        if (showDate && task['due_date'] != null || task['due_time'] != null || hasSubtasks || hasChecklist || tag != null || rotBadge != null || rescheduleBadge != null) ...[
                           const SizedBox(height: 4),
                           Wrap(
                             spacing: 8,
@@ -102,6 +115,8 @@ class MobileTaskRow extends StatelessWidget {
                                 ClarifySubtaskBadge(done: cStats['done']!, total: cStats['total']!, tokens: t, icon: LucideIcons.listTodo),
                               if (tag != null && tag.isNotEmpty)
                                 Text('#$tag', style: TextStyle(fontSize: 12, color: t.accent, fontWeight: FontWeight.w600)),
+                              ?rotBadge,
+                              ?rescheduleBadge,
                             ],
                           ),
                         ],

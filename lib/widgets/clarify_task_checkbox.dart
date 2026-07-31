@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../core/config.dart';
+import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
 
 /// Анимированный кружок выполнения задачи — замена стокового
@@ -272,4 +274,65 @@ class ClarifyInfoBadge extends StatelessWidget {
       ),
     );
   }
+}
+
+/// "Гниющая" задача (task rot) — невыполненная, без активного будущего
+/// дедлайна (нет даты или дедлайн уже прошёл) и созданная давно, никак
+/// раньше не выделялась среди свежих задач. Общая функция для десктопных
+/// карточек (task_cards.dart) и мобильной строки (mobile_task_row.dart) —
+/// раньше жила только в TaskCardBuilders, из-за чего бейдж не появлялся на
+/// мобильном (MobileTaskRow — отдельный виджет, не переиспользует
+/// TaskCardBuilders). Приоритет 'red' даёт более тревожный (danger, не
+/// warning) цвет: важная задача, которая простаивает, сильнее нуждается во
+/// внимании, чем рядовая (см. идею "срочное вытесняет важное" — один и тот
+/// же механизм с разной окраской, а не отдельная система).
+Widget? buildRotBadge({
+  required Map<String, dynamic> task,
+  required bool isDone,
+  required bool overdue,
+  required ClarifyTokens tokens,
+  required String currentLang,
+  double scale = 1.0,
+}) {
+  if (isDone) return null;
+  if (!(task['due_date'] == null || overdue)) return null;
+  final createdAt = DateTime.tryParse(task['created_at']?.toString() ?? '');
+  if (createdAt == null) return null;
+  final ageDays = DateTime.now().difference(createdAt).inDays;
+  if (ageDays < AppConfig.taskRotDays) return null;
+  final bool isImportant = task['priority'] == 'red';
+  return Tooltip(
+    message: '${"Задача не двигается уже".tr(currentLang)} $ageDays ${"дн.".tr(currentLang)}',
+    child: ClarifyInfoBadge(
+      icon: LucideIcons.archive,
+      label: '$ageDays ${"дн.".tr(currentLang)}',
+      fg: isImportant ? tokens.danger : tokens.warning,
+      bg: isImportant ? tokens.dangerSoft : tokens.warningSoft,
+      scale: scale,
+    ),
+  );
+}
+
+/// Перенос даты вперёд N+ раз (см. AppConfig.rescheduleWarningCount) — общая
+/// функция, см. doc [buildRotBadge] про причину вынесения из TaskCardBuilders.
+Widget? buildRescheduleBadge({
+  required Map<String, dynamic> task,
+  required bool isDone,
+  required ClarifyTokens tokens,
+  required String currentLang,
+  double scale = 1.0,
+}) {
+  if (isDone) return null;
+  final count = task['reschedule_count'] as int?;
+  if (count == null || count < AppConfig.rescheduleWarningCount) return null;
+  return Tooltip(
+    message: '${"Перенесена".tr(currentLang)} $count ${"раз".tr(currentLang)}',
+    child: ClarifyInfoBadge(
+      icon: LucideIcons.history,
+      label: '×$count',
+      fg: tokens.warning,
+      bg: tokens.warningSoft,
+      scale: scale,
+    ),
+  );
 }
