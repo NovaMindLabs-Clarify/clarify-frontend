@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../widgets/clarify_button.dart';
+import '../widgets/clarify_duration_chips.dart';
 import '../widgets/clarify_priority_lever.dart';
 import '../widgets/clarify_surface.dart';
 import '../widgets/clarify_text_field.dart';
@@ -74,6 +75,7 @@ void showManualAddDialog({
   String? selectedAssigneeId;
   DateTime? selectedDate = preselectedDate ?? DateTime.now();
   TimeOfDay? selectedTime;
+  int? selectedDuration = isFromDuplicate ? (sourceTaskForDuplicate['duration_minutes'] as int?) : null;
 
   if (isFromDuplicate && sourceTaskForDuplicate['due_time'] != null) {
     final parts = sourceTaskForDuplicate['due_time'].split(':');
@@ -174,6 +176,25 @@ void showManualAddDialog({
                           Expanded(child: ClarifyButton(icon: LucideIcons.clock, label: selectedTime == null ? "Время".tr(currentLang) : selectedTime!.format(context), variant: ClarifyButtonVariant.outline, onPressed: () async { final picked = await showClarifyTimePicker(context: context, isDark: isDark, currentLang: currentLang, initialTime: selectedTime ?? TimeOfDay.now()); if (picked != null) setStateDialog(() => selectedTime = picked); })),
                         ],
                       ),
+                      if (selectedTime != null) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6, right: 8),
+                              child: Icon(LucideIcons.hourglass, size: 16, color: textMuted),
+                            ),
+                            Expanded(
+                              child: ClarifyDurationChips(
+                                selectedMinutes: selectedDuration,
+                                currentLang: currentLang,
+                                onChanged: (minutes) => setStateDialog(() => selectedDuration = minutes),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                       const SizedBox(height: 8),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -338,6 +359,7 @@ void showManualAddDialog({
                                   "title": titleController.text.trim(),
                                   "due_date": selectedDate != null ? formatDate(selectedDate!) : null,
                                   "due_time": selectedTime != null ? "${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}" : null,
+                                  "duration_minutes": selectedTime != null ? selectedDuration : null,
                                   "note": noteController.text.trim().isNotEmpty ? noteController.text.trim() : null,
                                   "priority": selectedPriority,
                                   "tags": tagsController.text.trim().isNotEmpty ? tagsController.text.trim() : null,

@@ -4,11 +4,12 @@ import '../core/theme/design_tokens.dart';
 
 /// Таймлайн дня (REDESIGN_V4_PLAN.md §6.5) — основной вид "Календаря": часовая
 /// сетка 00:00–23:00 с задачами, привязанными к их `due_time`, и линией
-/// «сейчас» для сегодняшнего дня. Модель задачи хранит только точку времени
-/// (`due_time`), не длительность/время окончания — поэтому блок задачи имеет
-/// фиксированную визуальную высоту (константная доля часа), а не высоту,
-/// пропорциональную реальной длительности задачи: без поля длительности в
-/// данных это единственный не выдуманный вариант.
+/// «сейчас» для сегодняшнего дня. Задачи с указанной `duration_minutes`
+/// рисуются высотой, пропорциональной длительности (см.
+/// docs/COMPETITOR_ANALYSIS_UPDATE_2026-07-31.md §3 — целевой референс
+/// Structured строится на этом); задачи без длительности (поле nullable,
+/// старые задачи и те, где пользователь её не указал) остаются как раньше —
+/// фиксированной минимальной высоты.
 class CalendarDayTimeline extends StatefulWidget {
   final DateTime date;
   final List<Map<String, dynamic>> tasks;
@@ -178,11 +179,36 @@ class _CalendarDayTimelineState extends State<CalendarDayTimeline> {
     sameTimeIndex[key] = idx + 1;
     final top = (hour + minute / 60.0) * hourHeight + idx * 10 * s;
 
+    // Длительность рисуется как подложка позади карточки, а не через
+    // растягивание самой карточки (buildCalendarTaskCard — общий билдер,
+    // используемый и в списке/доске, где растягивание по высоте не имеет
+    // смысла) — минимальная высота гарантирует, что 15-минутная задача
+    // всё равно даёт видимую полоску, а не схлопывается в ничто.
+    final durationMinutes = task['duration_minutes'] as int?;
+    final double? blockHeight = durationMinutes != null
+        ? (durationMinutes / 60.0 * hourHeight).clamp(28.0 * s, (24 * hourHeight - top).clamp(28.0 * s, double.infinity))
+        : null;
+
     return Positioned(
       top: top,
       left: (56 + idx * 14) * s,
       right: 16 * s,
-      child: widget.buildCalendarTaskCard(task),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          if (blockHeight != null)
+            Container(
+              width: double.infinity,
+              height: blockHeight,
+              decoration: BoxDecoration(
+                color: widget.t.accent.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(ClarifyRadius.sm),
+                border: Border(left: BorderSide(color: widget.t.accent.withValues(alpha: 0.5), width: 2.5 * s)),
+              ),
+            ),
+          widget.buildCalendarTaskCard(task),
+        ],
+      ),
     );
   }
 }

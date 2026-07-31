@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../widgets/clarify_button.dart';
+import '../widgets/clarify_duration_chips.dart';
 import '../widgets/clarify_priority_lever.dart';
 import '../widgets/clarify_surface.dart';
 import '../widgets/clarify_toast.dart';
@@ -51,6 +52,7 @@ void showEditTaskDialog({
   String? selectedAssigneeId = task['assigned_to'];
   DateTime? selectedDate = task['due_date'] != null ? parseDate(task['due_date']) : null;
   TimeOfDay? selectedTime;
+  int? selectedDuration = task['duration_minutes'] as int?;
   if (task['due_time'] != null && task['due_time'].toString().contains(':')) {
     final parts = task['due_time'].split(':');
     selectedTime = TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
@@ -130,6 +132,25 @@ void showEditTaskDialog({
                           Expanded(child: ClarifyButton(icon: LucideIcons.clock, label: selectedTime == null ? "Время".tr(currentLang) : selectedTime!.format(context), variant: ClarifyButtonVariant.outline, onPressed: () async { final picked = await showClarifyTimePicker(context: context, isDark: isDark, currentLang: currentLang, initialTime: selectedTime ?? TimeOfDay.now()); if (picked != null) setStateDialog(() => selectedTime = picked); })),
                         ],
                       ),
+                      if (selectedTime != null) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6, right: 8),
+                              child: Icon(LucideIcons.hourglass, size: 16, color: textMuted),
+                            ),
+                            Expanded(
+                              child: ClarifyDurationChips(
+                                selectedMinutes: selectedDuration,
+                                currentLang: currentLang,
+                                onChanged: (minutes) => setStateDialog(() => selectedDuration = minutes),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                       const SizedBox(height: 8),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -354,6 +375,7 @@ void showEditTaskDialog({
                                 "title": titleController.text.trim(),
                                 "due_date": newDateStr,
                                 "due_time": selectedTime != null ? "${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}" : null,
+                                "duration_minutes": selectedTime != null ? selectedDuration : null,
                                 "note": noteController.text.trim().isNotEmpty ? noteController.text.trim() : null,
                                 "priority": selectedPriority,
                                 "tags": tagsController.text.trim().isNotEmpty ? tagsController.text.trim() : null,

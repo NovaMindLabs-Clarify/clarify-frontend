@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../widgets/clarify_duration_chips.dart';
 import '../widgets/clarify_surface.dart';
 import '../widgets/clarify_task_checkbox.dart';
 import '../widgets/clarify_text_field.dart';
@@ -115,7 +116,7 @@ void showTaskDetailsDialog({
                               children: [
                                 Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: t.accentSoft, borderRadius: BorderRadius.circular(8)), child: Icon(LucideIcons.calendarDays, color: t.accent, size: 20)),
                                 const SizedBox(width: 12),
-                                Expanded(child: Text("${task['due_date'] ?? 'Входящие (Без даты)'.tr(currentLang)}  •  ${task['due_time'] ?? 'Весь день'.tr(currentLang)}", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: textColor))),
+                                Expanded(child: Text("${task['due_date'] ?? 'Входящие (Без даты)'.tr(currentLang)}  •  ${task['due_time'] ?? 'Весь день'.tr(currentLang)}${task['due_time'] != null && task['duration_minutes'] != null ? ' (${formatDurationMinutes(task['duration_minutes'] as int, currentLang)})' : ''}", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: textColor))),
                                 if (task['recurrence'] != null && task['recurrence'] != 'none') ...[SizedBox(width: 12), Icon(LucideIcons.repeat, size: 18, color: t.text3)]
                               ],
                             ),
