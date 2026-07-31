@@ -239,6 +239,56 @@ class ClarifySubtaskBadge extends StatelessWidget {
   }
 }
 
+/// Плавное появление для новых сигналов-предупреждений (бейджи гниения/
+/// переноса, банер перегрузки дня) — раньше появлялись/исчезали мгновенно,
+/// выбиваясь из общей моушн-системы (даже чекбокс/зачёркивание анимируются
+/// через ClarifyMotion). Fade+едва заметный scale-in по ClarifyMotion.standard
+/// — это появление состояния, не жест (см. gesture/state правило
+/// REDESIGN_V4_PLAN.md §6.7), поэтому .standard, не .spring.
+class ClarifyBadgeEntrance extends StatefulWidget {
+  final Widget child;
+  const ClarifyBadgeEntrance({super.key, required this.child});
+
+  @override
+  State<ClarifyBadgeEntrance> createState() => _ClarifyBadgeEntranceState();
+}
+
+class _ClarifyBadgeEntranceState extends State<ClarifyBadgeEntrance> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(vsync: this, duration: ClarifyMotion.base);
+  late final Animation<double> _progress = CurvedAnimation(parent: _controller, curve: ClarifyMotion.standard);
+  bool _started = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    if (MediaQuery.of(context).disableAnimations) {
+      _controller.value = 1;
+    } else {
+      _controller.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _progress,
+      builder: (context, child) {
+        final t = _progress.value.clamp(0.0, 1.0);
+        return Opacity(opacity: t, child: Transform.scale(scale: 0.85 + 0.15 * t, child: child));
+      },
+      child: widget.child,
+    );
+  }
+}
+
 /// Обобщённый бейдж-пилюля (иконка + короткая подпись) — тот же визуальный
 /// язык, что и у [ClarifySubtaskBadge], но без привязки к формату "N/M":
 /// используется для сигналов "задача давно не двигалась" и "перенесена N
@@ -301,14 +351,16 @@ Widget? buildRotBadge({
   final ageDays = DateTime.now().difference(createdAt).inDays;
   if (ageDays < AppConfig.taskRotDays) return null;
   final bool isImportant = task['priority'] == 'red';
-  return Tooltip(
-    message: '${"Задача не двигается уже".tr(currentLang)} $ageDays ${"дн.".tr(currentLang)}',
-    child: ClarifyInfoBadge(
-      icon: LucideIcons.archive,
-      label: '$ageDays ${"дн.".tr(currentLang)}',
-      fg: isImportant ? tokens.danger : tokens.warning,
-      bg: isImportant ? tokens.dangerSoft : tokens.warningSoft,
-      scale: scale,
+  return ClarifyBadgeEntrance(
+    child: Tooltip(
+      message: '${"Задача не двигается уже".tr(currentLang)} $ageDays ${"дн.".tr(currentLang)}',
+      child: ClarifyInfoBadge(
+        icon: LucideIcons.archive,
+        label: '$ageDays ${"дн.".tr(currentLang)}',
+        fg: isImportant ? tokens.danger : tokens.warning,
+        bg: isImportant ? tokens.dangerSoft : tokens.warningSoft,
+        scale: scale,
+      ),
     ),
   );
 }
@@ -325,14 +377,16 @@ Widget? buildRescheduleBadge({
   if (isDone) return null;
   final count = task['reschedule_count'] as int?;
   if (count == null || count < AppConfig.rescheduleWarningCount) return null;
-  return Tooltip(
-    message: '${"Перенесена".tr(currentLang)} $count ${"раз".tr(currentLang)}',
-    child: ClarifyInfoBadge(
-      icon: LucideIcons.history,
-      label: '×$count',
-      fg: tokens.warning,
-      bg: tokens.warningSoft,
-      scale: scale,
+  return ClarifyBadgeEntrance(
+    child: Tooltip(
+      message: '${"Перенесена".tr(currentLang)} $count ${"раз".tr(currentLang)}',
+      child: ClarifyInfoBadge(
+        icon: LucideIcons.history,
+        label: '×$count',
+        fg: tokens.warning,
+        bg: tokens.warningSoft,
+        scale: scale,
+      ),
     ),
   );
 }
