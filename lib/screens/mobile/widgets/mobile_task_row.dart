@@ -178,10 +178,27 @@ class MobileTaskRow extends StatelessWidget {
                                 Text(task['due_date'], style: TextStyle(fontSize: 12, color: overdue && !isDone ? t.danger : t.text3, fontWeight: FontWeight.w600)),
                               if (task['due_time'] != null)
                                 Text(task['due_time'], style: TextStyle(fontSize: 12, color: overdue && !isDone ? t.danger : t.text3, fontWeight: FontWeight.w600)),
+                              // Бейдж подзадач/чек-листа схлопывается, когда сама
+                              // задача выполнена — счётчик "N из N" не несёт
+                              // смысла после того, как вся задача уже закрыта.
+                              // AnimatedSize вместо мгновенного исчезновения —
+                              // по аналогии с остальными анимациями отметки.
                               if (hasSubtasks)
-                                ClarifySubtaskBadge(done: subtaskStats['done']!, total: subtaskStats['total']!, tokens: t),
+                                AnimatedSize(
+                                  duration: ClarifyMotion.base,
+                                  curve: ClarifyMotion.standard,
+                                  child: isDone
+                                      ? const SizedBox.shrink()
+                                      : ClarifySubtaskBadge(done: subtaskStats['done']!, total: subtaskStats['total']!, tokens: t),
+                                ),
                               if (hasChecklist)
-                                ClarifySubtaskBadge(done: cStats['done']!, total: cStats['total']!, tokens: t, icon: LucideIcons.listTodo),
+                                AnimatedSize(
+                                  duration: ClarifyMotion.base,
+                                  curve: ClarifyMotion.standard,
+                                  child: isDone
+                                      ? const SizedBox.shrink()
+                                      : ClarifySubtaskBadge(done: cStats['done']!, total: cStats['total']!, tokens: t, icon: LucideIcons.listTodo),
+                                ),
                               if (tag != null && tag.isNotEmpty)
                                 Text('#$tag', style: TextStyle(fontSize: 12, color: t.accent, fontWeight: FontWeight.w600)),
                               ?rotBadgeInteractive,

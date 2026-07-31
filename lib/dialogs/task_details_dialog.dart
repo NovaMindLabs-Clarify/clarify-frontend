@@ -172,11 +172,13 @@ void showTaskDetailsDialog({
                           children: subtasks.map((subtask) {
                             bool isSubDone = subtask['is_completed'] == true;
                             return Container(
-                              margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.symmetric(vertical: 4), decoration: BoxDecoration(color: isSubDone ? doneCardColor : cardColor, borderRadius: BorderRadius.circular(12), border: Border.all(color: glassBorderColor)),
+                              margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), decoration: BoxDecoration(color: isSubDone ? doneCardColor : cardColor, borderRadius: BorderRadius.circular(12), border: Border.all(color: glassBorderColor)),
                               child: Row(
                                 children: [
                                   ClarifyCheckCircle(value: isSubDone, borderColor: glassBorderColor, checkedColor: t.accent, onTap: () async { await onToggleTask(subtask); setStateDialog(() {}); }),
-                                  Expanded(child: Text(subtask['title'], style: TextStyle(fontSize: 15, decoration: isSubDone ? TextDecoration.lineThrough : TextDecoration.none, color: isSubDone ? textMuted : textColor))),
+                                  const SizedBox(width: 10),
+                                  Expanded(child: ClarifyStrikeText(text: subtask['title'], isDone: isSubDone, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 15, color: isSubDone ? textMuted : textColor))),
+                                  const SizedBox(width: 4),
                                   IconButton(icon: Icon(LucideIcons.x, size: 18, color: t.danger), onPressed: () async { await onDeleteTask(subtask['id']); setStateDialog(() {}); })
                                 ],
                               ),

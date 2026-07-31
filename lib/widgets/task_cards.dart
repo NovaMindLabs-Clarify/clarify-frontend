@@ -358,20 +358,35 @@ class TaskCardBuilders {
                                         size: 14 * _s,
                                         color: isDone ? textMuted : _t.text3,
                                       ),
+                                    // Схлопывается, когда сама задача выполнена —
+                                    // счётчик подзадач не нужен после закрытия
+                                    // всей задачи целиком.
                                     if (hasSubtasks)
-                                      ClarifySubtaskBadge(
-                                        done: stats['done']!,
-                                        total: stats['total']!,
-                                        tokens: _t,
-                                        scale: _s,
+                                      AnimatedSize(
+                                        duration: ClarifyMotion.base,
+                                        curve: ClarifyMotion.standard,
+                                        child: isDone
+                                            ? const SizedBox.shrink()
+                                            : ClarifySubtaskBadge(
+                                                done: stats['done']!,
+                                                total: stats['total']!,
+                                                tokens: _t,
+                                                scale: _s,
+                                              ),
                                       ),
                                     if (hasChecklist)
-                                      ClarifySubtaskBadge(
-                                        done: cStats['done']!,
-                                        total: cStats['total']!,
-                                        tokens: _t,
-                                        scale: _s,
-                                        icon: LucideIcons.listTodo,
+                                      AnimatedSize(
+                                        duration: ClarifyMotion.base,
+                                        curve: ClarifyMotion.standard,
+                                        child: isDone
+                                            ? const SizedBox.shrink()
+                                            : ClarifySubtaskBadge(
+                                                done: cStats['done']!,
+                                                total: cStats['total']!,
+                                                tokens: _t,
+                                                scale: _s,
+                                                icon: LucideIcons.listTodo,
+                                              ),
                                       ),
                                     if (_rotBadge(task, isDone, overdue) != null)
                                       _rotBadge(task, isDone, overdue)!,
@@ -501,23 +516,37 @@ class TaskCardBuilders {
                               color: isDone ? textMuted : _t.text3,
                             ),
                           ),
+                        // Схлопывается, когда сама задача выполнена — счётчик
+                        // подзадач не нужен после закрытия всей задачи целиком.
                         if (hasSubtasks)
                           Padding(
                             padding: const EdgeInsets.only(left: 12),
-                            child: ClarifySubtaskBadge(
-                              done: stats['done']!,
-                              total: stats['total']!,
-                              tokens: _t,
+                            child: AnimatedSize(
+                              duration: ClarifyMotion.base,
+                              curve: ClarifyMotion.standard,
+                              child: isDone
+                                  ? const SizedBox.shrink()
+                                  : ClarifySubtaskBadge(
+                                      done: stats['done']!,
+                                      total: stats['total']!,
+                                      tokens: _t,
+                                    ),
                             ),
                           ),
                         if (hasChecklist)
                           Padding(
                             padding: const EdgeInsets.only(left: 12),
-                            child: ClarifySubtaskBadge(
-                              done: cStats['done']!,
-                              total: cStats['total']!,
-                              tokens: _t,
-                              icon: LucideIcons.listTodo,
+                            child: AnimatedSize(
+                              duration: ClarifyMotion.base,
+                              curve: ClarifyMotion.standard,
+                              child: isDone
+                                  ? const SizedBox.shrink()
+                                  : ClarifySubtaskBadge(
+                                      done: cStats['done']!,
+                                      total: cStats['total']!,
+                                      tokens: _t,
+                                      icon: LucideIcons.listTodo,
+                                    ),
                             ),
                           ),
                         if (_rotBadge(task, isDone, overdue) != null)
