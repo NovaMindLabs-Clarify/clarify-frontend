@@ -151,29 +151,17 @@ class MobileTaskRow extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        if (showDate && task['due_date'] != null || task['due_time'] != null || hasSubtasks || hasChecklist || tag != null || rotBadge != null || rescheduleBadge != null) ...[
+                        if (showDate && task['due_date'] != null || task['due_time'] != null || hasSubtasks || hasChecklist || tag != null) ...[
                           const SizedBox(height: 4),
+                          // Строка 1: дата/время/тег/счётчик подзадач — как и
+                          // раньше. Бейджи гниения/переноса сюда НЕ попадают
+                          // даже если есть место (см. вторая строка ниже) —
+                          // по прямому запросу они должны быть строго отдельно
+                          // от даты/времени/тега, не тесниться с ними в Wrap.
                           Wrap(
                             spacing: 8,
                             runSpacing: 4,
                             children: [
-                              // Слот иконки просрочки закреплён по ширине, если
-                              // дедлайн задачи вообще был в прошлом (см.
-                              // _wasPastDue) — НЕ по `overdue`, который сам уже
-                              // false для выполненных задач: иначе слот и не
-                              // появился бы в тот же ребилд, где isDone стал true,
-                              // и дата всё равно "прыгала" бы влево.
-                              if (_wasPastDue(task))
-                                SizedBox(
-                                  width: 12,
-                                  height: 12,
-                                  child: AnimatedOpacity(
-                                    opacity: isDone ? 0 : 1,
-                                    duration: ClarifyMotion.base,
-                                    curve: ClarifyMotion.standard,
-                                    child: Icon(LucideIcons.clockAlert, size: 12, color: t.danger),
-                                  ),
-                                ),
                               if (showDate && task['due_date'] != null)
                                 Text(task['due_date'], style: TextStyle(fontSize: 12, color: overdue && !isDone ? t.danger : t.text3, fontWeight: FontWeight.w600)),
                               if (task['due_time'] != null)
@@ -201,6 +189,34 @@ class MobileTaskRow extends StatelessWidget {
                                 ),
                               if (tag != null && tag.isNotEmpty)
                                 Text('#$tag', style: TextStyle(fontSize: 12, color: t.accent, fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                        ],
+                        if (_wasPastDue(task) || rotBadge != null || rescheduleBadge != null) ...[
+                          const SizedBox(height: 4),
+                          // Строка 2, всегда отдельно от строки 1: иконка
+                          // просрочки + бейджи гниения/переноса.
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 4,
+                            children: [
+                              // Слот иконки просрочки закреплён по ширине, если
+                              // дедлайн задачи вообще был в прошлом (см.
+                              // _wasPastDue) — НЕ по `overdue`, который сам уже
+                              // false для выполненных задач: иначе слот и не
+                              // появился бы в тот же ребилд, где isDone стал true,
+                              // и дата всё равно "прыгала" бы влево.
+                              if (_wasPastDue(task))
+                                SizedBox(
+                                  width: 12,
+                                  height: 12,
+                                  child: AnimatedOpacity(
+                                    opacity: isDone ? 0 : 1,
+                                    duration: ClarifyMotion.base,
+                                    curve: ClarifyMotion.standard,
+                                    child: Icon(LucideIcons.clockAlert, size: 12, color: t.danger),
+                                  ),
+                                ),
                               ?rotBadgeInteractive,
                               ?rescheduleBadge,
                             ],

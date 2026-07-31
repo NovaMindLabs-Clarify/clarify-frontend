@@ -124,10 +124,16 @@ class _ClarifyStrikeTextState extends State<ClarifyStrikeText> with TickerProvid
   late final AnimationController _draw; // 0 → 1: линия дорисовывается слева направо
   late final AnimationController _fade; // 1 → 0: дорисованная линия растворяется
 
+  // Дорисовка — заметный, "ощутимый" жест (задача только что закрыта),
+  // поэтому дольше стандартного ClarifyMotion.base (180мс) — тот слишком
+  // быстрый для линии через всё слово, глаз не успевает её заметить.
+  // Растворение при отмене остаётся на base — там жалоб не было.
+  static const Duration _drawDuration = Duration(milliseconds: 900);
+
   @override
   void initState() {
     super.initState();
-    _draw = AnimationController(vsync: this, duration: ClarifyMotion.base, value: widget.isDone ? 1 : 0);
+    _draw = AnimationController(vsync: this, duration: _drawDuration, value: widget.isDone ? 1 : 0);
     _fade = AnimationController(vsync: this, duration: ClarifyMotion.base, value: 1);
   }
 
@@ -135,11 +141,12 @@ class _ClarifyStrikeTextState extends State<ClarifyStrikeText> with TickerProvid
   void didUpdateWidget(covariant ClarifyStrikeText oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.isDone != widget.isDone) {
-      final duration = MediaQuery.of(context).disableAnimations ? Duration.zero : ClarifyMotion.base;
+      final reduceMotion = MediaQuery.of(context).disableAnimations;
+      final duration = reduceMotion ? Duration.zero : ClarifyMotion.base;
       if (widget.isDone) {
         _fade.value = 1;
         _draw.value = 0;
-        _draw.animateTo(1, duration: duration);
+        _draw.animateTo(1, duration: reduceMotion ? Duration.zero : _drawDuration);
       } else {
         _fade.value = 1;
         _fade.animateTo(0, duration: duration).whenCompleteOrCancel(() {
@@ -250,46 +257,25 @@ class ClarifySubtaskBadge extends StatelessWidget {
 /// через ClarifyMotion). Fade+едва заметный scale-in по ClarifyMotion.standard
 /// — это появление состояния, не жест (см. gesture/state правило
 /// REDESIGN_V4_PLAN.md §6.7), поэтому .standard, не .spring.
-class ClarifyBadgeEntrance extends StatefulWidget {
+class ClarifyBadgeEntrance extends StatelessWidget {
   final Widget child;
   const ClarifyBadgeEntrance({super.key, required this.child});
 
   @override
-  State<ClarifyBadgeEntrance> createState() => _ClarifyBadgeEntranceState();
-}
-
-class _ClarifyBadgeEntranceState extends State<ClarifyBadgeEntrance> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(vsync: this, duration: ClarifyMotion.base);
-  late final Animation<double> _progress = CurvedAnimation(parent: _controller, curve: ClarifyMotion.standard);
-  bool _started = false;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_started) return;
-    _started = true;
-    if (MediaQuery.of(context).disableAnimations) {
-      _controller.value = 1;
-    } else {
-      _controller.forward();
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _progress,
-      builder: (context, child) {
-        final t = _progress.value.clamp(0.0, 1.0);
-        return Opacity(opacity: t, child: Transform.scale(scale: 0.85 + 0.15 * t, child: child));
-      },
-      child: widget.child,
+    // TweenAnimationBuilder вместо ручного AnimationController+State: он сам
+    // по себе анимирует begin→end при каждом ПЕРВОМ построении (т.е. при
+    // монтировании виджета) без отдельного жизненного цикла, который раньше
+    // держал этот же эффект на State.didChangeDependencies — тот вариант
+    // либо не всегда успевал сработать до первой отрисовки, либо путался с
+    // переиспользованием элемента в Wrap, и на практике вход не был заметен.
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: reduceMotion ? Duration.zero : ClarifyMotion.base,
+      curve: ClarifyMotion.standard,
+      builder: (context, t, child) => Opacity(opacity: t, child: Transform.scale(scale: 0.85 + 0.15 * t, child: child)),
+      child: child,
     );
   }
 }

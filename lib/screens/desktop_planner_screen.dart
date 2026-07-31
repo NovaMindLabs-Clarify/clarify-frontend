@@ -1077,7 +1077,6 @@ void _checkBurnoutWarning(String dateStr) {
       getPriorityColor: _getPriorityColor,
       onToggleTask: _toggleTask,
       onDeleteTask: _deleteTask,
-      createTaskManually: _createTaskManually,
       onTagTap: (tag) => setState(() => activeTagFilter = tag),
       onDuplicate: (task) {
         // На мобильном — сразу открываем окно добавления с предзаполненными

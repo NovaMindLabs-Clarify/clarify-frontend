@@ -31,7 +31,6 @@ void showTaskDetailsDialog({
   required Color Function(String? priority) getPriorityColor,
   required Future<void> Function(Map<String, dynamic> task) onToggleTask,
   required Future<void> Function(dynamic taskId) onDeleteTask,
-  required Future<int?> Function(Map<String, dynamic> taskData) createTaskManually,
   required void Function(String tag) onTagTap,
   required void Function(Map<String, dynamic> task) onDuplicate,
   required void Function(Map<String, dynamic> task) onEdit,
@@ -44,8 +43,7 @@ void showTaskDetailsDialog({
   }) buildGlassContainer,
 }) {
   final t = context.tokens;
-  // Контроллеры для подзадач и чата
-  final TextEditingController subtaskController = TextEditingController();
+  // Контроллер для чата
   final TextEditingController commentController = TextEditingController();
   List<Map<String, dynamic>> comments = [];
   bool isCommentsLoaded = false;
@@ -185,27 +183,10 @@ void showTaskDetailsDialog({
                             );
                           }).toList(),
                         ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(child: ClarifyTextField(controller: subtaskController, style: TextStyle(color: textColor), hintText: "Добавить пункт...".tr(currentLang), dense: true,
-                            onSubmitted: (text) {
-                              if (text.trim().isEmpty) return;
-                              subtaskController.clear();
-                              createTaskManually({"title": text.trim(), "parent_id": task['id'], "is_completed": false});
-                              setStateDialog(() {});
-                            })),
-                          const SizedBox(width: 8),
-                          IconButton(style: IconButton.styleFrom(backgroundColor: highlightColor, padding: const EdgeInsets.all(12)), icon: Icon(LucideIcons.plus, color: t.accent),
-                            onPressed: () {
-                              if (subtaskController.text.trim().isEmpty) return;
-                              final text = subtaskController.text;
-                              subtaskController.clear();
-                              createTaskManually({"title": text.trim(), "parent_id": task['id'], "is_completed": false});
-                              setStateDialog(() {});
-                            })
-                        ],
-                      ),
+                      // Добавление НОВЫХ пунктов чек-листа — только в окне
+                      // редактирования, по прямому запросу; здесь (окно
+                      // деталей) остаётся только просмотр/отметка/удаление
+                      // уже существующих пунктов.
 
                       // ЧАТ (ОБСУЖДЕНИЕ) — только для задач команды, для
                       // соло-задач раздел не имеет смысла (не с кем обсуждать).
