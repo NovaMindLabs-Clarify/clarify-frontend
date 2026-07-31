@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../widgets/clarify_button.dart';
+import '../widgets/clarify_day_load_warning.dart';
 import '../widgets/clarify_duration_chips.dart';
 import '../widgets/clarify_priority_lever.dart';
 import '../widgets/clarify_surface.dart';
@@ -8,6 +9,7 @@ import '../widgets/clarify_text_field.dart';
 import '../widgets/clarify_toast.dart';
 import '../widgets/clarify_date_time_picker.dart';
 import '../core/app_settings.dart';
+import '../core/config.dart';
 import '../core/localization.dart';
 import '../core/tags.dart';
 import '../core/priority.dart';
@@ -324,6 +326,23 @@ void showManualAddDialog({
                         ],
                       ),
                     ],
+                    if (selectedDate != null)
+                      Builder(
+                        builder: (context) {
+                          final total =
+                              dayLoadMinutes(tasks, formatDate(selectedDate!)) +
+                              (selectedTime != null
+                                  ? (selectedDuration ?? 0)
+                                  : 0);
+                          if (total <= AppConfig.dailyLoadWarningMinutes) {
+                            return const SizedBox.shrink();
+                          }
+                          return ClarifyDayLoadWarning(
+                            totalMinutes: total,
+                            currentLang: currentLang,
+                          );
+                        },
+                      ),
                     const SizedBox(height: 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,

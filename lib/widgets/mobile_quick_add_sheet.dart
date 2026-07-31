@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../core/config.dart';
 import '../core/tags.dart';
 import '../core/priority.dart';
 import 'clarify_bottom_sheet.dart';
 import 'clarify_button.dart';
 import 'clarify_date_time_picker.dart';
+import 'clarify_day_load_warning.dart';
 import 'clarify_duration_chips.dart';
 import 'clarify_priority_lever.dart';
 import 'clarify_text_field.dart';
@@ -317,6 +319,21 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
               ],
             ),
           ],
+          if (_date != null)
+            Builder(
+              builder: (context) {
+                final total =
+                    dayLoadMinutes(widget.tasks, widget.formatDate(_date!)) +
+                    (_time != null ? (_duration ?? 0) : 0);
+                if (total <= AppConfig.dailyLoadWarningMinutes) {
+                  return const SizedBox.shrink();
+                }
+                return ClarifyDayLoadWarning(
+                  totalMinutes: total,
+                  currentLang: widget.currentLang,
+                );
+              },
+            ),
           const SizedBox(height: 16),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,

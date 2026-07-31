@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../widgets/clarify_button.dart';
+import '../widgets/clarify_day_load_warning.dart';
 import '../widgets/clarify_duration_chips.dart';
 import '../widgets/clarify_priority_lever.dart';
 import '../widgets/clarify_surface.dart';
@@ -263,6 +264,27 @@ void showEditTaskDialog({
                         ],
                       ),
                     ],
+                    if (selectedDate != null)
+                      Builder(
+                        builder: (context) {
+                          final total =
+                              dayLoadMinutes(
+                                tasks,
+                                formatDate(selectedDate!),
+                                excludeTaskId: task['id'] as int?,
+                              ) +
+                              (selectedTime != null
+                                  ? (selectedDuration ?? 0)
+                                  : 0);
+                          if (total <= AppConfig.dailyLoadWarningMinutes) {
+                            return const SizedBox.shrink();
+                          }
+                          return ClarifyDayLoadWarning(
+                            totalMinutes: total,
+                            currentLang: currentLang,
+                          );
+                        },
+                      ),
                     const SizedBox(height: 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
