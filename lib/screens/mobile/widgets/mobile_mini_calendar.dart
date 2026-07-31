@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../../../core/config.dart';
 import '../../../core/localization.dart';
 import '../../../core/theme/design_tokens.dart';
 
@@ -11,6 +12,7 @@ class MobileMiniCalendar extends StatefulWidget {
   final String currentLang;
   final DateTime selectedDate;
   final Set<String> datesWithTasks;
+  final Map<String, int> dateLoadMinutes;
   final void Function(DateTime date) onDaySelected;
 
   const MobileMiniCalendar({
@@ -18,6 +20,7 @@ class MobileMiniCalendar extends StatefulWidget {
     required this.currentLang,
     required this.selectedDate,
     required this.datesWithTasks,
+    required this.dateLoadMinutes,
     required this.onDaySelected,
   });
 
@@ -40,6 +43,12 @@ class _MobileMiniCalendarState extends State<MobileMiniCalendar> {
   String _formatDate(DateTime d) => '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
 
   bool _hasTasks(DateTime day) => widget.datesWithTasks.contains(_formatDate(day));
+
+  // Тяжёлый день — тот же порог, что и у ClarifyDayLoadWarning в диалоге
+  // создания/редактирования задачи (AppConfig.dailyLoadWarningMinutes), чтобы
+  // сигнал в календаре и в диалоге не расходились по смыслу.
+  bool _isOverloaded(DateTime day) =>
+      (widget.dateLoadMinutes[_formatDate(day)] ?? 0) > AppConfig.dailyLoadWarningMinutes;
 
   List<DateTime> _currentWeek() {
     final today = widget.selectedDate;
@@ -100,6 +109,7 @@ class _MobileMiniCalendarState extends State<MobileMiniCalendar> {
               isToday: _isSameDay(day, today),
               isSelected: _isSameDay(day, widget.selectedDate),
               hasTasks: _hasTasks(day),
+              isOverloaded: _isOverloaded(day),
               onTap: () => widget.onDaySelected(day),
             )).toList(),
       ),
@@ -152,6 +162,7 @@ class _MobileMiniCalendarState extends State<MobileMiniCalendar> {
                 isToday: _isSameDay(day, today),
                 isSelected: _isSameDay(day, widget.selectedDate),
                 hasTasks: _hasTasks(day),
+                isOverloaded: _isOverloaded(day),
                 onTap: () {
                   widget.onDaySelected(day);
                   setState(() => _expanded = false);
@@ -171,9 +182,10 @@ class _DayCell extends StatelessWidget {
   final bool isToday;
   final bool isSelected;
   final bool hasTasks;
+  final bool isOverloaded;
   final VoidCallback onTap;
 
-  const _DayCell({required this.day, required this.label, required this.isToday, required this.isSelected, required this.hasTasks, required this.onTap});
+  const _DayCell({required this.day, required this.label, required this.isToday, required this.isSelected, required this.hasTasks, required this.isOverloaded, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -206,11 +218,20 @@ class _DayCell extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 3),
+          // Перегруженный день — точка крупнее и в тревожном цвете вместо
+          // обычной нейтральной: видно заранее, до открытия диалога создания
+          // задачи, что день уже плотный (тот же порог, что и у
+          // ClarifyDayLoadWarning — см. _isOverloaded выше).
           SizedBox(
-            width: 5,
-            height: 5,
+            width: isOverloaded ? 7 : 5,
+            height: isOverloaded ? 7 : 5,
             child: hasTasks
-                ? DecoratedBox(decoration: BoxDecoration(shape: BoxShape.circle, color: isSelected ? t.accent : t.text3))
+                ? DecoratedBox(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isOverloaded ? t.warning : (isSelected ? t.accent : t.text3),
+                    ),
+                  )
                 : null,
           ),
         ],

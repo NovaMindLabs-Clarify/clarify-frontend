@@ -3,6 +3,7 @@ import 'package:animations/animations.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/localization.dart';
 import '../../core/theme/design_tokens.dart';
+import '../../widgets/clarify_day_load_warning.dart';
 import '../../widgets/clarify_glass.dart';
 import '../../widgets/clarify_pressable.dart';
 import '../../widgets/friends_screen.dart';
@@ -111,6 +112,20 @@ class _MobilePlannerShellState extends State<MobilePlannerShell> {
       .map((t) => t['due_date'] as String)
       .toSet();
 
+  // Суммарная известная длительность (duration_minutes) по каждой дате —
+  // раньше узнать, что день перегружен, можно было только открыв диалог
+  // создания задачи (см. ClarifyDayLoadWarning); точки в мини-календаре были
+  // одинаковыми независимо от того, легкий день или под завязку. Дата
+  // считается тяжёлой при том же пороге, что и предупреждение в диалоге
+  // (AppConfig.dailyLoadWarningMinutes), чтобы сигнал не расходился по смыслу.
+  Map<String, int> get _dateLoadMinutes {
+    final result = <String, int>{};
+    for (final date in _datesWithTasks) {
+      result[date] = dayLoadMinutes(widget.tasks, date);
+    }
+    return result;
+  }
+
   Widget _buildTab(MobileTab tab) {
     switch (tab) {
       case MobileTab.today:
@@ -119,6 +134,7 @@ class _MobilePlannerShellState extends State<MobilePlannerShell> {
           todayTasks: _todayTasks,
           inboxCount: _inboxCount,
           datesWithTasks: _datesWithTasks,
+          dateLoadMinutes: _dateLoadMinutes,
           getPriorityColor: widget.getPriorityColor,
           getSubtaskStats: widget.getSubtaskStats,
           isOverdue: widget.isOverdue,
@@ -139,6 +155,7 @@ class _MobilePlannerShellState extends State<MobilePlannerShell> {
           tasks: widget.tasks,
           initialDate: initialDate,
           datesWithTasks: _datesWithTasks,
+          dateLoadMinutes: _dateLoadMinutes,
           getPriorityColor: widget.getPriorityColor,
           getSubtaskStats: widget.getSubtaskStats,
           isOverdue: widget.isOverdue,

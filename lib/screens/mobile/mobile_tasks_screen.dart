@@ -24,6 +24,7 @@ class MobileTasksScreen extends StatefulWidget {
   final void Function(Map<String, dynamic> task) onTap;
   final DateTime? initialDate;
   final Set<String> datesWithTasks;
+  final Map<String, int> dateLoadMinutes;
 
   const MobileTasksScreen({
     super.key,
@@ -36,6 +37,7 @@ class MobileTasksScreen extends StatefulWidget {
     required this.onDelete,
     required this.onTap,
     required this.datesWithTasks,
+    required this.dateLoadMinutes,
     this.initialDate,
   });
 
@@ -124,6 +126,7 @@ class _MobileTasksScreenState extends State<MobileTasksScreen> {
           currentLang: widget.currentLang,
           selectedDate: _calendarDate ?? DateTime.now(),
           datesWithTasks: widget.datesWithTasks,
+          dateLoadMinutes: widget.dateLoadMinutes,
           onDaySelected: (day) => setState(() => _calendarDate = day),
         ),
         Padding(
