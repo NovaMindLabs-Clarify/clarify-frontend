@@ -17,8 +17,12 @@ class FriendsScreen extends StatefulWidget {
   final double scale;
   final Widget Function({required Widget child, EdgeInsetsGeometry? margin, EdgeInsetsGeometry? padding, Color? customColor}) buildGlassContainer;
   final void Function(String userId)? onOpenProfile;
+  // На десктопе (внутри MainContentArea) заголовок отсюда — единственный.
+  // На мобильном экран уже открывается со своим AppBar(title: "Друзья") в
+  // MobilePlannerShell — без этого флага заголовок дублировался бы дважды.
+  final bool showHeader;
 
-  const FriendsScreen({super.key, required this.currentLang, this.scale = 1.0, required this.buildGlassContainer, this.onOpenProfile});
+  const FriendsScreen({super.key, required this.currentLang, this.scale = 1.0, required this.buildGlassContainer, this.onOpenProfile, this.showHeader = true});
 
   @override
   State<FriendsScreen> createState() => _FriendsScreenState();
@@ -100,10 +104,11 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
-          child: Text('Друзья'.tr(widget.currentLang), style: TextStyle(fontFamily: 'Golos Text', fontSize: 22, fontWeight: FontWeight.w700, color: t.text)),
-        ),
+        if (widget.showHeader)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+            child: Text('Друзья'.tr(widget.currentLang), style: TextStyle(fontFamily: 'Golos Text', fontSize: 22, fontWeight: FontWeight.w700, color: t.text)),
+          ),
         TabBar(
           controller: _tabController,
           isScrollable: true,
@@ -191,7 +196,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                   controller: _codeController,
                   style: TextStyle(color: t.text, letterSpacing: 1.5),
                   textCapitalization: TextCapitalization.characters,
-                  hintText: 'ABCD1234',
+                  hintText: 'Введите код друга'.tr(widget.currentLang),
                 ),
               ),
               const SizedBox(width: 12),

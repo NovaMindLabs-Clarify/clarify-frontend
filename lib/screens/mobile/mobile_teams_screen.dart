@@ -63,7 +63,7 @@ class MobileTeamsScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('Команды'.tr(currentLang), style: TextStyle(fontFamily: 'Golos Text', fontSize: 22, fontWeight: FontWeight.w700, color: t.text)),
-              ClarifyIconButton(icon: LucideIcons.building2, onPressed: onAddWorkspace, tooltip: 'Новая команда'.tr(currentLang)),
+              ClarifyIconButton(icon: LucideIcons.plus, onPressed: onAddWorkspace, tooltip: 'Новая команда'.tr(currentLang)),
             ],
           ),
         ),

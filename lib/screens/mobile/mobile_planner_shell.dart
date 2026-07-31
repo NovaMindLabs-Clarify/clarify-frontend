@@ -360,6 +360,7 @@ class _FriendsPage extends StatelessWidget {
       ),
       body: FriendsScreen(
         currentLang: currentLang,
+        showHeader: false,
         buildGlassContainer: ({required child, margin, padding, customColor}) => ClarifyGlass(margin: margin, padding: padding, customColor: customColor, child: child),
         onOpenProfile: (userId) => showUserProfileModal(
           context: context,

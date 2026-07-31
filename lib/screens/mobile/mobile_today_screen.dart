@@ -76,7 +76,7 @@ class MobileTodayScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Мой день'.tr(currentLang), style: TextStyle(fontFamily: 'Unbounded', fontSize: 22, fontWeight: FontWeight.w700, color: t.text)),
+              Text('Мой день'.tr(currentLang), style: TextStyle(fontFamily: 'Golos Text', fontSize: 22, fontWeight: FontWeight.w700, color: t.text)),
               const SizedBox(height: 2),
               Text(dateLabel, style: TextStyle(fontSize: 13, color: t.text3)),
             ],

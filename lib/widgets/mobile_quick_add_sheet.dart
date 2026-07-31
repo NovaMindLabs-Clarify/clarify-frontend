@@ -180,7 +180,16 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    return Padding(
+    // SingleChildScrollView — раньше был голый Column без прокрутки: когда
+    // клавиатура открывалась на нижних полях (Теги/Заметка/Чек-лист), их
+    // просто нечем было прокрутить наверх, клавиатура перекрывала поле ввода
+    // целиком. viewInsets.bottom здесь НЕ добавляется намеренно — сам
+    // showModalBottomSheet уже сдвигает весь лист под клавиатуру (см.
+    // clarify_bottom_sheet.dart doc-комментарий про завышенный viewInsets на
+    // мобильном Safari) — повторное добавление того же отступа здесь удвоило
+    // бы сдвиг. Прокрутка нужна для доступа к полям, а не для компенсации
+    // высоты клавиатуры второй раз.
+    return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
         20,
         4,

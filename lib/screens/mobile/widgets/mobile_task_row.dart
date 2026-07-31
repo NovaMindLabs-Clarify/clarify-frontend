@@ -125,8 +125,16 @@ class MobileTaskRow extends StatelessWidget {
                             spacing: 8,
                             runSpacing: 4,
                             children: [
-                              if (overdue && !isDone)
-                                Icon(LucideIcons.clockAlert, size: 12, color: t.danger),
+                              // Слот иконки просрочки закреплён по ширине, пока
+                              // задача была просрочена — раньше при отметке
+                              // выполненной иконка исчезала целиком и дата
+                              // видимо "прыгала" влево на освободившееся место.
+                              if (overdue)
+                                SizedBox(
+                                  width: 12,
+                                  height: 12,
+                                  child: isDone ? null : Icon(LucideIcons.clockAlert, size: 12, color: t.danger),
+                                ),
                               if (showDate && task['due_date'] != null)
                                 Text(task['due_date'], style: TextStyle(fontSize: 12, color: overdue && !isDone ? t.danger : t.text3, fontWeight: FontWeight.w600)),
                               if (task['due_time'] != null)

@@ -21,7 +21,7 @@ void showUserProfileModal({
   VoidCallback? onOpenOwnSettings,
   void Function(String userId, String name)? onOpenConversation,
 }) {
-  showClarifySurface(
+  showClarifyResponsiveSurface(
     context: context,
     builder: (context) => _UserProfileModal(
       userId: userId,
@@ -101,44 +101,54 @@ class _UserProfileModalState extends State<_UserProfileModal> {
     final displayName = (name == null || name.isEmpty) ? 'Без имени'.tr(widget.currentLang) : name;
     final avatarUrl = _profile?['avatar_url'] as String?;
 
+    final content = _isLoading
+        ? const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator()))
+        : Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircleAvatar(
+                radius: 40,
+                backgroundColor: t.accentSoft,
+                backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+                child: avatarUrl == null ? Text(displayName[0].toUpperCase(), style: TextStyle(color: t.accent, fontSize: 30, fontWeight: FontWeight.bold)) : null,
+              ),
+              const SizedBox(height: 16),
+              Text(displayName, style: TextStyle(fontFamily: 'Golos Text', fontSize: 20, fontWeight: FontWeight.w700, color: t.text), textAlign: TextAlign.center),
+              if (widget.teamRole != null) ...[
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                  decoration: BoxDecoration(color: t.accentSoft, borderRadius: BorderRadius.circular(ClarifyRadius.pill)),
+                  child: Text(widget.teamRole!, style: TextStyle(color: t.accent, fontSize: 12, fontWeight: FontWeight.bold)),
+                ),
+              ],
+              if (_isSelf && _profile?['friend_code'] != null) ...[
+                const SizedBox(height: 12),
+                Text("${'Код друга: '.tr(widget.currentLang)}${_profile!['friend_code']}", style: TextStyle(color: t.text3, fontSize: 13, letterSpacing: 1)),
+              ],
+              const SizedBox(height: 24),
+              _buildActions(t),
+            ],
+          );
+
+    // Раньше — всегда десктопная плавающая карточка фиксированной ширины
+    // (showClarifySurface), даже на мобильном: на большом тёмном экране это
+    // читалось как "сначала полноэкранная загрузка, потом маленькая плашка"
+    // — единственный диалог в приложении без адаптива под мобильный шторкой.
+    if (isClarifyDialogMobile(context)) {
+      return Padding(
+        padding: EdgeInsets.fromLTRB(24, 4, 24, MediaQuery.of(context).padding.bottom + 24),
+        child: content,
+      );
+    }
+
     return Center(
       child: Material(
         color: Colors.transparent,
         child: ClarifyGlass(
           borderRadius: BorderRadius.circular(ClarifyRadius.lg),
           padding: const EdgeInsets.all(28),
-          child: SizedBox(
-            width: 340,
-            child: _isLoading
-                ? const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator()))
-                : Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CircleAvatar(
-                        radius: 40,
-                        backgroundColor: t.accentSoft,
-                        backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-                        child: avatarUrl == null ? Text(displayName[0].toUpperCase(), style: TextStyle(color: t.accent, fontSize: 30, fontWeight: FontWeight.bold)) : null,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(displayName, style: TextStyle(fontFamily: 'Golos Text', fontSize: 20, fontWeight: FontWeight.w700, color: t.text), textAlign: TextAlign.center),
-                      if (widget.teamRole != null) ...[
-                        const SizedBox(height: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                          decoration: BoxDecoration(color: t.accentSoft, borderRadius: BorderRadius.circular(ClarifyRadius.pill)),
-                          child: Text(widget.teamRole!, style: TextStyle(color: t.accent, fontSize: 12, fontWeight: FontWeight.bold)),
-                        ),
-                      ],
-                      if (_isSelf && _profile?['friend_code'] != null) ...[
-                        const SizedBox(height: 12),
-                        Text("${'Код друга: '.tr(widget.currentLang)}${_profile!['friend_code']}", style: TextStyle(color: t.text3, fontSize: 13, letterSpacing: 1)),
-                      ],
-                      const SizedBox(height: 24),
-                      _buildActions(t),
-                    ],
-                  ),
-          ),
+          child: SizedBox(width: 340, child: content),
         ),
       ),
     );
