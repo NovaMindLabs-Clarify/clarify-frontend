@@ -20,8 +20,8 @@ void main() {
     final today = DateTime.now();
     String fmt(DateTime d) => "${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}";
     final tasks = [
-      {'id': 1, 'title': 'Задача Один', 'due_date': fmt(today), 'parent_id': null, 'is_completed': false, 'priority': 'none'},
-      {'id': 2, 'title': 'Задача Два', 'due_date': fmt(today), 'parent_id': null, 'is_completed': false, 'priority': 'none'},
+      {'id': 1, 'title': 'Задача Один', 'due_date': fmt(today), 'due_time': '09:00', 'parent_id': null, 'is_completed': false, 'priority': 'none'},
+      {'id': 2, 'title': 'Задача Два', 'due_date': fmt(today), 'due_time': '14:30', 'parent_id': null, 'is_completed': false, 'priority': 'none'},
       {'id': 3, 'title': 'Задача Три', 'due_date': fmt(today), 'parent_id': null, 'is_completed': false, 'priority': 'none'},
     ];
 
@@ -85,5 +85,9 @@ void main() {
     expect(find.text('Задача Один'), findsOneWidget);
     expect(find.text('Задача Два'), findsOneWidget);
     expect(find.text('Задача Три'), findsOneWidget);
+    // Время задачи (2026-08-01, фидбог "добавь информативности") — короткое
+    // и предсказуемое по ширине, не рискует вытолкнуть третью строку.
+    expect(find.text('09:00'), findsOneWidget);
+    expect(find.text('14:30'), findsOneWidget);
   });
 }

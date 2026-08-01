@@ -281,6 +281,7 @@ class TaskCardBuilders {
     final bool isDone = task['is_completed'] == true;
     final bool hasPriority = task['priority'] != null && task['priority'] != 'none';
     final Color stripeColor = isDone ? glassBorderColor : (hasPriority ? getPriorityColor(task['priority']) : glassBorderColor);
+    final String? dueTime = task['due_time'] as String?;
 
     return ClarifyPressable(
       onTap: () => onTap(task),
@@ -288,12 +289,28 @@ class TaskCardBuilders {
         margin: EdgeInsets.only(bottom: 0.5 * _s),
         decoration: BoxDecoration(border: Border(left: BorderSide(color: stripeColor, width: 2 * _s))),
         padding: EdgeInsets.symmetric(horizontal: 3 * _s),
-        child: ClarifyStrikeText(
-          text: task['title'] ?? '',
-          isDone: isDone,
-          style: TextStyle(fontSize: 8.5 * _s, fontWeight: FontWeight.w600, color: isDone ? textMuted : textColor),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+        // Время — единственное, что реально полезно увидеть не открывая
+        // задачу, и коротко по ширине (всегда "ЧЧ:ММ") — не рискует
+        // вытолкнуть 3-ю строку за пределы ячейки, в отличие от тегов/
+        // чек-листа. Не входит в зачёркивание (своя Text, не часть
+        // ClarifyStrikeText) — временная метка не "перечёркнутый факт".
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (dueTime != null) ...[
+              Text(dueTime, style: TextStyle(fontSize: 9 * _s, fontWeight: FontWeight.w600, color: isDone ? textMuted : _t.text3)),
+              SizedBox(width: 4 * _s),
+            ],
+            Flexible(
+              child: ClarifyStrikeText(
+                text: task['title'] ?? '',
+                isDone: isDone,
+                style: TextStyle(fontSize: 9 * _s, fontWeight: FontWeight.w600, color: isDone ? textMuted : textColor),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
         ),
       ),
     );
