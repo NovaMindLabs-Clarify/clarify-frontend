@@ -285,13 +285,13 @@ class TaskCardBuilders {
     return ClarifyPressable(
       onTap: () => onTap(task),
       child: Container(
-        margin: EdgeInsets.only(bottom: 2 * _s),
+        margin: EdgeInsets.only(bottom: 0.5 * _s),
         decoration: BoxDecoration(border: Border(left: BorderSide(color: stripeColor, width: 2 * _s))),
-        padding: EdgeInsets.symmetric(horizontal: 4 * _s),
+        padding: EdgeInsets.symmetric(horizontal: 3 * _s),
         child: ClarifyStrikeText(
           text: task['title'] ?? '',
           isDone: isDone,
-          style: TextStyle(fontSize: 10 * _s, fontWeight: FontWeight.w600, color: isDone ? textMuted : textColor),
+          style: TextStyle(fontSize: 8.5 * _s, fontWeight: FontWeight.w600, color: isDone ? textMuted : textColor),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),

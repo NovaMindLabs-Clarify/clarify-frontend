@@ -739,16 +739,23 @@ class _CalendarSectionState extends State<_CalendarSection> {
                 final double cellWidth = isCompact
                     ? 150 * s
                     : (constraints.maxWidth - (48 * s) - (16 * s * 6)) / 7;
-                final double cellHeight = (constraints.maxHeight - (48 * s) - (16 * s * (rows - 1))) / rows;
+                // Вертикальные отступы сетки уменьшены (было 24*s/16*s, как у
+                // горизонтальных) — при 5-6 строках в месяце они забирали
+                // существенную долю высоты у КАЖДОЙ ячейки одновременно, не
+                // оставляя места для 3 задач превью (живой фидбог 2026-08-01).
+                // Горизонтальные не трогаю — там про ширину жалоб не было.
+                const double gridVerticalPadding = 6;
+                const double gridMainAxisSpacing = 4;
+                final double cellHeight = (constraints.maxHeight - (gridVerticalPadding * 2 * s) - (gridMainAxisSpacing * s * (rows - 1))) / rows;
                 final double childAspectRatio = (cellWidth > 0 && cellHeight > 0) ? (cellWidth / cellHeight) : 1.0;
 
                 final grid = GridView.builder(
                   physics: const NeverScrollableScrollPhysics(),
-                  padding: EdgeInsets.all(24 * s),
+                  padding: EdgeInsets.symmetric(horizontal: 24 * s, vertical: gridVerticalPadding * s),
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 7,
                     crossAxisSpacing: 16 * s,
-                    mainAxisSpacing: 16 * s,
+                    mainAxisSpacing: gridMainAxisSpacing * s,
                     childAspectRatio: childAspectRatio,
                   ),
                   itemCount: totalCells,
@@ -770,26 +777,40 @@ class _CalendarSectionState extends State<_CalendarSection> {
                           // (§9.3/DESIGN_IDEAS.md P1.4) — плюс приглушённая подпись "Свободно" в
                           // пустой ячейке вместо молчаливой пустоты.
                           customColor: candidateData.isNotEmpty ? widget.highlightColor : (taskCount == 0 ? widget.emptyCellColor : null),
-                          padding: EdgeInsets.all(12 * s),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          padding: EdgeInsets.symmetric(horizontal: 8 * s, vertical: 4 * s),
+                          // Кнопка "+" раньше была отдельной строкой в Column — вместе с
+                          // заголовком числа она съедала почти всю высоту ячейки, не
+                          // оставляя места для 3 задач превью (живой фидбог 2026-08-01:
+                          // "помещается всего одна задача, даже без переполнения"). Теперь
+                          // она наложена поверх контента (Stack/Positioned), а не занимает
+                          // свою строку в раскладке — число и превью получают всю высоту
+                          // ячейки целиком.
+                          child: Stack(
                             children: [
-                              Padding(
-                                padding: EdgeInsets.only(bottom: 8 * s, left: 8 * s, top: 4 * s),
-                                child: Text("$dayNumber", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18 * s, color: cellDateStr == _formatDate(DateTime.now()) ? t.accent : widget.textColor)),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Padding(
+                                    padding: EdgeInsets.only(left: 4 * s),
+                                    child: Text("$dayNumber", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12 * s, color: cellDateStr == _formatDate(DateTime.now()) ? t.accent : widget.textColor)),
+                                  ),
+                                  Expanded(
+                                    child: taskCount == 0
+                                        ? Center(child: Text("Свободно".tr(widget.currentLang), style: TextStyle(fontSize: 11 * s, color: widget.textMuted, fontWeight: FontWeight.w600)))
+                                        : _CalendarDayTasksPreview(dayTitle: dayTitle, tasks: dayTasks, buildCalendarTaskChip: widget.buildCalendarTaskChip, buildListTaskCard: widget.buildListTaskCard, scale: s, t: t, currentLang: widget.currentLang),
+                                  ),
+                                ],
                               ),
-                              Expanded(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(
-                                      child: taskCount == 0
-                                          ? Center(child: Text("Свободно".tr(widget.currentLang), style: TextStyle(fontSize: 11 * s, color: widget.textMuted, fontWeight: FontWeight.w600)))
-                                          : _CalendarDayTasksPreview(dayTitle: dayTitle, tasks: dayTasks, buildCalendarTaskChip: widget.buildCalendarTaskChip, buildListTaskCard: widget.buildListTaskCard, scale: s, t: t, currentLang: widget.currentLang),
-                                    ),
-                                    Align(alignment: Alignment.bottomCenter, child: InkWell(onTap: () => widget.onPlusTap(cellDate, taskCount), child: Padding(padding: EdgeInsets.only(bottom: 4 * s), child: Icon(LucideIcons.plus, color: widget.textMuted, size: 20 * s)))),
-                                  ],
+                              Positioned(
+                                right: 0,
+                                bottom: 0,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(999),
+                                  onTap: () => widget.onPlusTap(cellDate, taskCount),
+                                  child: Padding(
+                                    padding: EdgeInsets.all(2 * s),
+                                    child: Icon(LucideIcons.plus, color: widget.textMuted, size: 14 * s),
+                                  ),
                                 ),
                               ),
                             ],
@@ -873,7 +894,7 @@ class _CalendarDayTasksPreview extends StatelessWidget {
                 ),
               ),
               child: Text(
-                "+$overflow ${'Ещё'.tr(currentLang)}",
+                "+$overflow",
                 style: TextStyle(fontSize: 11 * scale, fontWeight: FontWeight.w600, color: t.text2),
               ),
             ),
