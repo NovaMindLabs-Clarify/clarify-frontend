@@ -7,7 +7,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   bitsdojo_window_windows
   hotkey_manager_windows
   local_notifier
-  speech_to_text_windows
+  record_windows
   tray_manager
   url_launcher_windows
 )

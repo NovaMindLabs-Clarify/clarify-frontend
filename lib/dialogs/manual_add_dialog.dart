@@ -1,5 +1,7 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'manual_add_ai_dialog.dart';
 import '../widgets/clarify_button.dart';
 import '../widgets/clarify_day_load_warning.dart';
 import '../widgets/clarify_duration_chips.dart';
@@ -48,6 +50,14 @@ void showManualAddDialog({
   required VoidCallback onDuplicateHandled,
   required Future<int?> Function(Map<String, dynamic> taskData)
   createTaskManually,
+  required Future<String> Function(String text, List<Map<String, String>> history)
+  onAiParseText,
+  required Future<String> Function(
+    Uint8List audioBytes,
+    String filename,
+    String contentType,
+  )
+  onTranscribeVoice,
   required void Function(String dateStr) checkBurnoutWarning,
   required Map<String, dynamic> Function(String text) parseSmartInput,
   required Color Function(String? priority) getPriorityColor,
@@ -180,12 +190,29 @@ void showManualAddDialog({
                       color: textColor,
                     ),
                   ),
-                  IconButton(
-                    icon: Icon(LucideIcons.x, color: textMuted),
-                    onPressed: () {
-                      Navigator.pop(context);
-                      if (isDuplicating) onDuplicateHandled();
-                    },
+                  Row(
+                    children: [
+                      IconButton(
+                        tooltip: 'AI Ассистент'.tr(currentLang),
+                        icon: Icon(LucideIcons.sparkles, color: t.accent),
+                        onPressed: () => showManualAddAiChatDialog(
+                          context: context,
+                          currentLang: currentLang,
+                          textColor: textColor,
+                          textMuted: textMuted,
+                          onAiParseText: onAiParseText,
+                          onTranscribeVoice: onTranscribeVoice,
+                          buildGlassContainer: buildGlassContainer,
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(LucideIcons.x, color: textMuted),
+                        onPressed: () {
+                          Navigator.pop(context);
+                          if (isDuplicating) onDuplicateHandled();
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),

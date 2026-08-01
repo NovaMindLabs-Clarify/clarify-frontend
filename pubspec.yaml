@@ -35,7 +35,6 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   http: ^1.6.0
-  speech_to_text: ^7.4.0
   supabase_flutter: ^2.5.0
   flutter_dotenv: ^5.1.0
   shared_preferences: ^2.3.0
@@ -56,6 +55,8 @@ dependencies:
   auto_size_text: ^3.0.0
   lucide_icons_flutter: ^3.1.15
   animations: ^2.0.11
+  record: ^7.1.1
+  http_parser: ^4.1.2
 
 dev_dependencies:
   flutter_test:

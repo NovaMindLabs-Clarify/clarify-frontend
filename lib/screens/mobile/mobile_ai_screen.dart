@@ -1,11 +1,11 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../core/app_settings.dart';
 import '../../core/localization.dart';
 import '../../core/theme/design_tokens.dart';
 import '../../widgets/clarify_illustrations.dart';
-import '../../widgets/clarify_toast.dart';
+import '../../widgets/voice_record_button.dart';
 import '../desktop_planner_screen.dart' show AiParseHttpException;
 
 /// Полноэкранная мобильная версия AI-ассистента (desktop-аналог —
@@ -20,8 +20,9 @@ import '../desktop_planner_screen.dart' show AiParseHttpException;
 class MobileAiScreen extends StatefulWidget {
   final String currentLang;
   final Future<String> Function(String text, List<Map<String, String>> history) onParseText;
+  final Future<String> Function(Uint8List audioBytes, String filename, String contentType) onTranscribeVoice;
 
-  const MobileAiScreen({super.key, required this.currentLang, required this.onParseText});
+  const MobileAiScreen({super.key, required this.currentLang, required this.onParseText, required this.onTranscribeVoice});
 
   @override
   State<MobileAiScreen> createState() => _MobileAiScreenState();
@@ -32,67 +33,12 @@ class _MobileAiScreenState extends State<MobileAiScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isTyping = false;
-  bool _isListening = false;
-  bool _speechEnabled = false;
-  late stt.SpeechToText _speechToText;
-  String _localeId = 'ru_RU';
   late final bool _showOnboardingTip = !AppSettings.aiOnboardingSeen;
 
   @override
   void initState() {
     super.initState();
-    _initSpeech();
     if (_showOnboardingTip) AppSettings.aiOnboardingSeen = true;
-  }
-
-  Future<void> _initSpeech() async {
-    _speechToText = stt.SpeechToText();
-    try {
-      _speechEnabled = await _speechToText.initialize(
-        onStatus: (status) {
-          if (status == 'done' || status == 'notListening') {
-            if (mounted) setState(() => _isListening = false);
-          }
-        },
-        onError: (_) {
-          if (mounted) setState(() => _isListening = false);
-        },
-      );
-      if (_speechEnabled) {
-        final systemLocales = await _speechToText.locales();
-        final ruLocale = systemLocales.firstWhere(
-          (locale) => locale.localeId.toLowerCase().contains('ru'),
-          orElse: () => systemLocales.first,
-        );
-        _localeId = ruLocale.localeId;
-      }
-      if (mounted) setState(() {});
-    } on Exception {
-      // Микрофон недоступен (нет разрешения/устройства) — молча остаёмся
-      // в режиме "только текст", кнопка микрофона просто не будет работать.
-    }
-  }
-
-  Future<void> _toggleListening() async {
-    if (!_speechEnabled) {
-      ClarifyToast.show(context, 'Микрофон недоступен.'.tr(widget.currentLang), variant: ClarifyToastVariant.danger);
-      return;
-    }
-    if (_speechToText.isListening) {
-      await _speechToText.stop();
-      if (mounted) setState(() => _isListening = false);
-      return;
-    }
-    setState(() => _isListening = true);
-    final currentText = _controller.text;
-    await _speechToText.listen(
-      localeId: _localeId,
-      onResult: (result) {
-        setState(() {
-          _controller.text = currentText.isEmpty ? result.recognizedWords : '$currentText ${result.recognizedWords}';
-        });
-      },
-    );
   }
 
   void _scrollToBottom() {
@@ -101,8 +47,11 @@ class _MobileAiScreenState extends State<MobileAiScreen> {
     });
   }
 
-  Future<void> _send() async {
-    final text = _controller.text.trim();
+  // overrideText/displayText — для голосовых сообщений (_sendVoiceMessage):
+  // ассистенту отправляется чистый расшифрованный текст, а в чате при этом
+  // показывается "🎤 <текст>", как на десктопе (_sendTaskToAI).
+  Future<void> _send({String? overrideText, String? displayText}) async {
+    final text = (overrideText ?? _controller.text).trim();
     if (text.isEmpty || _isTyping) return;
     // Снимок истории ДО добавления текущего сообщения, с тем же лимитом, что
     // и на десктопе (_sendTaskToAI) — иначе промпт разрастался бы с каждым
@@ -110,10 +59,10 @@ class _MobileAiScreenState extends State<MobileAiScreen> {
     const historyLimit = 8;
     final history = _messages.length > historyLimit ? _messages.sublist(_messages.length - historyLimit) : List<Map<String, String>>.from(_messages);
     setState(() {
-      _messages.add({'role': 'user', 'text': text});
+      _messages.add({'role': 'user', 'text': (displayText ?? text).trim()});
       _isTyping = true;
     });
-    _controller.clear();
+    if (overrideText == null) _controller.clear();
     _scrollToBottom();
     try {
       final reply = await widget.onParseText(text, history);
@@ -152,11 +101,57 @@ class _MobileAiScreenState extends State<MobileAiScreen> {
     _scrollToBottom();
   }
 
+  // Голосовое сообщение — по аналогии с Telegram-ботом этого же приложения:
+  // запись загружается на /ai/transcribe-voice (widget.onTranscribeVoice,
+  // та же Groq Whisper обёртка, что и у бота), расшифрованный текст
+  // добавляется в чат с префиксом "🎤" и уходит ассистенту как обычное
+  // сообщение — вместо прежнего живого расшифровывания speech_to_text прямо
+  // в текстовое поле по ходу речи.
+  Future<void> _sendVoiceMessage(Uint8List bytes, String filename, String contentType) async {
+    if (_isTyping) return;
+    setState(() => _isTyping = true);
+    String transcribedText;
+    try {
+      transcribedText = await widget.onTranscribeVoice(bytes, filename, contentType);
+    } on AiParseHttpException catch (e) {
+      if (!mounted) return;
+      final body = e.body.substring(0, e.body.length > 120 ? 120 : e.body.length);
+      setState(() {
+        _messages.add({'role': 'ai', 'text': 'Ошибка: сервер вернул ${e.statusCode} ($body)'});
+        _isTyping = false;
+      });
+      _scrollToBottom();
+      return;
+    } on Exception catch (e) {
+      if (!mounted) return;
+      final detail = e.toString();
+      setState(() {
+        _messages.add({
+          'role': 'ai',
+          'text': '${'Ошибка расшифровки голосового.'.tr(widget.currentLang)} (${detail.substring(0, detail.length > 120 ? 120 : detail.length)})',
+        });
+        _isTyping = false;
+      });
+      _scrollToBottom();
+      return;
+    }
+    if (transcribedText.trim().isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _messages.add({'role': 'ai', 'text': 'Не удалось распознать речь.'.tr(widget.currentLang)});
+        _isTyping = false;
+      });
+      _scrollToBottom();
+      return;
+    }
+    setState(() => _isTyping = false);
+    await _send(overrideText: transcribedText, displayText: '🎤 $transcribedText');
+  }
+
   @override
   void dispose() {
     _controller.dispose();
     _scrollController.dispose();
-    if (_speechEnabled) _speechToText.stop();
     super.dispose();
   }
 
@@ -262,13 +257,9 @@ class _MobileAiScreenState extends State<MobileAiScreen> {
                   suffixIcon: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        decoration: BoxDecoration(color: _isListening ? t.dangerSoft : Colors.transparent, shape: BoxShape.circle),
-                        child: IconButton(
-                          icon: Icon(_isListening ? LucideIcons.mic : LucideIcons.micOff, color: _isListening ? t.danger : t.accent, size: 24),
-                          onPressed: _toggleListening,
-                        ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: VoiceRecordButton(currentLang: widget.currentLang, onRecorded: _sendVoiceMessage),
                       ),
                       IconButton(icon: Icon(LucideIcons.send, color: t.accent, size: 24), onPressed: _send),
                     ],

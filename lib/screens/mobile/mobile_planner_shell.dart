@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:animations/animations.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -42,6 +43,7 @@ class MobilePlannerShell extends StatefulWidget {
   final void Function({DateTime? preselectedDate}) onAddTask;
   final Future<int?> Function(Map<String, dynamic> taskData) createTaskManually;
   final Future<String> Function(String text, List<Map<String, String>> history) onAiParseText;
+  final Future<String> Function(Uint8List audioBytes, String filename, String contentType) onTranscribeVoice;
   final void Function(String dateStr) checkBurnoutWarning;
   final void Function(int workspaceId) onOpenWorkspaceMembers;
   final void Function(int workspaceId) onInviteToWorkspace;
@@ -73,6 +75,7 @@ class MobilePlannerShell extends StatefulWidget {
     required this.onAddTask,
     required this.createTaskManually,
     required this.onAiParseText,
+    required this.onTranscribeVoice,
     required this.checkBurnoutWarning,
     required this.onOpenWorkspaceMembers,
     required this.onInviteToWorkspace,
@@ -248,7 +251,7 @@ class _MobilePlannerShellState extends State<MobilePlannerShell> {
           getPriorityColor: widget.getPriorityColor,
           formatDate: widget.formatDate,
           onOpenAi: () => Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
-            builder: (_) => MobileAiScreen(currentLang: widget.currentLang, onParseText: widget.onAiParseText),
+            builder: (_) => MobileAiScreen(currentLang: widget.currentLang, onParseText: widget.onAiParseText, onTranscribeVoice: widget.onTranscribeVoice),
           )),
         ),
       ),

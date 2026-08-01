@@ -1,8 +1,10 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
 import 'clarify_illustrations.dart';
+import 'voice_record_button.dart';
 
 /// Правая выезжающая панель AI-ассистента. Вынесено из DesktopPlannerScreen
 /// (P3.1, docs/IMPROVEMENT_PLAN.md) — логика и разметка не менялись, только
@@ -21,9 +23,8 @@ class AiChatPanel extends StatelessWidget {
   // initState), простая подсказка в остальных случаях, когда чат пуст.
   final bool showOnboardingTip;
   final bool isAiTyping;
-  final bool isListening;
   final TextEditingController controller;
-  final VoidCallback onToggleListening;
+  final Future<void> Function(Uint8List audioBytes, String filename, String contentType) onVoiceRecorded;
   final void Function(String text) onSend;
 
   const AiChatPanel({
@@ -37,9 +38,8 @@ class AiChatPanel extends StatelessWidget {
     required this.chatMessages,
     required this.showOnboardingTip,
     required this.isAiTyping,
-    required this.isListening,
     required this.controller,
-    required this.onToggleListening,
+    required this.onVoiceRecorded,
     required this.onSend,
   });
 
@@ -94,7 +94,10 @@ class AiChatPanel extends StatelessWidget {
               suffixIcon: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(margin: const EdgeInsets.symmetric(horizontal: 4), decoration: BoxDecoration(color: isListening ? t.dangerSoft : Colors.transparent, shape: BoxShape.circle), child: IconButton(icon: Icon(isListening ? LucideIcons.mic : LucideIcons.micOff, color: isListening ? t.danger : t.accent, size: 24), onPressed: onToggleListening)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: VoiceRecordButton(currentLang: currentLang, onRecorded: onVoiceRecorded),
+                  ),
                   IconButton(icon: Icon(LucideIcons.send, color: t.accent, size: 24), onPressed: () => onSend(controller.text)),
                 ],
               ),

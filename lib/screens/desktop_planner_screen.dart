@@ -1,11 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
-import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:http_parser/http_parser.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -85,11 +86,6 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   final TextEditingController _aiChatController = TextEditingController();
   final TaskService _taskService = TaskService();
   double _s = 1.0;
-
-  late stt.SpeechToText _speechToText;
-  bool _speechEnabled = false;
-  bool _isListening = false;
-  String _currentLocaleId = 'ru_RU';
 
   // 3. КОЛЛЕКЦИЯ ДЛЯ УМНЫХ ТАЙМЕРОВ (БЕЗ НАГРУЗКИ НА CPU)
   final Map<String, Timer> _activeAlarms = {};
@@ -323,7 +319,6 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     _fetchZenStatuses(); // <--- Добавили запуск загрузки статусов
     _initRealtime(); // <--- ВОТ ЭТА НОВАЯ СТРОЧКА
     
-    _initSpeech();
     _initGlobalHotkeys();
     if (_showAiOnboardingTip) AppSettings.aiOnboardingSeen = true;
   }
@@ -600,25 +595,6 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     }
   }
 
-  void _initSpeech() async {
-    _speechToText = stt.SpeechToText();
-    try {
-      _speechEnabled = await _speechToText.initialize(onStatus: (status) { if (status == 'done' || status == 'notListening') { if (mounted) setState(() => _isListening = false); } }, onError: (err) { if (mounted) setState(() => _isListening = false); });
-      if (_speechEnabled) {
-        var systemLocales = await _speechToText.locales();
-        var ruLocale = systemLocales.firstWhere((locale) => locale.localeId.toLowerCase().contains('ru'), orElse: () => systemLocales.first);
-        _currentLocaleId = ruLocale.localeId;
-      }
-      if (mounted) setState(() {});
-    } catch (e) { print("Ошибка микрофона: $e".tr(widget.currentLang)); }
-  }
-
-  void _toggleListening() async {
-    if (!_speechEnabled) { ClarifyToast.show(context, "Микрофон недоступен.", variant: ClarifyToastVariant.danger); return; }
-    if (_speechToText.isListening) { await _speechToText.stop(); setState(() => _isListening = false); } 
-    else { setState(() => _isListening = true); final currentText = _aiChatController.text; await _speechToText.listen(localeId: _currentLocaleId, onResult: (result) { setState(() { if (currentText.isEmpty) { _aiChatController.text = result.recognizedWords; } else { _aiChatController.text = "$currentText ${result.recognizedWords}"; } }); }); }
-  }
-
   String _formatDate(DateTime d) => "${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}";
   DateTime? _parseDate(String dateStr) { try { final parts = dateStr.split('.'); if (parts.length == 3) return DateTime(int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0])); } catch (e) { return null; } return null; }
 
@@ -752,7 +728,10 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     return decoded['reply'] as String;
   }
 
-  Future<void> _sendTaskToAI(String text) async {
+  // displayText — для голосовых сообщений: в чате показываем "🎤 <текст>",
+  // но ассистенту (и истории, которую он видит в следующих сообщениях)
+  // отправляем чистый текст без эмодзи-префикса.
+  Future<void> _sendTaskToAI(String text, {String? displayText}) async {
     if (text.trim().isEmpty) return;
     // История — последние сообщения ДО добавления текущего в chatMessages,
     // с ограничением: чат ничем не подрезается сам по себе, и без лимита
@@ -761,7 +740,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     final history = chatMessages.length > historyLimit
         ? chatMessages.sublist(chatMessages.length - historyLimit)
         : List<Map<String, String>>.from(chatMessages);
-    setState(() { chatMessages.add({'role': 'user', 'text': text.trim()}); isAiTyping = true; }); _aiChatController.clear();
+    setState(() { chatMessages.add({'role': 'user', 'text': (displayText ?? text).trim()}); isAiTyping = true; }); _aiChatController.clear();
     try {
       final reply = await _sendToAiAssistant(text, history);
       setState(() { chatMessages.add({'role': 'ai', 'text': reply}); isAiTyping = false; });
@@ -776,6 +755,53 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
       // скриншот сразу диагностируемым.
       setState(() { chatMessages.add({'role': 'ai', 'text': '${'Ошибка связи с ИИ.'.tr(widget.currentLang)} (${e.toString().substring(0, e.toString().length > 120 ? 120 : e.toString().length)})'}); isAiTyping = false; });
     }
+  }
+
+  // Расшифровка голосового сообщения — по аналогии с Telegram-ботом этого же
+  // приложения: запись целиком загружается на /ai/transcribe-voice (та же
+  // Groq Whisper обёртка, что и у бота), а не расшифровывается вживую по
+  // ходу речи, как раньше делал speech_to_text. Общая для десктопной
+  // AI-панели и мобильного AI-экрана (MobileAiScreen.onTranscribeVoice) —
+  // бросает AiParseHttpException на не-200 ответ, как и _sendToAiAssistant,
+  // чтобы вызывающий код мог показать разные сообщения для "сервер ответил
+  // ошибкой" и "нет связи".
+  Future<String> _transcribeVoiceMessage(Uint8List bytes, String filename, String contentType) async {
+    final accessToken = Supabase.instance.client.auth.currentSession?.accessToken;
+    final request = http.MultipartRequest('POST', Uri.parse('$baseUrl/ai/transcribe-voice'));
+    if (accessToken != null) request.headers['Authorization'] = 'Bearer $accessToken';
+    request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename, contentType: MediaType.parse(contentType)));
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+    if (response.statusCode != 200) {
+      throw AiParseHttpException(response.statusCode, response.body);
+    }
+    return (json.decode(response.body)['text'] as String).trim();
+  }
+
+  // Голосовое сообщение десктопной AI-панели — isAiTyping используется на
+  // весь конвейер (расшифровка + ответ ассистента): с точки зрения
+  // пользователя это один процесс "ИИ думает".
+  Future<void> _sendVoiceMessageToAI(Uint8List bytes, String filename, String contentType) async {
+    setState(() => isAiTyping = true);
+    String transcribedText;
+    try {
+      transcribedText = await _transcribeVoiceMessage(bytes, filename, contentType);
+    } on AiParseHttpException catch (e) {
+      setState(() => isAiTyping = false);
+      final body = e.body.substring(0, e.body.length > 120 ? 120 : e.body.length);
+      if (mounted) ClarifyToast.show(context, 'Ошибка: сервер вернул ${e.statusCode} ($body)', variant: ClarifyToastVariant.danger);
+      return;
+    } catch (e) {
+      setState(() => isAiTyping = false);
+      if (mounted) ClarifyToast.show(context, '${'Ошибка расшифровки голосового.'.tr(widget.currentLang)} (${e.toString()})', variant: ClarifyToastVariant.danger);
+      return;
+    }
+    if (transcribedText.isEmpty) {
+      setState(() => isAiTyping = false);
+      if (mounted) ClarifyToast.show(context, 'Не удалось распознать речь.'.tr(widget.currentLang), variant: ClarifyToastVariant.warning);
+      return;
+    }
+    await _sendTaskToAI(transcribedText, displayText: '🎤 $transcribedText');
   }
 
   // Вставь этот блок вместо старой функции _createTaskManually
@@ -1085,6 +1111,8 @@ void _checkBurnoutWarning(String dateStr) {
       isDuplicating: _isDuplicating,
       onDuplicateHandled: () => setState(() { _isDuplicating = false; _taskToDuplicate = null; }),
       createTaskManually: _createTaskManually,
+      onAiParseText: _sendToAiAssistant,
+      onTranscribeVoice: _transcribeVoiceMessage,
       checkBurnoutWarning: _checkBurnoutWarning,
       parseSmartInput: _parseSmartInput,
       getPriorityColor: _getPriorityColor,
@@ -1250,6 +1278,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
         onAddTask: ({DateTime? preselectedDate}) => _showManualAddDialog(preselectedDate: preselectedDate),
         createTaskManually: _createTaskManually,
         onAiParseText: _sendToAiAssistant,
+        onTranscribeVoice: _transcribeVoiceMessage,
         checkBurnoutWarning: _checkBurnoutWarning,
         onOpenWorkspaceMembers: _fetchWorkspaceMembers,
         onInviteToWorkspace: (wsId) => showInviteMemberDialog(
@@ -1739,9 +1768,8 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                 chatMessages: chatMessages,
                                 showOnboardingTip: _showAiOnboardingTip,
                                 isAiTyping: isAiTyping,
-                                isListening: _isListening,
                                 controller: _aiChatController,
-                                onToggleListening: _toggleListening,
+                                onVoiceRecorded: _sendVoiceMessageToAI,
                                 onSend: _sendTaskToAI,
                               ) : const SizedBox.shrink()
                             ),
