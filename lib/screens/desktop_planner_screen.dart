@@ -276,13 +276,19 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
       padding: EdgeInsets.only(top: 24 * _s, bottom: 8 * _s),
       child: Center(
         child: Tooltip(
-          message: "$fullName — ${"Настройки".tr(widget.currentLang)}",
+          message: "$fullName — ${"Профиль".tr(widget.currentLang)}",
           child: Material(
             color: Colors.transparent,
             shape: const CircleBorder(),
             child: InkWell(
               customBorder: const CircleBorder(),
-              onTap: _showAccountSettingsDialog,
+              // Раньше на широком окне (isMobileContext считается по ширине)
+              // сюда попадал ПОЛНЫЙ диалог настроек — то же самое содержимое,
+              // что и в новой вкладке "Настройки". Аватар должен открывать
+              // ТОЛЬКО профиль, как на мобильной версии, независимо от
+              // ширины окна (фидбек пользователя 2026-08-01: "блок профиля
+              // всё ещё вмещает в себя настройки").
+              onTap: _openProfilePageFromSettingsTab,
               hoverColor: _tokens.accent.withValues(alpha: 0.06),
               child: Padding(
                 padding: EdgeInsets.all(4 * _s),
@@ -371,7 +377,9 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
       onNavigate: (menu) => setState(() => selectedMenu = menu),
       onCreateTask: () => _showManualAddDialog(),
       onToggleTheme: widget.toggleTheme,
-      onOpenSettings: _showAccountSettingsDialog,
+      // Раньше открывался диалог настроек — теперь это полноценная вкладка
+      // (см. "Настройки" в sidebar_menu.dart), палитра должна вести туда же.
+      onOpenSettings: () => setState(() => selectedMenu = 'Настройки'),
       onAskAi: (query) => setState(() {
         rightPanelState = 'ai';
         _aiChatController.text = query;

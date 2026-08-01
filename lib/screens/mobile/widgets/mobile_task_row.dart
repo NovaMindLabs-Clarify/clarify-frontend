@@ -170,9 +170,19 @@ class MobileTaskRow extends StatelessWidget {
                             runSpacing: 4,
                             children: [
                               if (showDate && task['due_date'] != null)
-                                Text(task['due_date'], style: TextStyle(fontSize: 12, color: overdue && !isDone ? t.danger : t.text3, fontWeight: FontWeight.w600)),
+                                AnimatedDefaultTextStyle(
+                                  duration: ClarifyMotion.completion,
+                                  curve: ClarifyMotion.standard,
+                                  style: TextStyle(fontSize: 12, color: overdue && !isDone ? t.danger : t.text3, fontWeight: FontWeight.w600),
+                                  child: Text(task['due_date']),
+                                ),
                               if (task['due_time'] != null)
-                                Text(task['due_time'], style: TextStyle(fontSize: 12, color: overdue && !isDone ? t.danger : t.text3, fontWeight: FontWeight.w600)),
+                                AnimatedDefaultTextStyle(
+                                  duration: ClarifyMotion.completion,
+                                  curve: ClarifyMotion.standard,
+                                  style: TextStyle(fontSize: 12, color: overdue && !isDone ? t.danger : t.text3, fontWeight: FontWeight.w600),
+                                  child: Text(task['due_time']),
+                                ),
                               // Бейдж подзадач/чек-листа схлопывается, когда сама
                               // задача выполнена — счётчик "N из N" не несёт
                               // смысла после того, как вся задача уже закрыта.

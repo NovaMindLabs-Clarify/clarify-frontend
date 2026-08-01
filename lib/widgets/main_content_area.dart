@@ -569,7 +569,8 @@ class _CalendarSection extends StatefulWidget {
 }
 
 class _CalendarSectionState extends State<_CalendarSection> {
-  bool _timelineMode = true;
+  // По умолчанию — "Месяц" (фидбек пользователя 2026-08-01), не "Таймлайн".
+  bool _timelineMode = false;
   late DateTime _selectedDay;
 
   static const List<String> _monthsRu = ['', 'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
@@ -733,7 +734,17 @@ class _CalendarSectionState extends State<_CalendarSection> {
                 final double cellWidth = isCompact
                     ? 150 * s
                     : (constraints.maxWidth - (48 * s) - (16 * s * 6)) / 7;
-                final double cellHeight = (constraints.maxHeight - (48 * s) - (16 * s * (rows - 1))) / rows;
+                final double naiveCellHeight = (constraints.maxHeight - (48 * s) - (16 * s * (rows - 1))) / rows;
+                // Ниже этой высоты 3 задачи предпросмотра (_CalendarDayTasksPreview)
+                // физически не помещаются в ячейку — раньше она всё равно сжималась
+                // до naiveCellHeight, из-за чего в ячейке визуально влезала едва ли
+                // одна задача вместо обещанных трёх (фидбек пользователя 2026-08-01).
+                // Если на всю сетку целиком не хватает высоты при таком минимуме —
+                // сетка становится вертикально прокручиваемой (тот же приём, что и
+                // у горизонтальной прокрутки в компакт-режиме ниже), а не сжимает
+                // ячейки ниже читаемого предела.
+                const double minCellHeight = 150;
+                final double cellHeight = naiveCellHeight < minCellHeight * s ? minCellHeight * s : naiveCellHeight;
                 final double childAspectRatio = (cellWidth > 0 && cellHeight > 0) ? (cellWidth / cellHeight) : 1.0;
 
                 final grid = GridView.builder(
@@ -794,13 +805,32 @@ class _CalendarSectionState extends State<_CalendarSection> {
                   },
                 );
 
-                if (!isCompact) return grid;
+                // Высота, реально нужная сетке при (возможно, поднятой до
+                // minCellHeight) высоте ячейки — если это больше видимого
+                // пространства, сетка должна прокручиваться вертикально, а не
+                // сжимать ячейки обратно ниже читаемого предела.
+                final double totalGridHeight = (48 * s) + (rows * cellHeight) + (16 * s * (rows - 1));
+                final bool heightOverflow = totalGridHeight > constraints.maxHeight;
+
+                if (!isCompact && !heightOverflow) return grid;
 
                 final totalGridWidth = (48 * s) + (7 * cellWidth) + (6 * 16 * s);
-                return SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: SizedBox(width: totalGridWidth, height: constraints.maxHeight, child: grid),
+                final sizedGrid = SizedBox(
+                  width: isCompact ? totalGridWidth : constraints.maxWidth,
+                  height: heightOverflow ? totalGridHeight : constraints.maxHeight,
+                  child: grid,
                 );
+
+                if (isCompact && heightOverflow) {
+                  return SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: SingleChildScrollView(child: sizedGrid),
+                  );
+                }
+                if (isCompact) {
+                  return SingleChildScrollView(scrollDirection: Axis.horizontal, child: sizedGrid);
+                }
+                return SingleChildScrollView(child: sizedGrid);
               },
             ),
           ),

@@ -220,13 +220,15 @@ class TaskCardBuilders {
                     ),
                   ),
                 ),
-              Text(
-                dueTime,
+              AnimatedDefaultTextStyle(
+                duration: ClarifyMotion.completion,
+                curve: ClarifyMotion.standard,
                 style: TextStyle(
                   fontSize: 9 * _s,
                   fontWeight: overdue ? FontWeight.bold : FontWeight.normal,
                   color: overdue ? _t.danger : textMuted,
                 ),
+                child: Text(dueTime),
               ),
             ],
 
@@ -326,13 +328,15 @@ class TaskCardBuilders {
                           ),
                         ),
                       ),
-                    Text(
-                      task['due_time'] ?? '--:--',
+                    AnimatedDefaultTextStyle(
+                      duration: ClarifyMotion.completion,
+                      curve: ClarifyMotion.standard,
                       style: TextStyle(
                         fontSize: 13 * _s,
                         fontWeight: FontWeight.bold,
                         color: overdue ? _t.danger : textMuted,
                       ),
+                      child: Text(task['due_time'] ?? '--:--'),
                     ),
                   ],
                 ),
@@ -596,27 +600,27 @@ class TaskCardBuilders {
                                     ),
                             ),
                           ),
-                        // clarifyAnimatedBadgeSlot — анимирует и вход, И выход
-                        // (AnimatedSize+AnimatedOpacity), в точности как на
-                        // мобильной версии (mobile_task_row.dart) — раньше здесь
-                        // стоял ClarifyBadgeEntrance (только вход), из-за чего
-                        // бейдж резко пропадал, если гниение/перенос переставали
-                        // применяться (фидбек пользователя 2026-08-01: "должно
-                        // выглядеть ровно как на мобильной версии").
-                        Padding(
-                          padding: const EdgeInsets.only(left: 12),
-                          child: clarifyAnimatedBadgeSlot(_rotBadge(task, isDone, overdue)),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(left: 12),
-                          child: clarifyAnimatedBadgeSlot(_rescheduleBadge(task, isDone)),
-                        ),
                       ],
                     ),
-                    if (task['due_time'] != null ||
+                    // Гниение/перенос — на второй строке РЯДОМ с иконкой
+                    // просрочки, а не в строке заголовка: ровно та же
+                    // группировка, что и на мобильной версии
+                    // (mobile_task_row.dart — своя, отдельная от даты/тегов/
+                    // счётчиков строка). Раньше стояли в строке заголовка —
+                    // из-за этого визуально терялись среди чекбокса/
+                    // зачёркивания/счётчиков подзадач (фидбек пользователя
+                    // 2026-08-01: "не появились значки переносов и гниения").
+                    // due_date (без due_time) и сами бейджи добавлены в
+                    // условие показа строки ниже — раньше строка целиком не
+                    // рендерилась, если у задачи не было ни due_time, ни
+                    // note/tags/приоритета, даже если гниение/перенос были.
+                    if (task['due_date'] != null ||
+                        task['due_time'] != null ||
                         task['note'] != null ||
                         task['tags'] != null ||
-                        priorityFlagLabel(task['priority']).isNotEmpty)
+                        priorityFlagLabel(task['priority']).isNotEmpty ||
+                        _rotBadge(task, isDone, overdue) != null ||
+                        _rescheduleBadge(task, isDone) != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 8),
                         child: Row(
@@ -667,8 +671,9 @@ class TaskCardBuilders {
                                     ),
                                   ),
                                 ),
-                              Text(
-                                "${task['due_date'] != null ? '${task['due_date']} ' : ''}${task['due_time'] ?? ''}  ",
+                              AnimatedDefaultTextStyle(
+                                duration: ClarifyMotion.completion,
+                                curve: ClarifyMotion.standard,
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: overdue ? _t.danger : textMuted,
@@ -676,8 +681,22 @@ class TaskCardBuilders {
                                       ? FontWeight.bold
                                       : FontWeight.normal,
                                 ),
+                                child: Text(
+                                  "${task['due_date'] != null ? '${task['due_date']} ' : ''}${task['due_time'] ?? ''}  ",
+                                ),
                               ),
                             ],
+                            // clarifyAnimatedBadgeSlot — анимирует и вход, И
+                            // выход (AnimatedSize+AnimatedOpacity), в точности
+                            // как на мобильной версии.
+                            Padding(
+                              padding: const EdgeInsets.only(right: 12),
+                              child: clarifyAnimatedBadgeSlot(_rotBadge(task, isDone, overdue)),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(right: 12),
+                              child: clarifyAnimatedBadgeSlot(_rescheduleBadge(task, isDone)),
+                            ),
                             if (task['tags'] != null &&
                                 task['tags'].toString().trim().isNotEmpty)
                               GestureDetector(

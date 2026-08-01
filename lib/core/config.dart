@@ -13,7 +13,7 @@ class AppConfig {
 
   static const int dailyTaskLimit = 100;
 
-  static const String telegramSupportUrl = 'https://t.me/ClarifyPlan';
+  static const String telegramSupportUrl = 'https://t.me/ClarifyHelp_bot';
 
   static const Duration zenModeDuration = Duration(minutes: 45);
 
