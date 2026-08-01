@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:http/http.dart' as http;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../widgets/clarify_button.dart';
 import '../widgets/clarify_surface.dart';
@@ -72,6 +73,43 @@ void showAccountSettingsDialog({
   bool showCacheDetails = false;
   String? friendCode;
   bool friendCodeFetchStarted = false;
+  bool showTelegramBot = false;
+  String? telegramLinkCode;
+  String? telegramDeepLink;
+  bool telegramLinkLoading = false;
+
+  // Код привязки Telegram-бота — СОЗНАТЕЛЬНО не friend_code (см. комментарий
+  // у соответствующей карточки ниже): другой уровень риска, отдельный
+  // короткоживущий (15 минут) одноразовый код с backend/clarify-backend.
+  // Запрашивается по тапу, а не сразу при открытии диалога, как friend_code —
+  // код одноразовый и живёт недолго, незачем генерировать его впустую при
+  // каждом открытии настроек.
+  Future<void> fetchTelegramLinkCode(StateSetter setStateDialog) async {
+    setStateDialog(() => telegramLinkLoading = true);
+    try {
+      final accessToken = Supabase.instance.client.auth.currentSession?.accessToken;
+      final response = await http.post(
+        Uri.parse('${AppConfig.backendBaseUrl}/telegram/link-code'),
+        headers: {
+          'Content-Type': 'application/json',
+          if (accessToken != null) 'Authorization': 'Bearer $accessToken',
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        telegramLinkCode = data['code'] as String?;
+        telegramDeepLink = data['deep_link'] as String?;
+      } else if (context.mounted) {
+        ClarifyToast.show(context, 'Не удалось получить код'.tr(currentLang), variant: ClarifyToastVariant.warning);
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ClarifyToast.show(context, 'Нет связи с сервером'.tr(currentLang), variant: ClarifyToastVariant.warning);
+      }
+    } finally {
+      setStateDialog(() => telegramLinkLoading = false);
+    }
+  }
 
   Widget buildContent(BuildContext context) {
     return StatefulBuilder(
@@ -479,6 +517,88 @@ void showAccountSettingsDialog({
                     ),
             ),
             const SizedBox(height: 12),
+
+            // --- TELEGRAM-БОТ --- код привязки СОЗНАТЕЛЬНО отдельный от кода
+            // друга выше: тот безопасно шарить (низкий риск, просто добавление
+            // в друзья), а этот даёт боту полный доступ к задачам аккаунта —
+            // конфликт зон ответственности, если бы был один и тот же код.
+            ClarifySettingsCard(
+              icon: LucideIcons.send,
+              title: "Telegram-бот".tr(currentLang),
+              onTap: () => setStateDialog(() => showTelegramBot = !showTelegramBot),
+              isExpanded: showTelegramBot,
+              trailing: Icon(
+                showTelegramBot ? LucideIcons.chevronUp : LucideIcons.chevronDown,
+                color: textMuted,
+                size: 18,
+              ),
+              expandedChild: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Divider(color: t.border, height: 17),
+                  Text(
+                    "Добавляй задачи текстом или голосом прямо в Telegram, получай напоминания и утреннюю сводку.".tr(currentLang),
+                    style: TextStyle(color: textMuted, fontSize: 12.5),
+                  ),
+                  const SizedBox(height: 12),
+                  if (telegramLinkCode == null)
+                    ClarifyButton(
+                      label: "Получить код".tr(currentLang),
+                      variant: ClarifyButtonVariant.outline,
+                      loading: telegramLinkLoading,
+                      onPressed: telegramLinkLoading ? null : () => fetchTelegramLinkCode(setStateDialog),
+                    )
+                  else ...[
+                    InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () {
+                        Clipboard.setData(ClipboardData(text: telegramLinkCode!));
+                        ClarifyToast.show(context, 'Код скопирован!'.tr(currentLang), variant: ClarifyToastVariant.success);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: t.accentSoft,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              telegramLinkCode!,
+                              style: TextStyle(color: t.accent, fontWeight: FontWeight.bold, letterSpacing: 1.5),
+                            ),
+                            const SizedBox(width: 6),
+                            Icon(LucideIcons.copy, size: 14, color: t.accent),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      telegramDeepLink != null
+                          ? "Нажми кнопку ниже или напиши боту: /start ".tr(currentLang) + telegramLinkCode!
+                          : "Напиши боту: /start ".tr(currentLang) + telegramLinkCode!,
+                      style: TextStyle(color: textMuted, fontSize: 12.5),
+                    ),
+                    if (telegramDeepLink != null) ...[
+                      const SizedBox(height: 10),
+                      ClarifyButton(
+                        label: "Открыть в Telegram".tr(currentLang),
+                        variant: ClarifyButtonVariant.filled,
+                        onPressed: () async {
+                          final url = Uri.parse(telegramDeepLink!);
+                          if (await canLaunchUrl(url)) {
+                            await launchUrl(url, mode: LaunchMode.externalApplication);
+                          }
+                        },
+                      ),
+                    ],
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
 
             // --- ПЕРЕКЛЮЧАТЕЛЬ АВТОЗАПУСКА --- только на десктопе, на мобильном
             // (PWA) автозапуск с Windows бессмысленен (REDESIGN_V3_PLAN.md §3.14/5.14).
