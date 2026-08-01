@@ -1670,6 +1670,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
                               buildListTaskCard: taskCardBuilders.buildListTaskCard,
                               buildBoardTaskCardExpanded: taskCardBuilders.buildBoardTaskCardExpanded,
                               buildCalendarTaskCard: taskCardBuilders.buildCalendarTaskCard,
+                              buildCalendarTaskChip: taskCardBuilders.buildCalendarTaskChip,
                               buildGlassContainer: _buildGlassContainer,
                               getLocalKanbanStatus: _getLocalKanbanStatus,
                               onSetLocalKanbanStatus: _setLocalKanbanStatus,

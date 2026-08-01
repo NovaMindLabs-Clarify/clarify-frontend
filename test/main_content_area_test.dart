@@ -23,6 +23,7 @@ Widget _harness({
         buildListTaskCard: (task) => Text(task['title'] as String),
         buildBoardTaskCardExpanded: (task) => Text(task['title'] as String),
         buildCalendarTaskCard: (task) => Text(task['title'] as String),
+        buildCalendarTaskChip: (task) => Text(task['title'] as String),
         buildGlassContainer: ({required child, margin, padding, customColor}) => child,
         buildStatisticsDashboard: () => const SizedBox.shrink(),
         buildSettingsPanel: () => const SizedBox.shrink(),

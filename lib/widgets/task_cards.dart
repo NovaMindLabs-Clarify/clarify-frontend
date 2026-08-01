@@ -269,6 +269,58 @@ class TaskCardBuilders {
     );
   }
 
+  // Google/Apple-calendar стиль: цветная полоска приоритета (тот же язык,
+  // что и у buildCalendarTaskRow) + название в одну строку, без чекбокса и
+  // времени — ради максимально низкой высоты строки. Нужен отдельно от
+  // buildCalendarTaskRow, а не просто уменьшением его размеров: месячная
+  // сетка статична (без скролла, по прямому запросу пользователя
+  // 2026-08-01) и обязана гарантированно вмещать 3 задачи в ячейке при
+  // любом размере окна — полноценная строка с чекбоксом на это столько
+  // места не оставляет. Детали (время/чекбокс/тег) — по тапу, не в ячейке.
+  Widget _calendarTaskChipRow(Map<String, dynamic> task) {
+    final bool isDone = task['is_completed'] == true;
+    final bool hasPriority = task['priority'] != null && task['priority'] != 'none';
+    final Color stripeColor = isDone ? glassBorderColor : (hasPriority ? getPriorityColor(task['priority']) : glassBorderColor);
+
+    return ClarifyPressable(
+      onTap: () => onTap(task),
+      child: Container(
+        margin: EdgeInsets.only(bottom: 2 * _s),
+        decoration: BoxDecoration(border: Border(left: BorderSide(color: stripeColor, width: 2 * _s))),
+        padding: EdgeInsets.symmetric(horizontal: 4 * _s),
+        child: ClarifyStrikeText(
+          text: task['title'] ?? '',
+          isDone: isDone,
+          style: TextStyle(fontSize: 10 * _s, fontWeight: FontWeight.w600, color: isDone ? textMuted : textColor),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    );
+  }
+
+  /// Та же обёртка drag-and-drop, что и у buildCalendarTaskCard (перенос
+  /// задачи на другой день зажатием) — по прямому запросу пользователя
+  /// сохранить эту возможность и для компактного превью в ячейке месяца.
+  Widget buildCalendarTaskChip(Map<String, dynamic> task) {
+    return LongPressDraggable<Map<String, dynamic>>(
+      data: task,
+      delay: const Duration(milliseconds: 200),
+      feedback: Material(
+        color: Colors.transparent,
+        child: SizedBox(width: 150, child: _calendarTaskChipRow(task)),
+      ),
+      childWhenDragging: Opacity(
+        opacity: 0.3,
+        child: _calendarTaskChipRow(task),
+      ),
+      child: ClarifyCollapsingTaskRow(
+        key: ValueKey(task['id']),
+        child: _calendarTaskChipRow(task),
+      ),
+    );
+  }
+
   Widget buildBoardTaskCardExpanded(Map<String, dynamic> task) {
     final bool isDone = task['is_completed'] == true;
     Color priorityColor = getPriorityColor(task['priority']);

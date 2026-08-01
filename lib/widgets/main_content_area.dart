@@ -41,6 +41,7 @@ class MainContentArea extends StatelessWidget {
   final Widget Function(Map<String, dynamic>) buildListTaskCard;
   final Widget Function(Map<String, dynamic>) buildBoardTaskCardExpanded;
   final Widget Function(Map<String, dynamic>) buildCalendarTaskCard;
+  final Widget Function(Map<String, dynamic>) buildCalendarTaskChip;
   final Widget Function({required Widget child, EdgeInsetsGeometry? margin, EdgeInsetsGeometry? padding, Color? customColor}) buildGlassContainer;
   final Widget Function() buildStatisticsDashboard;
   final Widget Function() buildSettingsPanel;
@@ -85,6 +86,7 @@ class MainContentArea extends StatelessWidget {
     required this.buildListTaskCard,
     required this.buildBoardTaskCardExpanded,
     required this.buildCalendarTaskCard,
+    required this.buildCalendarTaskChip,
     required this.buildGlassContainer,
     required this.buildStatisticsDashboard,
     required this.buildSettingsPanel,
@@ -390,6 +392,7 @@ class MainContentArea extends StatelessWidget {
         filteredTasks: filteredTasks,
         buildGlassContainer: buildGlassContainer,
         buildCalendarTaskCard: buildCalendarTaskCard,
+        buildCalendarTaskChip: buildCalendarTaskChip,
         buildListTaskCard: buildListTaskCard,
         onTaskDropped: onTaskDropped,
         onPlusTap: onPlusTap,
@@ -539,6 +542,7 @@ class _CalendarSection extends StatefulWidget {
   final List<Map<String, dynamic>> filteredTasks;
   final Widget Function({required Widget child, EdgeInsetsGeometry? margin, EdgeInsetsGeometry? padding, Color? customColor}) buildGlassContainer;
   final Widget Function(Map<String, dynamic>) buildCalendarTaskCard;
+  final Widget Function(Map<String, dynamic>) buildCalendarTaskChip;
   final Widget Function(Map<String, dynamic>) buildListTaskCard;
   final Function(Map<String, dynamic>, String, int) onTaskDropped;
   final Function(DateTime, int) onPlusTap;
@@ -557,6 +561,7 @@ class _CalendarSection extends StatefulWidget {
     required this.filteredTasks,
     required this.buildGlassContainer,
     required this.buildCalendarTaskCard,
+    required this.buildCalendarTaskChip,
     required this.buildListTaskCard,
     required this.onTaskDropped,
     required this.onPlusTap,
@@ -734,17 +739,7 @@ class _CalendarSectionState extends State<_CalendarSection> {
                 final double cellWidth = isCompact
                     ? 150 * s
                     : (constraints.maxWidth - (48 * s) - (16 * s * 6)) / 7;
-                final double naiveCellHeight = (constraints.maxHeight - (48 * s) - (16 * s * (rows - 1))) / rows;
-                // Ниже этой высоты 3 задачи предпросмотра (_CalendarDayTasksPreview)
-                // физически не помещаются в ячейку — раньше она всё равно сжималась
-                // до naiveCellHeight, из-за чего в ячейке визуально влезала едва ли
-                // одна задача вместо обещанных трёх (фидбек пользователя 2026-08-01).
-                // Если на всю сетку целиком не хватает высоты при таком минимуме —
-                // сетка становится вертикально прокручиваемой (тот же приём, что и
-                // у горизонтальной прокрутки в компакт-режиме ниже), а не сжимает
-                // ячейки ниже читаемого предела.
-                const double minCellHeight = 150;
-                final double cellHeight = naiveCellHeight < minCellHeight * s ? minCellHeight * s : naiveCellHeight;
+                final double cellHeight = (constraints.maxHeight - (48 * s) - (16 * s * (rows - 1))) / rows;
                 final double childAspectRatio = (cellWidth > 0 && cellHeight > 0) ? (cellWidth / cellHeight) : 1.0;
 
                 final grid = GridView.builder(
@@ -791,7 +786,7 @@ class _CalendarSectionState extends State<_CalendarSection> {
                                     Expanded(
                                       child: taskCount == 0
                                           ? Center(child: Text("Свободно".tr(widget.currentLang), style: TextStyle(fontSize: 11 * s, color: widget.textMuted, fontWeight: FontWeight.w600)))
-                                          : _CalendarDayTasksPreview(dayTitle: dayTitle, tasks: dayTasks, buildCalendarTaskCard: widget.buildCalendarTaskCard, buildListTaskCard: widget.buildListTaskCard, scale: s, t: t, currentLang: widget.currentLang),
+                                          : _CalendarDayTasksPreview(dayTitle: dayTitle, tasks: dayTasks, buildCalendarTaskChip: widget.buildCalendarTaskChip, buildListTaskCard: widget.buildListTaskCard, scale: s, t: t, currentLang: widget.currentLang),
                                     ),
                                     Align(alignment: Alignment.bottomCenter, child: InkWell(onTap: () => widget.onPlusTap(cellDate, taskCount), child: Padding(padding: EdgeInsets.only(bottom: 4 * s), child: Icon(LucideIcons.plus, color: widget.textMuted, size: 20 * s)))),
                                   ],
@@ -805,32 +800,13 @@ class _CalendarSectionState extends State<_CalendarSection> {
                   },
                 );
 
-                // Высота, реально нужная сетке при (возможно, поднятой до
-                // minCellHeight) высоте ячейки — если это больше видимого
-                // пространства, сетка должна прокручиваться вертикально, а не
-                // сжимать ячейки обратно ниже читаемого предела.
-                final double totalGridHeight = (48 * s) + (rows * cellHeight) + (16 * s * (rows - 1));
-                final bool heightOverflow = totalGridHeight > constraints.maxHeight;
-
-                if (!isCompact && !heightOverflow) return grid;
+                if (!isCompact) return grid;
 
                 final totalGridWidth = (48 * s) + (7 * cellWidth) + (6 * 16 * s);
-                final sizedGrid = SizedBox(
-                  width: isCompact ? totalGridWidth : constraints.maxWidth,
-                  height: heightOverflow ? totalGridHeight : constraints.maxHeight,
-                  child: grid,
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(width: totalGridWidth, height: constraints.maxHeight, child: grid),
                 );
-
-                if (isCompact && heightOverflow) {
-                  return SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: SingleChildScrollView(child: sizedGrid),
-                  );
-                }
-                if (isCompact) {
-                  return SingleChildScrollView(scrollDirection: Axis.horizontal, child: sizedGrid);
-                }
-                return SingleChildScrollView(child: sizedGrid);
               },
             ),
           ),
@@ -849,7 +825,7 @@ class _CalendarDayTasksPreview extends StatelessWidget {
 
   final String dayTitle;
   final List<Map<String, dynamic>> tasks;
-  final Widget Function(Map<String, dynamic>) buildCalendarTaskCard;
+  final Widget Function(Map<String, dynamic>) buildCalendarTaskChip;
   final Widget Function(Map<String, dynamic>) buildListTaskCard;
   final double scale;
   final ClarifyTokens t;
@@ -858,7 +834,7 @@ class _CalendarDayTasksPreview extends StatelessWidget {
   const _CalendarDayTasksPreview({
     required this.dayTitle,
     required this.tasks,
-    required this.buildCalendarTaskCard,
+    required this.buildCalendarTaskChip,
     required this.buildListTaskCard,
     required this.scale,
     required this.t,
@@ -879,7 +855,7 @@ class _CalendarDayTasksPreview extends StatelessWidget {
           child: ListView(
             padding: EdgeInsets.zero,
             physics: const NeverScrollableScrollPhysics(),
-            children: [for (final task in previewTasks) buildCalendarTaskCard(task)],
+            children: [for (final task in previewTasks) buildCalendarTaskChip(task)],
           ),
         ),
         if (overflow > 0)
