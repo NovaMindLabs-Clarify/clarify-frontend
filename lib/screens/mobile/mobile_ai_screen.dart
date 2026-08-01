@@ -10,13 +10,16 @@ import '../desktop_planner_screen.dart' show AiParseHttpException;
 
 /// Полноэкранная мобильная версия AI-ассистента (desktop-аналог —
 /// `widgets/ai_chat_panel.dart`, встроенный в боковую панель, которой на
-/// мобильном нет). Логика разбора текста в задачи (`onParseText`) приходит
-/// из DesktopPlannerScreen — тот же `/tasks/parse` эндпоинт и OpenRouter,
-/// что и на десктопе, просто с отдельным полноэкранным UI и собственным
-/// состоянием чата вместо общего с десктопной панелью.
+/// мобильном нет). Логика общения с ассистентом (`onParseText`) приходит из
+/// DesktopPlannerScreen — тот же `/tasks/parse` эндпоинт и OpenRouter, что и
+/// на десктопе, просто с отдельным полноэкранным UI и собственным
+/// состоянием чата вместо общего с десктопной панелью. Ассистент теперь не
+/// только создаёт задачи, но и видит текущие (может переносить/отмечать
+/// выполненными) и отвечает на вопросы — onParseText возвращает его
+/// естественно-языковой ответ, а не счётчик созданных задач.
 class MobileAiScreen extends StatefulWidget {
   final String currentLang;
-  final Future<int> Function(String text) onParseText;
+  final Future<String> Function(String text, List<Map<String, String>> history) onParseText;
 
   const MobileAiScreen({super.key, required this.currentLang, required this.onParseText});
 
@@ -101,6 +104,11 @@ class _MobileAiScreenState extends State<MobileAiScreen> {
   Future<void> _send() async {
     final text = _controller.text.trim();
     if (text.isEmpty || _isTyping) return;
+    // Снимок истории ДО добавления текущего сообщения, с тем же лимитом, что
+    // и на десктопе (_sendTaskToAI) — иначе промпт разрастался бы с каждым
+    // новым сообщением в затянувшемся чате.
+    const historyLimit = 8;
+    final history = _messages.length > historyLimit ? _messages.sublist(_messages.length - historyLimit) : List<Map<String, String>>.from(_messages);
     setState(() {
       _messages.add({'role': 'user', 'text': text});
       _isTyping = true;
@@ -108,10 +116,10 @@ class _MobileAiScreenState extends State<MobileAiScreen> {
     _controller.clear();
     _scrollToBottom();
     try {
-      final count = await widget.onParseText(text);
+      final reply = await widget.onParseText(text, history);
       if (!mounted) return;
       setState(() {
-        _messages.add({'role': 'ai', 'text': 'Готово! Добавлено задач: $count.'.tr(widget.currentLang)});
+        _messages.add({'role': 'ai', 'text': reply});
         _isTyping = false;
       });
     } on AiParseHttpException catch (e) {

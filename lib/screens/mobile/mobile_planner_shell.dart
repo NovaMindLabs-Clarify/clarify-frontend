@@ -40,7 +40,7 @@ class MobilePlannerShell extends StatefulWidget {
   onQuickUpdateTask;
   final void Function({DateTime? preselectedDate}) onAddTask;
   final Future<int?> Function(Map<String, dynamic> taskData) createTaskManually;
-  final Future<int> Function(String text) onAiParseText;
+  final Future<String> Function(String text, List<Map<String, String>> history) onAiParseText;
   final void Function(String dateStr) checkBurnoutWarning;
   final void Function(int workspaceId) onOpenWorkspaceMembers;
   final void Function(int workspaceId) onInviteToWorkspace;

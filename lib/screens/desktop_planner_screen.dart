@@ -43,7 +43,7 @@ import '../dialogs/edit_task_dialog.dart';
 import '../dialogs/task_details_dialog.dart';
 import '../dialogs/account_settings_dialog.dart';
 
-/// Бросается _parseTextToTasks, когда /tasks/parse отвечает не-200 —
+/// Бросается _sendToAiAssistant, когда /tasks/parse отвечает не-200 —
 /// отдельный тип нужен, чтобы отличать "сервер ответил ошибкой" от
 /// "нет связи" в UI (десктоп и мобильный AI-экран).
 class AiParseHttpException implements Exception {
@@ -699,11 +699,17 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     );
   }
 
-  // Общая логика для десктопной AI-панели и мобильного AI-экрана —
-  // POST /tasks/parse + подтягивание созданных задач. Бросает
-  // AiParseHttpException на не-200 ответ, чтобы вызывающий код мог
-  // показать разные сообщения для "сервер ответил ошибкой" и "нет связи".
-  Future<int> _parseTextToTasks(String text) async {
+  // Общая логика для десктопной AI-панели и мобильного AI-экрана — POST
+  // /tasks/parse + подтягивание созданных/изменённых задач. Раньше эндпоинт
+  // только создавал задачи и возвращал их список, теперь ассистент видит
+  // существующие задачи пользователя, может их изменять (перенос/отметка
+  // выполненной) и отвечать на вопросы — поэтому возвращает не счётчик, а
+  // естественно-языковой ответ ("reply"), который и показываем в чате.
+  // История — последние сообщения ДО этого текста, для контекста
+  // многоходовой переписки (например правка предыдущего запроса). Бросает
+  // AiParseHttpException на не-200 ответ, чтобы вызывающий код мог показать
+  // разные сообщения для "сервер ответил ошибкой" и "нет связи".
+  Future<String> _sendToAiAssistant(String text, List<Map<String, String>> history) async {
     final accessToken = Supabase.instance.client.auth.currentSession?.accessToken;
     final response = await http.post(
       Uri.parse('$baseUrl/tasks/parse'),
@@ -711,22 +717,29 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
         'Content-Type': 'application/json',
         if (accessToken != null) 'Authorization': 'Bearer $accessToken',
       },
-      body: json.encode({'text': text}),
+      body: json.encode({'text': text, 'history': history}),
     );
     if (response.statusCode != 200) {
       throw AiParseHttpException(response.statusCode, response.body);
     }
-    final List addedTasks = json.decode(response.body);
+    final Map<String, dynamic> decoded = json.decode(response.body);
     await _fetchTasks();
-    return addedTasks.length;
+    return decoded['reply'] as String;
   }
 
   Future<void> _sendTaskToAI(String text) async {
     if (text.trim().isEmpty) return;
+    // История — последние сообщения ДО добавления текущего в chatMessages,
+    // с ограничением: чат ничем не подрезается сам по себе, и без лимита
+    // очень длинная переписка раздувала бы промпт с каждым новым сообщением.
+    const historyLimit = 8;
+    final history = chatMessages.length > historyLimit
+        ? chatMessages.sublist(chatMessages.length - historyLimit)
+        : List<Map<String, String>>.from(chatMessages);
     setState(() { chatMessages.add({'role': 'user', 'text': text.trim()}); isAiTyping = true; }); _aiChatController.clear();
     try {
-      final count = await _parseTextToTasks(text);
-      setState(() { chatMessages.add({'role': 'ai', 'text': 'Готово! Добавлено задач: $count. '.tr(widget.currentLang)}); isAiTyping = false; });
+      final reply = await _sendToAiAssistant(text, history);
+      setState(() { chatMessages.add({'role': 'ai', 'text': reply}); isAiTyping = false; });
     } on AiParseHttpException catch (e) {
       final body = e.body.substring(0, e.body.length > 120 ? 120 : e.body.length);
       setState(() { chatMessages.add({'role': 'ai', 'text': 'Ошибка: сервер вернул ${e.statusCode} ($body)'}); isAiTyping = false; });
@@ -1211,7 +1224,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
         onQuickUpdateTask: _updateTaskData,
         onAddTask: ({DateTime? preselectedDate}) => _showManualAddDialog(preselectedDate: preselectedDate),
         createTaskManually: _createTaskManually,
-        onAiParseText: _parseTextToTasks,
+        onAiParseText: _sendToAiAssistant,
         checkBurnoutWarning: _checkBurnoutWarning,
         onOpenWorkspaceMembers: _fetchWorkspaceMembers,
         onInviteToWorkspace: (wsId) => showInviteMemberDialog(
