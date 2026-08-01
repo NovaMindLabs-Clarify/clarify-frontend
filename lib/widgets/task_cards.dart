@@ -270,46 +270,92 @@ class TaskCardBuilders {
   }
 
   // Google/Apple-calendar стиль: цветная полоска приоритета (тот же язык,
-  // что и у buildCalendarTaskRow) + название в одну строку, без чекбокса и
-  // времени — ради максимально низкой высоты строки. Нужен отдельно от
-  // buildCalendarTaskRow, а не просто уменьшением его размеров: месячная
-  // сетка статична (без скролла, по прямому запросу пользователя
-  // 2026-08-01) и обязана гарантированно вмещать 3 задачи в ячейке при
-  // любом размере окна — полноценная строка с чекбоксом на это столько
-  // места не оставляет. Детали (время/чекбокс/тег) — по тапу, не в ячейке.
+  // что и у buildCalendarTaskRow) вместо чекбокса — детали открытия/отметки
+  // выполненной по тапу, не в самой ячейке. Вторая строка (приоритет,
+  // просрочка, гниение, перенос) добавлена по прямому запросу — "как в
+  // Мой день/Все задачи, места теперь достаточно" (2026-08-01), после того
+  // как первая версия (только время+название) освободила ячейке заметный
+  // запас высоты. Нужен отдельно от buildCalendarTaskRow (не просто его
+  // уменьшением): месячная сетка статична (без скролла) и обязана
+  // гарантированно вмещать 3 задачи в ячейке при любом размере окна.
   Widget _calendarTaskChipRow(Map<String, dynamic> task) {
     final bool isDone = task['is_completed'] == true;
     final bool hasPriority = task['priority'] != null && task['priority'] != 'none';
     final Color stripeColor = isDone ? glassBorderColor : (hasPriority ? getPriorityColor(task['priority']) : glassBorderColor);
     final String? dueTime = task['due_time'] as String?;
+    final bool overdue = isOverdue(task);
+    // Компактнее, чем в списке/доске (scale*0.75) — тот же бейдж, тот же
+    // компонент, просто меньше, чтобы не расталкивать 3-ю строку превью. Без
+    // обёртки в быстрые действия (_rotBadge) — тап по всей строке уже ведёт
+    // к деталям задачи, где тот же бейдж уже с быстрыми действиями.
+    final rotBadge = buildRotBadge(task: task, isDone: isDone, overdue: overdue, tokens: _t, currentLang: currentLang, scale: _s * 0.75);
+    final rescheduleBadge = buildRescheduleBadge(task: task, isDone: isDone, tokens: _t, currentLang: currentLang, scale: _s * 0.75);
+    final priorityLabel = priorityFlagLabel(task['priority']);
 
     return ClarifyPressable(
       onTap: () => onTap(task),
       child: Container(
-        margin: EdgeInsets.only(bottom: 0.5 * _s),
+        margin: EdgeInsets.only(bottom: 1 * _s),
         decoration: BoxDecoration(border: Border(left: BorderSide(color: stripeColor, width: 2 * _s))),
         padding: EdgeInsets.symmetric(horizontal: 3 * _s),
-        // Время — единственное, что реально полезно увидеть не открывая
-        // задачу, и коротко по ширине (всегда "ЧЧ:ММ") — не рискует
-        // вытолкнуть 3-ю строку за пределы ячейки, в отличие от тегов/
-        // чек-листа. Не входит в зачёркивание (своя Text, не часть
-        // ClarifyStrikeText) — временная метка не "перечёркнутый факт".
-        child: Row(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (dueTime != null) ...[
-              Text(dueTime, style: TextStyle(fontSize: 9 * _s, fontWeight: FontWeight.w600, color: isDone ? textMuted : _t.text3)),
-              SizedBox(width: 4 * _s),
-            ],
-            Flexible(
-              child: ClarifyStrikeText(
-                text: task['title'] ?? '',
-                isDone: isDone,
-                style: TextStyle(fontSize: 9 * _s, fontWeight: FontWeight.w600, color: isDone ? textMuted : textColor),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+            // Строка 1: время (если задано) + название. Время — своя Text,
+            // не часть ClarifyStrikeText — временная метка не "перечёркнутый
+            // факт", даже когда сама задача выполнена.
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (dueTime != null) ...[
+                  Text(dueTime, style: TextStyle(fontSize: 9 * _s, fontWeight: FontWeight.w600, color: isDone ? textMuted : _t.text3)),
+                  SizedBox(width: 4 * _s),
+                ],
+                Flexible(
+                  child: ClarifyStrikeText(
+                    text: task['title'] ?? '',
+                    isDone: isDone,
+                    style: TextStyle(fontSize: 9 * _s, fontWeight: FontWeight.w600, color: isDone ? textMuted : textColor),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
+            // Строка 2: приоритет + просрочка + гниение + перенос — та же
+            // информация и те же анимации (вход/выход, opacity), что и в
+            // Мой день/Все задачи, просто мельче.
+            if (_wasPastDue(task) || priorityLabel.isNotEmpty || rotBadge != null || rescheduleBadge != null)
+              Wrap(
+                spacing: 4 * _s,
+                runSpacing: 1 * _s,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  if (_wasPastDue(task))
+                    SizedBox(
+                      width: 8 * _s,
+                      height: 8 * _s,
+                      child: AnimatedOpacity(
+                        opacity: isDone ? 0 : 1,
+                        duration: ClarifyMotion.completion,
+                        curve: ClarifyMotion.standard,
+                        child: Icon(LucideIcons.clockAlert, size: 8 * _s, color: _t.danger),
+                      ),
+                    ),
+                  if (priorityLabel.isNotEmpty)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(LucideIcons.flag, size: 8 * _s, color: getPriorityColor(task['priority'])),
+                        SizedBox(width: 1 * _s),
+                        Text(priorityLabel, style: TextStyle(fontSize: 8 * _s, fontWeight: FontWeight.bold, color: getPriorityColor(task['priority']))),
+                      ],
+                    ),
+                  clarifyAnimatedBadgeSlot(rotBadge),
+                  clarifyAnimatedBadgeSlot(rescheduleBadge),
+                ],
+              ),
           ],
         ),
       ),
@@ -692,7 +738,20 @@ class TaskCardBuilders {
                         _rescheduleBadge(task, isDone) != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 8),
+                        // crossAxisAlignment.center на плоском Row centrирует
+                        // каждый элемент отдельно относительно высоты САМОГО
+                        // высокого соседа (например бейджа гниения/переноса
+                        // со своим внутренним padding) — из-за этого голая
+                        // иконка/текст визуально "съезжали" относительно
+                        // друг друга, хотя формально все центрированы (живой
+                        // фидбек 2026-08-01: "значок просрочки не по
+                        // середине... заметка и тег на другой высоте
+                        // относительно даты"). Группируем каждую пару
+                        // иконка+текст в свой Row — их взаимное выравнивание
+                        // считается только относительно друг друга, а не
+                        // случайного самого высокого элемента строки.
                         child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             if (priorityFlagLabel(task['priority']).isNotEmpty)
                               GestureDetector(
@@ -701,6 +760,7 @@ class TaskCardBuilders {
                                   padding: const EdgeInsets.only(right: 12),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment: CrossAxisAlignment.center,
                                     children: [
                                       Icon(
                                         LucideIcons.flag,
@@ -721,40 +781,48 @@ class TaskCardBuilders {
                                 ),
                               ),
                             if (task['due_date'] != null ||
-                                task['due_time'] != null) ...[
-                              if (_wasPastDue(task))
-                                Padding(
-                                  padding: const EdgeInsets.only(right: 4),
-                                  child: SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: AnimatedOpacity(
-                                      opacity: isDone ? 0 : 1,
+                                task['due_time'] != null)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 12),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    if (_wasPastDue(task))
+                                      Padding(
+                                        padding: const EdgeInsets.only(right: 4),
+                                        child: SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: AnimatedOpacity(
+                                            opacity: isDone ? 0 : 1,
+                                            duration: ClarifyMotion.completion,
+                                            curve: ClarifyMotion.standard,
+                                            child: Icon(
+                                              LucideIcons.clockAlert,
+                                              size: 16,
+                                              color: _t.danger,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    AnimatedDefaultTextStyle(
                                       duration: ClarifyMotion.completion,
                                       curve: ClarifyMotion.standard,
-                                      child: Icon(
-                                        LucideIcons.clockAlert,
-                                        size: 16,
-                                        color: _t.danger,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: overdue ? _t.danger : textMuted,
+                                        fontWeight: overdue
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
+                                      ),
+                                      child: Text(
+                                        "${task['due_date'] != null ? '${task['due_date']} ' : ''}${task['due_time'] ?? ''}",
                                       ),
                                     ),
-                                  ),
-                                ),
-                              AnimatedDefaultTextStyle(
-                                duration: ClarifyMotion.completion,
-                                curve: ClarifyMotion.standard,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: overdue ? _t.danger : textMuted,
-                                  fontWeight: overdue
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                                ),
-                                child: Text(
-                                  "${task['due_date'] != null ? '${task['due_date']} ' : ''}${task['due_time'] ?? ''}  ",
+                                  ],
                                 ),
                               ),
-                            ],
                             // clarifyAnimatedBadgeSlot — анимирует и вход, И
                             // выход (AnimatedSize+AnimatedOpacity), в точности
                             // как на мобильной версии.
