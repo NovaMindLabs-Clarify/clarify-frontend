@@ -6,6 +6,7 @@ import '../../core/localization.dart';
 import '../../core/theme/design_tokens.dart';
 import '../../widgets/clarify_illustrations.dart';
 import '../../widgets/clarify_toast.dart';
+import '../desktop_planner_screen.dart' show AiParseHttpException;
 
 /// Полноэкранная мобильная версия AI-ассистента (desktop-аналог —
 /// `widgets/ai_chat_panel.dart`, встроенный в боковую панель, которой на
@@ -113,10 +114,29 @@ class _MobileAiScreenState extends State<MobileAiScreen> {
         _messages.add({'role': 'ai', 'text': 'Готово! Добавлено задач: $count.'.tr(widget.currentLang)});
         _isTyping = false;
       });
-    } on Exception {
+    } on AiParseHttpException catch (e) {
+      // Раньше этот случай (сервер честно ответил, но не 200 — например 401
+      // при истёкшей сессии или 500) ловился тем же общим catch (_), что и
+      // сетевой обрыв, и показывал одно и то же бесполезное "Ошибка связи
+      // с ИИ." без кода ответа — как на десктопе (_sendTaskToAI), так и
+      // здесь. Разделяем на два случая, как на десктопе.
       if (!mounted) return;
       setState(() {
-        _messages.add({'role': 'ai', 'text': 'Ошибка связи с ИИ.'.tr(widget.currentLang)});
+        _messages.add({'role': 'ai', 'text': 'Ошибка: сервер вернул ${e.statusCode}'});
+        _isTyping = false;
+      });
+    } on Exception catch (e) {
+      if (!mounted) return;
+      // Сетевой уровень (таймаут/CORS/обрыв связи/невалидный JSON) — раньше
+      // исключение просто отбрасывалось (catch (_)). Короткий e.toString() в
+      // самом сообщении делает следующий скриншот сразу диагностируемым, без
+      // повторного гадания.
+      final detail = e.toString();
+      setState(() {
+        _messages.add({
+          'role': 'ai',
+          'text': '${'Ошибка связи с ИИ.'.tr(widget.currentLang)} (${detail.substring(0, detail.length > 120 ? 120 : detail.length)})',
+        });
         _isTyping = false;
       });
     }

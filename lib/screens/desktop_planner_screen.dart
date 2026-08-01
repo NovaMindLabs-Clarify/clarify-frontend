@@ -49,6 +49,12 @@ import '../dialogs/account_settings_dialog.dart';
 class AiParseHttpException implements Exception {
   final int statusCode;
   const AiParseHttpException(this.statusCode);
+
+  // Без переопределения toString() дефолтный вывод — бесполезное
+  // "Instance of 'AiParseHttpException'"; при диагностике по e.toString()
+  // (см. MobileAiScreen._send) нужен реальный код ответа.
+  @override
+  String toString() => 'HTTP $statusCode';
 }
 
 class DesktopPlannerScreen extends StatefulWidget {
@@ -718,7 +724,12 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     } on AiParseHttpException catch (e) {
       setState(() { chatMessages.add({'role': 'ai', 'text': 'Ошибка: сервер вернул ${e.statusCode}'}); isAiTyping = false; });
     } catch (e) {
-      setState(() { chatMessages.add({'role': 'ai', 'text': 'Ошибка связи с ИИ.'.tr(widget.currentLang)}); isAiTyping = false; });
+      // Раньше здесь был только общий текст "Ошибка связи с ИИ." без деталей —
+      // при живой отладке по скриншотам от пользователя не видно, что за
+      // исключение (таймаут/CORS/обрыв сети/невалидный JSON), приходится
+      // гадать. Короткий e.toString() в самом сообщении делает следующий
+      // скриншот сразу диагностируемым.
+      setState(() { chatMessages.add({'role': 'ai', 'text': '${'Ошибка связи с ИИ.'.tr(widget.currentLang)} (${e.toString().substring(0, e.toString().length > 120 ? 120 : e.toString().length)})'}); isAiTyping = false; });
     }
   }
 
