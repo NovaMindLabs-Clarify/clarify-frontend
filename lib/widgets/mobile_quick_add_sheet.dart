@@ -14,14 +14,17 @@ import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
 
 /// Мобильная версия формы быстрого добавления задачи — упрощённый набор
-/// полей (заголовок, приоритет, дата/время) вместо полного десктопного
-/// диалога (теги, подзадачи, повтор, исполнитель), перенос которого как есть
-/// и делал мобильную версию похожей на «сжатый десктоп» (REDESIGN_V2_PLAN.md
-/// §3.7).
+/// полей относительно полного десктопного диалога (REDESIGN_V2_PLAN.md
+/// §3.7). Выбор команды/исполнителя добавлен позже (2026-08-01, фидбек
+/// "не должно быть отличий в базовых вещах") — раньше созданная тут задача
+/// не могла быть привязана к воркспейсу/назначена на коллегу вообще: тап
+/// "+" во вкладке "Команды" тихо создавал личную задачу, невидимую команде.
 Future<void> showMobileQuickAddSheet({
   required BuildContext context,
   required String currentLang,
   required List<Map<String, dynamic>> tasks,
+  required List<Map<String, dynamic>> workspaces,
+  required Map<int, List<Map<String, dynamic>>> workspaceMembers,
   required Future<int?> Function(Map<String, dynamic> taskData)
   createTaskManually,
   required void Function(String dateStr) checkBurnoutWarning,
@@ -35,6 +38,8 @@ Future<void> showMobileQuickAddSheet({
     builder: (sheetContext) => _MobileQuickAddForm(
       currentLang: currentLang,
       tasks: tasks,
+      workspaces: workspaces,
+      workspaceMembers: workspaceMembers,
       createTaskManually: createTaskManually,
       checkBurnoutWarning: checkBurnoutWarning,
       getPriorityColor: getPriorityColor,
@@ -48,6 +53,8 @@ Future<void> showMobileQuickAddSheet({
 class _MobileQuickAddForm extends StatefulWidget {
   final String currentLang;
   final List<Map<String, dynamic>> tasks;
+  final List<Map<String, dynamic>> workspaces;
+  final Map<int, List<Map<String, dynamic>>> workspaceMembers;
   final Future<int?> Function(Map<String, dynamic> taskData) createTaskManually;
   final void Function(String dateStr) checkBurnoutWarning;
   final Color Function(String? priority) getPriorityColor;
@@ -58,6 +65,8 @@ class _MobileQuickAddForm extends StatefulWidget {
   const _MobileQuickAddForm({
     required this.currentLang,
     required this.tasks,
+    required this.workspaces,
+    required this.workspaceMembers,
     required this.createTaskManually,
     required this.checkBurnoutWarning,
     required this.getPriorityColor,
@@ -83,6 +92,8 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
   int? _duration;
   bool _isSaving = false;
   final List<String> _subtasks = [];
+  int? _workspaceId;
+  String? _assigneeId;
 
   @override
   void initState() {
@@ -161,6 +172,8 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
           : null,
       "is_completed": false,
       "parent_id": null,
+      "workspace_id": _workspaceId,
+      "assigned_to": _assigneeId,
     });
 
     if (newTaskId != null && _subtasks.isNotEmpty) {
@@ -559,6 +572,73 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
               ),
             ],
           ),
+          if (widget.workspaces.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Icon(LucideIcons.usersRound, size: 18, color: t.text3),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: DropdownButtonFormField<int?>(
+                    dropdownColor: t.surface2,
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      labelText: 'Команда'.tr(widget.currentLang),
+                      labelStyle: TextStyle(color: t.text3),
+                      isDense: true,
+                      border: InputBorder.none,
+                    ),
+                    value: _workspaceId,
+                    items: [
+                      DropdownMenuItem(value: null, child: Text('Личная задача'.tr(widget.currentLang), style: TextStyle(color: t.text))),
+                      ...widget.workspaces.map(
+                        (ws) => DropdownMenuItem(
+                          value: ws['id'] as int,
+                          child: Text(ws['name']?.toString() ?? 'Команда'.tr(widget.currentLang), style: TextStyle(color: t.text)),
+                        ),
+                      ),
+                    ],
+                    onChanged: (val) => setState(() {
+                      _workspaceId = val;
+                      _assigneeId = null;
+                    }),
+                  ),
+                ),
+              ],
+            ),
+            if (_workspaceId != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(LucideIcons.user, size: 18, color: t.text3),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: DropdownButtonFormField<String?>(
+                      dropdownColor: t.surface2,
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        labelText: 'Назначить на...'.tr(widget.currentLang),
+                        labelStyle: TextStyle(color: t.text3),
+                        isDense: true,
+                        border: InputBorder.none,
+                      ),
+                      value: _assigneeId,
+                      items: [
+                        DropdownMenuItem(value: null, child: Text('Никто'.tr(widget.currentLang), style: TextStyle(color: t.text))),
+                        ...(widget.workspaceMembers[_workspaceId] ?? []).map(
+                          (m) => DropdownMenuItem(
+                            value: m['user_id'] as String,
+                            child: Text(m['full_name']?.toString() ?? 'Участник'.tr(widget.currentLang), style: TextStyle(color: t.text)),
+                          ),
+                        ),
+                      ],
+                      onChanged: (val) => setState(() => _assigneeId = val),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
           const SizedBox(height: 16),
           ClarifyButton(
             label: 'Сохранить'.tr(widget.currentLang),

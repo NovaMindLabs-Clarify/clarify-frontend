@@ -213,9 +213,14 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     }
   }
 
-  List<Map<String, String>> chatMessages = [
-    {'role': 'ai', 'text': 'Привет! Вставь текст, напиши руками или нажми на микрофон и надиктуй задачи голосом! 🔥'}
-  ];
+  // Пустой список + отдельная плашка-онбординг вместо постоянного
+  // приветственного сообщения первым элементом — по прямому запросу
+  // пользователя "должно совпадать с мобильной версией" (2026-08-01):
+  // MobileAiScreen показывает иллюстрацию с подсказкой только при первом
+  // использовании (AppSettings.aiOnboardingSeen), затем просто короткую
+  // подсказку на пустом чате — то же самое воспроизведено в AiChatPanel.
+  List<Map<String, String>> chatMessages = [];
+  late final bool _showAiOnboardingTip = !AppSettings.aiOnboardingSeen;
   final List<String> menuItems = ['Мой день', 'Следующие 7 дней', 'Все задачи', 'Календарь', 'Входящие', 'Проекты', 'Друзья', 'Сообщения', 'Статистика'];
   final List<String> weekdaysRu = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
 
@@ -314,6 +319,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     
     _initSpeech();
     _initGlobalHotkeys();
+    if (_showAiOnboardingTip) AppSettings.aiOnboardingSeen = true;
   }
 
   void _loadLocalData() {
@@ -331,7 +337,18 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     await hotKeyManager.register(hotKey, keyDownHandler: (hotKey) { appWindow.show(); appWindow.restore(); _showManualAddDialog(); });
 
     HotKey searchKey = HotKey(key: PhysicalKeyboardKey.keyF, modifiers: [HotKeyModifier.control], scope: HotKeyScope.inapp);
-    await hotKeyManager.register(searchKey, keyDownHandler: (hotKey) => showSearchDialog(
+    await hotKeyManager.register(searchKey, keyDownHandler: (hotKey) => _showSearchDialog());
+
+    HotKey commandPaletteKey = HotKey(key: PhysicalKeyboardKey.keyK, modifiers: [HotKeyModifier.control], scope: HotKeyScope.inapp);
+    await hotKeyManager.register(commandPaletteKey, keyDownHandler: (hotKey) => _showCommandPalette());
+  }
+
+  // Раньше поиск был доступен ТОЛЬКО по Ctrl+F — невидимая функция для того,
+  // кто не знает про горячую клавишу (на мобильном есть заметная иконка в
+  // шапке "Задач"). Вынесено в отдельный метод, чтобы использовать и тут, и
+  // в новой кнопке "Поиск" на рейле сайдбара (2026-08-01).
+  void _showSearchDialog() {
+    showSearchDialog(
       context: context,
       currentLang: widget.currentLang,
       textColor: textColor,
@@ -339,10 +356,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
       tasks: tasks,
       onTaskSelected: _showTaskDetailsDialog,
       buildGlassContainer: _buildGlassContainer,
-    ));
-
-    HotKey commandPaletteKey = HotKey(key: PhysicalKeyboardKey.keyK, modifiers: [HotKeyModifier.control], scope: HotKeyScope.inapp);
-    await hotKeyManager.register(commandPaletteKey, keyDownHandler: (hotKey) => _showCommandPalette());
+    );
   }
 
   void _showCommandPalette() {
@@ -1306,6 +1320,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
                       workspaces: workspaces,
                       onSetWorkspaceIcon: _setWorkspaceIcon,
                       onMenuSelected: (menu) => setState(() => selectedMenu = menu),
+                      onSearchTap: _showSearchDialog,
                       onAddWorkspace: () => showCreateWorkspaceDialog(
                         context: context,
                         isDark: isDark,
@@ -1713,6 +1728,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                 chatBubbleAi: chatBubbleAi,
                                 chatInput: chatInput,
                                 chatMessages: chatMessages,
+                                showOnboardingTip: _showAiOnboardingTip,
                                 isAiTyping: isAiTyping,
                                 isListening: _isListening,
                                 controller: _aiChatController,

@@ -34,6 +34,12 @@ class SidebarMenu extends StatefulWidget {
   final VoidCallback onAddWorkspace;
   final Function(int, String) onWorkspaceSelected;
 
+  // Поиск раньше был доступен только по Ctrl+F — ничем не отличался от
+  // невидимой функции для тех, кто не знает про горячую клавишу (на
+  // мобильном есть заметная иконка в шапке "Задач"). Кнопка на рейле
+  // добавлена по прямому запросу — 2026-08-01.
+  final VoidCallback onSearchTap;
+
   final Widget userAccountBlockCollapsed;
 
   // Те же соответствия, что и в мобильном нижнем меню (REDESIGN_V3_PLAN.md §3.18/5.17) —
@@ -62,6 +68,7 @@ class SidebarMenu extends StatefulWidget {
     required this.onMenuSelected,
     required this.onAddWorkspace,
     required this.onWorkspaceSelected,
+    required this.onSearchTap,
     required this.userAccountBlockCollapsed,
   }) : super(key: key);
 
@@ -282,6 +289,14 @@ class _SidebarMenuState extends State<SidebarMenu> {
                   child: ListView(
                     padding: EdgeInsets.zero,
                     children: [
+                      _railIcon(
+                        icon: LucideIcons.search,
+                        label: "Поиск".tr(widget.currentLang),
+                        selected: false,
+                        accentColor: t.accent,
+                        textMuted: textMuted,
+                        onTap: widget.onSearchTap,
+                      ),
                       ...widget.menuItems.map(
                         (item) => _railIcon(
                           icon: SidebarMenu._menuIcons[item] ?? LucideIcons.circle,

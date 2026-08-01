@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
+import 'clarify_illustrations.dart';
 
 /// Правая выезжающая панель AI-ассистента. Вынесено из DesktopPlannerScreen
 /// (P3.1, docs/IMPROVEMENT_PLAN.md) — логика и разметка не менялись, только
@@ -14,6 +15,11 @@ class AiChatPanel extends StatelessWidget {
   final Color chatBubbleAi;
   final Color chatInput;
   final List<Map<String, String>> chatMessages;
+  // Пустой чат — тот же онбординг, что и на MobileAiScreen (2026-08-01):
+  // иллюстрация с подсказкой при самом первом использовании
+  // (AppSettings.aiOnboardingSeen, значение фиксируется родителем один раз в
+  // initState), простая подсказка в остальных случаях, когда чат пуст.
+  final bool showOnboardingTip;
   final bool isAiTyping;
   final bool isListening;
   final TextEditingController controller;
@@ -29,6 +35,7 @@ class AiChatPanel extends StatelessWidget {
     required this.chatBubbleAi,
     required this.chatInput,
     required this.chatMessages,
+    required this.showOnboardingTip,
     required this.isAiTyping,
     required this.isListening,
     required this.controller,
@@ -44,14 +51,38 @@ class AiChatPanel extends StatelessWidget {
       children: [
         Container(padding: const EdgeInsets.fromLTRB(24, 32, 24, 24), decoration: BoxDecoration(border: Border(bottom: BorderSide(color: glassBorderColor))), child: Row(children: [Icon(LucideIcons.sparkles, color: t.accent, size: 28), const SizedBox(width: 12), Text("AI Ассистент".tr(currentLang), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor))])),
         Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.all(20), itemCount: chatMessages.length,
-            itemBuilder: (context, index) {
-              final msg = chatMessages[index]; final isAi = msg['role'] == 'ai';
-              return Align(alignment: isAi ? Alignment.centerLeft : Alignment.centerRight, child: Container(margin: const EdgeInsets.only(bottom: 16), padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), decoration: BoxDecoration(color: isAi ? chatBubbleAi : t.accent, borderRadius: BorderRadius.circular(16).copyWith(bottomLeft: isAi ? const Radius.circular(0) : const Radius.circular(16), bottomRight: !isAi ? const Radius.circular(0) : const Radius.circular(16)), border: isAi ? Border.all(color: glassBorderColor) : null),
-              child: Text(msg['text']!.tr(currentLang), style: TextStyle(color: isAi ? textColor : t.onAccent, fontSize: 15))));
-            },
-          ),
+          child: chatMessages.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: showOnboardingTip
+                        ? Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const ClarifyIllustration(type: ClarifyIllustrationType.aiSpark, size: 88),
+                              const SizedBox(height: 20),
+                              Text(
+                                'Опиши задачи текстом или голосом — ИИ сам расставит даты, время и приоритеты.'.tr(currentLang),
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: textMuted, fontSize: 15),
+                              ),
+                            ],
+                          )
+                        : Text(
+                            'Опиши задачу...'.tr(currentLang),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: textMuted, fontSize: 14),
+                          ),
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(20), itemCount: chatMessages.length,
+                  itemBuilder: (context, index) {
+                    final msg = chatMessages[index]; final isAi = msg['role'] == 'ai';
+                    return Align(alignment: isAi ? Alignment.centerLeft : Alignment.centerRight, child: Container(margin: const EdgeInsets.only(bottom: 16), padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), decoration: BoxDecoration(color: isAi ? chatBubbleAi : t.accent, borderRadius: BorderRadius.circular(16).copyWith(bottomLeft: isAi ? const Radius.circular(0) : const Radius.circular(16), bottomRight: !isAi ? const Radius.circular(0) : const Radius.circular(16)), border: isAi ? Border.all(color: glassBorderColor) : null),
+                    child: Text(msg['text']!.tr(currentLang), style: TextStyle(color: isAi ? textColor : t.onAccent, fontSize: 15))));
+                  },
+                ),
         ),
         if (isAiTyping) Padding(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8), child: Text("Печатает...".tr(currentLang), style: TextStyle(color: textMuted, fontSize: 14, fontStyle: FontStyle.italic))),
         Container(

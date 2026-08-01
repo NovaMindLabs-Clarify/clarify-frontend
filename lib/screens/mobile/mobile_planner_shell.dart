@@ -8,6 +8,7 @@ import '../../widgets/clarify_glass.dart';
 import '../../widgets/clarify_pressable.dart';
 import '../../widgets/friends_screen.dart';
 import '../../widgets/conversations_screen.dart';
+import '../../widgets/workspace_conversations_screen.dart';
 import '../../widgets/mobile_quick_add_sheet.dart';
 import 'mobile_today_screen.dart';
 import 'mobile_tasks_screen.dart';
@@ -240,6 +241,8 @@ class _MobilePlannerShellState extends State<MobilePlannerShell> {
           context: context,
           currentLang: widget.currentLang,
           tasks: widget.tasks,
+          workspaces: widget.workspaces,
+          workspaceMembers: widget.workspaceMembers,
           createTaskManually: widget.createTaskManually,
           checkBurnoutWarning: widget.checkBurnoutWarning,
           getPriorityColor: widget.getPriorityColor,
@@ -378,17 +381,38 @@ class _MessagesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    return Scaffold(
-      backgroundColor: t.bg,
-      appBar: AppBar(
+    // Личные/Команда — те же две вкладки, что и в десктопном MessengerShell
+    // (widgets/messenger_shell.dart). Раньше на мобильном был только список
+    // личных сообщений — командный групповой чат с телефона был вообще
+    // недостижим (фидбек пользователя 2026-08-01).
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
         backgroundColor: t.bg,
-        elevation: 0,
-        foregroundColor: t.text,
-        title: Text('Мессенджер'.tr(currentLang), style: TextStyle(fontFamily: 'Golos Text', fontWeight: FontWeight.w700)),
-      ),
-      body: ConversationsListScreen(
-        currentLang: currentLang,
-        buildGlassContainer: ({required child, margin, padding, customColor}) => ClarifyGlass(margin: margin, padding: padding, customColor: customColor, child: child),
+        appBar: AppBar(
+          backgroundColor: t.bg,
+          elevation: 0,
+          foregroundColor: t.text,
+          title: Text('Мессенджер'.tr(currentLang), style: TextStyle(fontFamily: 'Golos Text', fontWeight: FontWeight.w700)),
+          bottom: TabBar(
+            labelColor: t.accent,
+            unselectedLabelColor: t.text3,
+            indicatorColor: t.accent,
+            tabs: [
+              Tab(text: 'Личные'.tr(currentLang)),
+              Tab(text: 'Команды'.tr(currentLang)),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          children: [
+            ConversationsListScreen(
+              currentLang: currentLang,
+              buildGlassContainer: ({required child, margin, padding, customColor}) => ClarifyGlass(margin: margin, padding: padding, customColor: customColor, child: child),
+            ),
+            WorkspaceConversationsListScreen(currentLang: currentLang),
+          ],
+        ),
       ),
     );
   }
