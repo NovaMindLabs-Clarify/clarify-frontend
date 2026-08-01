@@ -48,13 +48,19 @@ import '../dialogs/account_settings_dialog.dart';
 /// "нет связи" в UI (десктоп и мобильный AI-экран).
 class AiParseHttpException implements Exception {
   final int statusCode;
-  const AiParseHttpException(this.statusCode);
+  // Тело ответа (обычно {"detail": "..."} от FastAPI) — раньше отбрасывалось
+  // полностью, показывался только код. При живой диагностике 500-х это
+  // ровно та строка, где FastAPI пишет реальную причину (например
+  // "SUPABASE_URL/SUPABASE_ANON_KEY не настроены") — без неё код 500 сам по
+  // себе не говорит, что именно сломалось на сервере.
+  final String body;
+  const AiParseHttpException(this.statusCode, this.body);
 
   // Без переопределения toString() дефолтный вывод — бесполезное
   // "Instance of 'AiParseHttpException'"; при диагностике по e.toString()
-  // (см. MobileAiScreen._send) нужен реальный код ответа.
+  // (см. MobileAiScreen._send) нужен реальный код ответа и тело.
   @override
-  String toString() => 'HTTP $statusCode';
+  String toString() => 'HTTP $statusCode: $body';
 }
 
 class DesktopPlannerScreen extends StatefulWidget {
@@ -708,7 +714,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
       body: json.encode({'text': text}),
     );
     if (response.statusCode != 200) {
-      throw AiParseHttpException(response.statusCode);
+      throw AiParseHttpException(response.statusCode, response.body);
     }
     final List addedTasks = json.decode(response.body);
     await _fetchTasks();
@@ -722,7 +728,8 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
       final count = await _parseTextToTasks(text);
       setState(() { chatMessages.add({'role': 'ai', 'text': 'Готово! Добавлено задач: $count. '.tr(widget.currentLang)}); isAiTyping = false; });
     } on AiParseHttpException catch (e) {
-      setState(() { chatMessages.add({'role': 'ai', 'text': 'Ошибка: сервер вернул ${e.statusCode}'}); isAiTyping = false; });
+      final body = e.body.substring(0, e.body.length > 120 ? 120 : e.body.length);
+      setState(() { chatMessages.add({'role': 'ai', 'text': 'Ошибка: сервер вернул ${e.statusCode} ($body)'}); isAiTyping = false; });
     } catch (e) {
       // Раньше здесь был только общий текст "Ошибка связи с ИИ." без деталей —
       // при живой отладке по скриншотам от пользователя не видно, что за

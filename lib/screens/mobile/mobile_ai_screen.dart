@@ -121,8 +121,9 @@ class _MobileAiScreenState extends State<MobileAiScreen> {
       // с ИИ." без кода ответа — как на десктопе (_sendTaskToAI), так и
       // здесь. Разделяем на два случая, как на десктопе.
       if (!mounted) return;
+      final body = e.body.substring(0, e.body.length > 120 ? 120 : e.body.length);
       setState(() {
-        _messages.add({'role': 'ai', 'text': 'Ошибка: сервер вернул ${e.statusCode}'});
+        _messages.add({'role': 'ai', 'text': 'Ошибка: сервер вернул ${e.statusCode} ($body)'});
         _isTyping = false;
       });
     } on Exception catch (e) {
