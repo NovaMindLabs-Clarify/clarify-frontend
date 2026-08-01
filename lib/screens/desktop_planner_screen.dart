@@ -30,6 +30,7 @@ import '../widgets/user_profile_modal.dart';
 import '../widgets/sidebar_menu.dart';
 import '../widgets/window_buttons.dart';
 import 'mobile/mobile_planner_shell.dart';
+import 'mobile/mobile_settings_screen.dart';
 import '../widgets/task_cards.dart';
 import '../widgets/statistics_dashboard.dart';
 import '../widgets/ai_chat_panel.dart';
@@ -1660,20 +1661,30 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                 getPriorityColor: _getPriorityColor,
                                 buildGlassContainer: _buildGlassContainer,
                               ),
-                              buildSettingsPanel: () => AccountSettingsPanel(
-                                isDark: isDark,
-                                textColor: textColor,
-                                textMuted: textMuted,
-                                glassColor: glassColor,
-                                glassBorderColor: glassBorderColor,
-                                highlightColor: highlightColor,
-                                currentLang: widget.currentLang,
-                                changeLang: widget.changeLang,
-                                onProfileChanged: () => setState(() {}),
-                                isMobileContext: false,
-                                asFullPage: true,
-                                buildGlassContainer: _buildGlassContainer,
-                              ),
+                              // Тот же сгруппированный экран настроек, что и на мобильной
+                              // версии (MobileSettingsScreen) — по прямому запросу
+                              // пользователя "должно полностью совпадать с мобильной
+                              // версией" (2026-08-01): плоское содержимое
+                              // AccountSettingsPanel сюда не подходило, набор разделов
+                              // и группировка там другие.
+                              buildSettingsPanel: () {
+                                final user = Supabase.instance.client.auth.currentUser;
+                                final metadata = user?.userMetadata ?? {};
+                                final fullName = metadata['full_name']?.toString() ?? '';
+                                final initial = fullName.isNotEmpty ? fullName[0].toUpperCase() : '?';
+                                return MobileSettingsScreen(
+                                  currentLang: widget.currentLang,
+                                  userInitial: initial,
+                                  userFullName: fullName,
+                                  isDark: isDark,
+                                  onOpenAccountSettings: _openProfilePageFromSettingsTab,
+                                  onOpenStatistics: () => setState(() => selectedMenu = 'Статистика'),
+                                  onOpenFriends: () => setState(() => selectedMenu = 'Друзья'),
+                                  onOpenMessages: () => setState(() => selectedMenu = 'Сообщения'),
+                                  toggleTheme: widget.toggleTheme,
+                                  changeLang: widget.changeLang,
+                                );
+                              },
                               );
                             }),
                               ),
@@ -1779,6 +1790,30 @@ Map<String, dynamic> _parseSmartInput(String text) {
       changeLang: widget.changeLang,
       onProfileChanged: () => setState(() {}),
       isMobileContext: MediaQuery.of(context).size.width < ClarifyBreakpoints.mobile,
+      buildGlassContainer: _buildGlassContainer,
+    );
+  }
+
+  // "Профиль" из строки-шапки вкладки "Настройки" (MobileSettingsScreen) —
+  // ВСЕГДА полноэкранная страница, как на мобильной версии (см. скриншот
+  // пользователя 2026-08-01), а не диалог-попап: в отличие от
+  // _showAccountSettingsDialog выше (аватар на рейле, командная палитра),
+  // здесь режим не должен зависеть от ширины окна — сама вкладка "Настройки"
+  // уже целиком воспроизводит мобильный экран настроек, значит и переход из
+  // неё в профиль обязан вести себя так же.
+  void _openProfilePageFromSettingsTab() {
+    showAccountSettingsDialog(
+      context: context,
+      isDark: isDark,
+      textColor: textColor,
+      textMuted: textMuted,
+      glassColor: glassColor,
+      glassBorderColor: glassBorderColor,
+      highlightColor: highlightColor,
+      currentLang: widget.currentLang,
+      changeLang: widget.changeLang,
+      onProfileChanged: () => setState(() {}),
+      isMobileContext: true,
       buildGlassContainer: _buildGlassContainer,
     );
   }

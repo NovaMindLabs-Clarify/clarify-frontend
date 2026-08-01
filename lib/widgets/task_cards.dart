@@ -9,6 +9,30 @@ import 'clarify_pressable.dart';
 import 'clarify_quick_actions_sheet.dart';
 import 'clarify_task_checkbox.dart';
 
+// `overdue`, переданный сюда извне (isOverdue-колбэк родителя), уже сам
+// возвращает false для выполненных задач — из-за этого он и `isDone`
+// схлопываются в false/true ОДНОВРЕМЕННО в один и тот же ребилд, и слот под
+// иконку просрочки по условию `if (overdue)` не может резервировать место
+// заранее: к моменту, когда задача отмечена выполненной, само условие уже
+// ложно. Эта функция — та же проверка "дедлайн уже прошёл", но БЕЗ раннего
+// return по is_completed, специально для резервирования места под иконку
+// (тот же приём, что и в mobile_task_row.dart:_wasPastDue — раздельные
+// файлы, см. комментарий в начале того файла про дублирование бейджей).
+bool _wasPastDue(Map<String, dynamic> task) {
+  if (task['due_date'] == null) return false;
+  final date = parseClarifyDate(task['due_date']);
+  if (date == null) return false;
+  int hour = 23;
+  int minute = 59;
+  if (task['due_time'] != null && task['due_time'].toString().contains(':')) {
+    final parts = task['due_time'].toString().split(':');
+    hour = int.tryParse(parts[0]) ?? 23;
+    minute = int.tryParse(parts[1]) ?? 59;
+  }
+  final dueDateTime = DateTime(date.year, date.month, date.day, hour, minute);
+  return DateTime.now().isAfter(dueDateTime);
+}
+
 /// Строит карточки задачи для трёх представлений (список, доска "7 дней",
 /// календарь). Вынесено из DesktopPlannerScreen (P3.1, docs/IMPROVEMENT_PLAN.md) —
 /// логика и разметка не менялись, только доступ к состоянию родителя заменён
@@ -178,13 +202,22 @@ class TaskCardBuilders {
             ),
             if (dueTime != null) ...[
               SizedBox(width: 3 * _s),
-              if (overdue)
+              if (_wasPastDue(task))
                 Padding(
                   padding: EdgeInsets.only(right: 2 * _s),
-                  child: Icon(
-                    LucideIcons.clockAlert,
-                    size: 8 * _s,
-                    color: _t.danger,
+                  child: SizedBox(
+                    width: 8 * _s,
+                    height: 8 * _s,
+                    child: AnimatedOpacity(
+                      opacity: isDone ? 0 : 1,
+                      duration: ClarifyMotion.completion,
+                      curve: ClarifyMotion.standard,
+                      child: Icon(
+                        LucideIcons.clockAlert,
+                        size: 8 * _s,
+                        color: _t.danger,
+                      ),
+                    ),
                   ),
                 ),
               Text(
@@ -275,13 +308,22 @@ class TaskCardBuilders {
                   mainAxisAlignment:
                       MainAxisAlignment.center, // <-- Центрируем иконку и время
                   children: [
-                    if (overdue)
+                    if (_wasPastDue(task))
                       Padding(
                         padding: EdgeInsets.only(bottom: 2 * _s),
-                        child: Icon(
-                          LucideIcons.clockAlert,
-                          size: 16 * _s,
-                          color: _t.danger,
+                        child: SizedBox(
+                          width: 16 * _s,
+                          height: 16 * _s,
+                          child: AnimatedOpacity(
+                            opacity: isDone ? 0 : 1,
+                            duration: ClarifyMotion.completion,
+                            curve: ClarifyMotion.standard,
+                            child: Icon(
+                              LucideIcons.clockAlert,
+                              size: 16 * _s,
+                              color: _t.danger,
+                            ),
+                          ),
                         ),
                       ),
                     Text(
@@ -554,23 +596,21 @@ class TaskCardBuilders {
                                     ),
                             ),
                           ),
-                        // Точечно — только вход через ClarifyBadgeEntrance, не
-                        // полный AnimatedSwitcher: эта строка существует и по
-                        // другим причинам (due_time/note/tags/приоритет), и
-                        // если всегда резервировать здесь слот под оба бейджа,
-                        // у ЛЮБОЙ обычной задачи (без гниения/переноса, но,
-                        // скажем, с временем) появлялся бы постоянный мёртвый
-                        // отступ — хуже отсутствующей анимации выхода.
-                        if (_rotBadge(task, isDone, overdue) != null)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 12),
-                            child: ClarifyBadgeEntrance(child: _rotBadge(task, isDone, overdue)!),
-                          ),
-                        if (_rescheduleBadge(task, isDone) != null)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 12),
-                            child: ClarifyBadgeEntrance(child: _rescheduleBadge(task, isDone)!),
-                          ),
+                        // clarifyAnimatedBadgeSlot — анимирует и вход, И выход
+                        // (AnimatedSize+AnimatedOpacity), в точности как на
+                        // мобильной версии (mobile_task_row.dart) — раньше здесь
+                        // стоял ClarifyBadgeEntrance (только вход), из-за чего
+                        // бейдж резко пропадал, если гниение/перенос переставали
+                        // применяться (фидбек пользователя 2026-08-01: "должно
+                        // выглядеть ровно как на мобильной версии").
+                        Padding(
+                          padding: const EdgeInsets.only(left: 12),
+                          child: clarifyAnimatedBadgeSlot(_rotBadge(task, isDone, overdue)),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 12),
+                          child: clarifyAnimatedBadgeSlot(_rescheduleBadge(task, isDone)),
+                        ),
                       ],
                     ),
                     if (task['due_time'] != null ||
@@ -609,13 +649,22 @@ class TaskCardBuilders {
                               ),
                             if (task['due_date'] != null ||
                                 task['due_time'] != null) ...[
-                              if (overdue)
+                              if (_wasPastDue(task))
                                 Padding(
                                   padding: const EdgeInsets.only(right: 4),
-                                  child: Icon(
-                                    LucideIcons.clockAlert,
-                                    size: 16,
-                                    color: _t.danger,
+                                  child: SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: AnimatedOpacity(
+                                      opacity: isDone ? 0 : 1,
+                                      duration: ClarifyMotion.completion,
+                                      curve: ClarifyMotion.standard,
+                                      child: Icon(
+                                        LucideIcons.clockAlert,
+                                        size: 16,
+                                        color: _t.danger,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               Text(
