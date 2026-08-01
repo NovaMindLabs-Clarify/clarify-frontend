@@ -18,7 +18,6 @@ import '../core/localization.dart';
 import '../core/tags.dart';
 import '../core/priority.dart';
 import '../core/theme/design_tokens.dart';
-import '../services/browser_notification.dart';
 import '../services/task_service.dart';
 import '../widgets/clarify_button.dart';
 import '../widgets/clarify_glass.dart';
@@ -543,13 +542,14 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     if (!AppSettings.notificationsEnabled) return;
 
     if (kIsWeb) {
-      // local_notifier не имеет веб-реализации (MissingPluginException) —
-      // на web/PWA попап идёт через настоящий браузерный Notification API.
-      if (!BrowserNotification.show(title, body)) {
-        if (mounted) {
-          ClarifyToast.show(context, "$title: $body", variant: ClarifyToastVariant.info);
-        }
-      }
+      // На web/мобильном PWA эти таймеры — обычные Dart Timer внутри
+      // страницы: ОС усыпляет вкладку в фоне (особенно iOS Safari), поэтому
+      // раньше уведомление реально показывалось только при следующем заходе
+      // в приложение, и сразу пачкой по всем накопленным дедлайнам (живой
+      // фидбек пользователя 2026-08-01). Настоящая доставка "в любой момент"
+      // для веба/мобильного теперь идёт через Telegram-бота (см.
+      // backend/clarify-backend/main.py:check_due_tasks) — здесь сознательно
+      // ничего не показываем, чтобы не дублировать неработающий механизм.
       return;
     }
 
