@@ -273,13 +273,11 @@ class _SidebarMenuState extends State<SidebarMenu> {
             borderRadius: const BorderRadius.only(topRight: Radius.circular(24), bottomRight: Radius.circular(24)),
             child: Column(
               children: [
-                Padding(
-                  padding: EdgeInsets.symmetric(vertical: 28 * s),
-                  child: Text(
-                    "C",
-                    style: TextStyle(fontFamily: 'Unbounded', fontSize: 22 * s, fontWeight: FontWeight.w700, color: t.accent),
-                  ),
-                ),
+                // Аватар профиля вместо буквы "C" вверху рейла (фидбек
+                // пользователя 2026-08-01) — сама кнопка настроек, ранее
+                // стоявшая тут внизу, переехала в общий список ниже как
+                // обычная вкладка (см. "Настройки" после "Команд").
+                widget.userAccountBlockCollapsed,
                 Expanded(
                   child: ListView(
                     padding: EdgeInsets.zero,
@@ -287,7 +285,10 @@ class _SidebarMenuState extends State<SidebarMenu> {
                       ...widget.menuItems.map(
                         (item) => _railIcon(
                           icon: SidebarMenu._menuIcons[item] ?? LucideIcons.circle,
-                          label: item.tr(widget.currentLang),
+                          // 'Сообщения' — внутренний ключ маршрутизации (main_content_area.dart
+                          // и т.д.), не трогаем; на экране показываем "Мессенджер" — тот же
+                          // подпись, что и на мобильной версии (mobile_planner_shell.dart).
+                          label: (item == 'Сообщения' ? 'Мессенджер' : item).tr(widget.currentLang),
                           selected: item == widget.selectedMenu,
                           accentColor: t.accent,
                           textMuted: textMuted,
@@ -308,7 +309,20 @@ class _SidebarMenuState extends State<SidebarMenu> {
                     ],
                   ),
                 ),
-                widget.userAccountBlockCollapsed,
+                // Полноценная вкладка "Настройки" (та же карточка настроек,
+                // что и в диалоге, только встроена как основной контент) —
+                // на месте, где раньше был аватар профиля.
+                _railIcon(
+                  icon: LucideIcons.settings,
+                  label: "Настройки".tr(widget.currentLang),
+                  selected: widget.selectedMenu == 'Настройки',
+                  accentColor: t.accent,
+                  textMuted: textMuted,
+                  onTap: () {
+                    setState(() => _teamsPanelOpen = false);
+                    widget.onMenuSelected('Настройки');
+                  },
+                ),
                 SizedBox(height: 24 * s),
               ],
             ),

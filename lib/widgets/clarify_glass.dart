@@ -47,7 +47,9 @@ class ClarifyGlass extends StatelessWidget {
         borderRadius: radius,
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
-          child: Container(
+          child: AnimatedContainer(
+            duration: ClarifyMotion.completion,
+            curve: ClarifyMotion.standard,
             decoration: BoxDecoration(
               color: fillColor,
               borderRadius: radius,

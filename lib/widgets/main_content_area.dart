@@ -43,6 +43,7 @@ class MainContentArea extends StatelessWidget {
   final Widget Function(Map<String, dynamic>) buildCalendarTaskCard;
   final Widget Function({required Widget child, EdgeInsetsGeometry? margin, EdgeInsetsGeometry? padding, Color? customColor}) buildGlassContainer;
   final Widget Function() buildStatisticsDashboard;
+  final Widget Function() buildSettingsPanel;
   final String Function(dynamic taskId) getLocalKanbanStatus;
   final void Function(dynamic taskId, String status) onSetLocalKanbanStatus;
 
@@ -86,6 +87,7 @@ class MainContentArea extends StatelessWidget {
     required this.buildCalendarTaskCard,
     required this.buildGlassContainer,
     required this.buildStatisticsDashboard,
+    required this.buildSettingsPanel,
     required this.getLocalKanbanStatus,
     required this.onSetLocalKanbanStatus,
     required this.currentCalendarDate,
@@ -113,7 +115,7 @@ class MainContentArea extends StatelessWidget {
 
     final List<String> weekdaysRu = _kWeekdaysRu;
 
-    const reservedMenuKeys = {'Мой день', 'Следующие 7 дней', 'Все задачи', 'Календарь', 'Входящие', 'Проекты', 'Друзья', 'Сообщения', 'Статистика'};
+    const reservedMenuKeys = {'Мой день', 'Следующие 7 дней', 'Все задачи', 'Календарь', 'Входящие', 'Проекты', 'Друзья', 'Сообщения', 'Статистика', 'Настройки'};
     final isTagProject = !reservedMenuKeys.contains(selectedMenu) && !selectedMenu.startsWith('ws_');
 
     if (isTagProject) {
@@ -414,6 +416,9 @@ class MainContentArea extends StatelessWidget {
     }
     else if (selectedMenu == 'Статистика') {
       return buildStatisticsDashboard();
+    }
+    else if (selectedMenu == 'Настройки') {
+      return buildSettingsPanel();
     }
     else if (selectedMenu == 'Проекты') {
       return ProjectsScreen(

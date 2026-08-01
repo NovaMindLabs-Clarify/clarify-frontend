@@ -265,7 +265,9 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     final initial = fullName.isNotEmpty ? fullName[0].toUpperCase() : '?';
 
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: 8 * _s),
+      // Вертикальный отступ сверху — как у прежней буквы "C", раньше стоявшей
+      // на этом месте (аватар переехал наверх рейла, фидбек 2026-08-01).
+      padding: EdgeInsets.only(top: 24 * _s, bottom: 8 * _s),
       child: Center(
         child: Tooltip(
           message: "$fullName — ${"Настройки".tr(widget.currentLang)}",
@@ -1658,6 +1660,20 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                 getPriorityColor: _getPriorityColor,
                                 buildGlassContainer: _buildGlassContainer,
                               ),
+                              buildSettingsPanel: () => AccountSettingsPanel(
+                                isDark: isDark,
+                                textColor: textColor,
+                                textMuted: textMuted,
+                                glassColor: glassColor,
+                                glassBorderColor: glassBorderColor,
+                                highlightColor: highlightColor,
+                                currentLang: widget.currentLang,
+                                changeLang: widget.changeLang,
+                                onProfileChanged: () => setState(() {}),
+                                isMobileContext: false,
+                                asFullPage: true,
+                                buildGlassContainer: _buildGlassContainer,
+                              ),
                               );
                             }),
                               ),
@@ -1703,22 +1719,27 @@ Map<String, dynamic> _parseSmartInput(String text) {
             ],
           ),
         ),
-        floatingActionButton: Padding(
-          padding: EdgeInsets.only(right: rightPanelState != 'none' ? 360.0 * _s : 0.0, bottom: 24.0 * _s),
-          // Container transform через Hero откачен — "A Hero widget cannot be the
-          // descendant of another Hero widget" при реальном запуске (не смог
-          // безопасно продиагностировать вслепую без браузера/живой отладки).
-          // Тот же эффект "окно вылетает из кнопки" сделан через
-          // showClarifySurface() — точка клика ловится глобально
-          // (LastTapTracker, main.dart), отдельно координаты FAB не нужны.
-          child: FloatingActionButton.extended(
-            onPressed: () { if (_isDuplicating && _taskToDuplicate != null) { _showManualAddDialog(preselectedDate: DateTime.now(), sourceTaskForDuplicate: _taskToDuplicate); } else { _showManualAddDialog(); } },
-            // Тот же акцент, что у кнопки "AI Ассистент" (ClarifyButtonVariant.filled)
-            // — раньше FAB был захардкожен на стоковый Colors.blueAccent, из-за чего
-            // две акцентные кнопки в интерфейсе визуально спорили друг с другом.
-            backgroundColor: _tokens.accent, foregroundColor: _tokens.onAccent, elevation: 8, icon: Icon(LucideIcons.plus, size: 26 * _s), label: Text("Создать задачу".tr(widget.currentLang), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _s)),
-          ),
-        ),
+        // "Создать задачу" не имеет смысла в разделах без списка задач —
+        // мешает вводить сообщения (Мессенджер) и смотреть контент
+        // (Статистика/Друзья), см. фидбек пользователя 2026-08-01.
+        floatingActionButton: {'Сообщения', 'Статистика', 'Друзья'}.contains(selectedMenu)
+            ? null
+            : Padding(
+                padding: EdgeInsets.only(right: rightPanelState != 'none' ? 360.0 * _s : 0.0, bottom: 24.0 * _s),
+                // Container transform через Hero откачен — "A Hero widget cannot be the
+                // descendant of another Hero widget" при реальном запуске (не смог
+                // безопасно продиагностировать вслепую без браузера/живой отладки).
+                // Тот же эффект "окно вылетает из кнопки" сделан через
+                // showClarifySurface() — точка клика ловится глобально
+                // (LastTapTracker, main.dart), отдельно координаты FAB не нужны.
+                child: FloatingActionButton.extended(
+                  onPressed: () { if (_isDuplicating && _taskToDuplicate != null) { _showManualAddDialog(preselectedDate: DateTime.now(), sourceTaskForDuplicate: _taskToDuplicate); } else { _showManualAddDialog(); } },
+                  // Тот же акцент, что у кнопки "AI Ассистент" (ClarifyButtonVariant.filled)
+                  // — раньше FAB был захардкожен на стоковый Colors.blueAccent, из-за чего
+                  // две акцентные кнопки в интерфейсе визуально спорили друг с другом.
+                  backgroundColor: _tokens.accent, foregroundColor: _tokens.onAccent, elevation: 8, icon: Icon(LucideIcons.plus, size: 26 * _s), label: Text("Создать задачу".tr(widget.currentLang), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16 * _s)),
+                ),
+              ),
       ),
     );
   }

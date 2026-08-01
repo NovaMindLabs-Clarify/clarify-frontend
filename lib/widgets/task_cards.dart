@@ -132,7 +132,9 @@ class TaskCardBuilders {
 
     return ClarifyPressable(
       onTap: () => onTap(task),
-      child: Container(
+      child: AnimatedContainer(
+        duration: ClarifyMotion.completion,
+        curve: ClarifyMotion.standard,
         margin: EdgeInsets.only(bottom: 2 * _s, left: 4 * _s, right: 4 * _s),
         decoration: BoxDecoration(
           color: (!isDone && overdue) ? _t.dangerSoft : null,
@@ -154,6 +156,7 @@ class TaskCardBuilders {
               checkedColor: _t.accent,
               value: isDone,
               onTap: () => onToggle(task),
+              duration: ClarifyMotion.completion,
             ),
             SizedBox(width: 4 * _s),
 
@@ -298,7 +301,9 @@ class TaskCardBuilders {
                 // Раньше здесь была та же "стеклянная" заливка+скругление, что
                 // и у остальных карточек, из-за чего в узкой колонке "7 дней"
                 // это читалось как жирный блок, а не строка списка.
-                child: Container(
+                child: AnimatedContainer(
+                  duration: ClarifyMotion.completion,
+                  curve: ClarifyMotion.standard,
                   decoration: BoxDecoration(
                     color: (!isDone && overdue) ? _t.dangerSoft : null,
                     border: Border(
@@ -321,6 +326,7 @@ class TaskCardBuilders {
                         checkedColor: _t.accent,
                         value: isDone,
                         onTap: () => onToggle(task),
+                        duration: ClarifyMotion.completion,
                       ),
                       SizedBox(width: 10 * _s),
                       Expanded(
@@ -484,6 +490,7 @@ class TaskCardBuilders {
                 checkedColor: _t.accent,
                 value: isDone,
                 onTap: () => onToggle(task),
+                duration: ClarifyMotion.completion,
               ),
               const SizedBox(width: 16),
               Expanded(
