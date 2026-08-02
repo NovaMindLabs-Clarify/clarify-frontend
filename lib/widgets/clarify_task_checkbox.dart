@@ -39,22 +39,32 @@ class ClarifyCheckCircle extends StatefulWidget {
   State<ClarifyCheckCircle> createState() => _ClarifyCheckCircleState();
 }
 
-class _ClarifyCheckCircleState extends State<ClarifyCheckCircle> with SingleTickerProviderStateMixin {
+class _ClarifyCheckCircleState extends State<ClarifyCheckCircle>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _progress;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: widget.duration, value: widget.value ? 1 : 0);
-    _progress = CurvedAnimation(parent: _controller, curve: ClarifyMotion.standard);
+    _controller = AnimationController(
+      vsync: this,
+      duration: widget.duration,
+      value: widget.value ? 1 : 0,
+    );
+    _progress = CurvedAnimation(
+      parent: _controller,
+      curve: ClarifyMotion.standard,
+    );
   }
 
   @override
   void didUpdateWidget(covariant ClarifyCheckCircle oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.value != widget.value) {
-      final duration = MediaQuery.of(context).disableAnimations ? Duration.zero : widget.duration;
+      final duration = MediaQuery.of(context).disableAnimations
+          ? Duration.zero
+          : widget.duration;
       _controller.animateTo(widget.value ? 1 : 0, duration: duration);
     }
   }
@@ -81,12 +91,19 @@ class _ClarifyCheckCircleState extends State<ClarifyCheckCircle> with SingleTick
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: Color.lerp(Colors.transparent, widget.checkedColor, t),
-              border: Border.all(color: Color.lerp(widget.borderColor, widget.checkedColor, t)!, width: widget.borderWidth),
+              border: Border.all(
+                color: Color.lerp(widget.borderColor, widget.checkedColor, t)!,
+                width: widget.borderWidth,
+              ),
             ),
             child: t > 0.02
                 ? Opacity(
                     opacity: t,
-                    child: Icon(LucideIcons.check, size: widget.size * 0.62, color: widget.checkIconColor),
+                    child: Icon(
+                      LucideIcons.check,
+                      size: widget.size * 0.62,
+                      color: widget.checkIconColor,
+                    ),
                   )
                 : null,
           );
@@ -121,14 +138,17 @@ class ClarifyStrikeText extends StatefulWidget {
   State<ClarifyStrikeText> createState() => _ClarifyStrikeTextState();
 }
 
-class _ClarifyStrikeTextState extends State<ClarifyStrikeText> with TickerProviderStateMixin {
+class _ClarifyStrikeTextState extends State<ClarifyStrikeText>
+    with TickerProviderStateMixin {
   // Два раздельных прогресса, а не один реверсируемый: "растворяется" на
   // отмене должно быть затуханием прозрачности уже нарисованной линии, а не
   // тем же сжатием ширины назад, что и рисование при выполнении — иначе
   // (см. баг) на середине анимации отмены линия визуально "проскакивает"
   // мимо короткого текста и обрывается раньше, чем реально дотухла.
-  late final AnimationController _draw; // 0 → 1: линия дорисовывается слева направо
-  late final AnimationController _fade; // 1 → 0: дорисованная линия растворяется
+  late final AnimationController
+  _draw; // 0 → 1: линия дорисовывается слева направо
+  late final AnimationController
+  _fade; // 1 → 0: дорисованная линия растворяется
 
   @override
   void initState() {
@@ -138,8 +158,16 @@ class _ClarifyStrikeTextState extends State<ClarifyStrikeText> with TickerProvid
     // строки, полоса приоритета), а не на общий ClarifyMotion.base (180мс,
     // слишком быстрый для линии через всё слово). Растворение при отмене
     // остаётся на base — там жалоб не было.
-    _draw = AnimationController(vsync: this, duration: ClarifyMotion.completion, value: widget.isDone ? 1 : 0);
-    _fade = AnimationController(vsync: this, duration: ClarifyMotion.base, value: 1);
+    _draw = AnimationController(
+      vsync: this,
+      duration: ClarifyMotion.completion,
+      value: widget.isDone ? 1 : 0,
+    );
+    _fade = AnimationController(
+      vsync: this,
+      duration: ClarifyMotion.base,
+      value: 1,
+    );
   }
 
   @override
@@ -151,7 +179,10 @@ class _ClarifyStrikeTextState extends State<ClarifyStrikeText> with TickerProvid
       if (widget.isDone) {
         _fade.value = 1;
         _draw.value = 0;
-        _draw.animateTo(1, duration: reduceMotion ? Duration.zero : ClarifyMotion.completion);
+        _draw.animateTo(
+          1,
+          duration: reduceMotion ? Duration.zero : ClarifyMotion.completion,
+        );
       } else {
         _fade.value = 1;
         _fade.animateTo(0, duration: duration).whenCompleteOrCancel(() {
@@ -182,35 +213,56 @@ class _ClarifyStrikeTextState extends State<ClarifyStrikeText> with TickerProvid
         // TextPainter (с тем же maxLines/overflow, что и у самого Text) —
         // раньше линия растягивалась на всю ширину Expanded-родителя вместо
         // ширины реального текста.
-        final painter = TextPainter(
-          text: TextSpan(text: widget.text, style: widget.style),
-          maxLines: widget.maxLines,
-          textDirection: Directionality.of(context),
-          textScaler: MediaQuery.textScalerOf(context),
-          ellipsis: widget.overflow == TextOverflow.ellipsis ? '…' : null,
-          // TextWidthBasis.parent (дефолт) отдаёт в .width практически весь
-          // maxWidth констрейнта, а не фактическую ширину глифов — если строка
-          // короче доступного места (обычный случай в Expanded), черта
-          // рисовалась на всю ширину слота, а не по факту символов текста.
-          textWidthBasis: TextWidthBasis.longestLine,
-        )..layout(maxWidth: constraints.hasBoundedWidth ? constraints.maxWidth : double.infinity);
+        final painter =
+            TextPainter(
+              text: TextSpan(text: widget.text, style: widget.style),
+              maxLines: widget.maxLines,
+              textDirection: Directionality.of(context),
+              textScaler: MediaQuery.textScalerOf(context),
+              ellipsis: widget.overflow == TextOverflow.ellipsis ? '…' : null,
+              // TextWidthBasis.parent (дефолт) отдаёт в .width практически весь
+              // maxWidth констрейнта, а не фактическую ширину глифов — если строка
+              // короче доступного места (обычный случай в Expanded), черта
+              // рисовалась на всю ширину слота, а не по факту символов текста.
+              textWidthBasis: TextWidthBasis.longestLine,
+            )..layout(
+              maxWidth: constraints.hasBoundedWidth
+                  ? constraints.maxWidth
+                  : double.infinity,
+            );
         final textWidth = painter.width;
 
         return Stack(
           alignment: Alignment.centerLeft,
           children: [
-            Text(widget.text, style: widget.style, maxLines: widget.maxLines, overflow: widget.overflow),
+            Text(
+              widget.text,
+              style: widget.style,
+              maxLines: widget.maxLines,
+              overflow: widget.overflow,
+            ),
             AnimatedBuilder(
               animation: Listenable.merge([_draw, _fade]),
               builder: (context, _) {
-                final width = CurvedAnimation(parent: _draw, curve: ClarifyMotion.standard).value.clamp(0.0, 1.0);
-                final opacity = CurvedAnimation(parent: _fade, curve: ClarifyMotion.standard).value.clamp(0.0, 1.0);
-                if (width <= 0.001 || opacity <= 0.001) return const SizedBox.shrink();
+                final width = CurvedAnimation(
+                  parent: _draw,
+                  curve: ClarifyMotion.standard,
+                ).value.clamp(0.0, 1.0);
+                final opacity = CurvedAnimation(
+                  parent: _fade,
+                  curve: ClarifyMotion.standard,
+                ).value.clamp(0.0, 1.0);
+                if (width <= 0.001 || opacity <= 0.001)
+                  return const SizedBox.shrink();
                 return Align(
                   alignment: Alignment.centerLeft,
                   child: Opacity(
                     opacity: opacity,
-                    child: Container(width: textWidth * width, height: 1.4, color: color),
+                    child: Container(
+                      width: textWidth * width,
+                      height: 1.4,
+                      color: color,
+                    ),
                   ),
                 );
               },
@@ -234,7 +286,14 @@ class ClarifySubtaskBadge extends StatelessWidget {
   final double scale;
   final IconData icon;
 
-  const ClarifySubtaskBadge({super.key, required this.done, required this.total, required this.tokens, this.scale = 1.0, this.icon = LucideIcons.listChecks});
+  const ClarifySubtaskBadge({
+    super.key,
+    required this.done,
+    required this.total,
+    required this.tokens,
+    this.scale = 1.0,
+    this.icon = LucideIcons.listChecks,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -243,13 +302,23 @@ class ClarifySubtaskBadge extends StatelessWidget {
     final Color bg = allDone ? tokens.successSoft : tokens.accentSoft;
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 6 * scale, vertical: 2 * scale),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(ClarifyRadius.sm)),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(ClarifyRadius.sm),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 12 * scale, color: fg),
           SizedBox(width: 3 * scale),
-          Text('$done/$total', style: TextStyle(fontSize: 11.5 * scale, fontWeight: FontWeight.bold, color: fg)),
+          Text(
+            '$done/$total',
+            style: TextStyle(
+              fontSize: 11.5 * scale,
+              fontWeight: FontWeight.bold,
+              color: fg,
+            ),
+          ),
         ],
       ),
     );
@@ -279,7 +348,10 @@ class ClarifyBadgeEntrance extends StatelessWidget {
       tween: Tween(begin: 0.0, end: 1.0),
       duration: reduceMotion ? Duration.zero : ClarifyMotion.base,
       curve: ClarifyMotion.standard,
-      builder: (context, t, child) => Opacity(opacity: t, child: Transform.scale(scale: 0.85 + 0.15 * t, child: child)),
+      builder: (context, t, child) => Opacity(
+        opacity: t,
+        child: Transform.scale(scale: 0.85 + 0.15 * t, child: child),
+      ),
       child: child,
     );
   }
@@ -296,18 +368,64 @@ class ClarifyBadgeEntrance extends StatelessWidget {
 /// размер контейнера плавно кадр за кадром, а не одним скачком через Stack —
 /// вместе с AnimatedOpacity для самого затухания получается настоящий плавный
 /// уход, не только вход.
-Widget clarifyAnimatedBadgeSlot(Widget? badge) {
-  return AnimatedSize(
-    duration: ClarifyMotion.completion,
-    curve: ClarifyMotion.standard,
-    alignment: Alignment.centerLeft,
-    child: AnimatedOpacity(
-      opacity: badge == null ? 0 : 1,
+Widget clarifyAnimatedBadgeSlot(Widget? badge) =>
+    _ClarifyAnimatedBadgeSlot(badge: badge);
+
+/// StatefulWidget, а не просто функция — раньше, в момент, когда [badge]
+/// становился `null` (например при отметке задачи выполненной), REBUILD
+/// подменял ребёнка AnimatedOpacity на SizedBox.shrink() В ТОМ ЖЕ кадре, что
+/// и запускал анимацию прозрачности к 0. AnimatedOpacity анимирует только
+/// свойство opacity ОДНОГО и того же виджета-ребёнка — если сам ребёнок уже
+/// подменён на пустой SizedBox, буквально нечему становиться прозрачным, и
+/// бейдж исчезал мгновенно (живой фидбек: "появляются красиво анимировано,
+/// пропадают резко"). Держим последний НЕ-null бейдж в состоянии и рендерим
+/// именно его во время затухания — сам виджет остаётся смонтированным, пока
+/// не долетит до нулевой прозрачности, и только тогда (после AnimatedSize)
+/// схлопывается по размеру.
+class _ClarifyAnimatedBadgeSlot extends StatefulWidget {
+  final Widget? badge;
+  const _ClarifyAnimatedBadgeSlot({this.badge});
+
+  @override
+  State<_ClarifyAnimatedBadgeSlot> createState() =>
+      _ClarifyAnimatedBadgeSlotState();
+}
+
+class _ClarifyAnimatedBadgeSlotState extends State<_ClarifyAnimatedBadgeSlot> {
+  Widget? _lastBadge;
+
+  @override
+  void initState() {
+    super.initState();
+    _lastBadge = widget.badge;
+  }
+
+  @override
+  void didUpdateWidget(covariant _ClarifyAnimatedBadgeSlot oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Обновляем "последний показанный бейдж" только когда он реально есть —
+    // когда badge становится null, специально НЕ затираем _lastBadge, чтобы
+    // было что плавно растворять.
+    if (widget.badge != null) {
+      _lastBadge = widget.badge;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = widget.badge != null;
+    return AnimatedSize(
       duration: ClarifyMotion.completion,
       curve: ClarifyMotion.standard,
-      child: badge ?? const SizedBox.shrink(),
-    ),
-  );
+      alignment: Alignment.centerLeft,
+      child: AnimatedOpacity(
+        opacity: visible ? 1 : 0,
+        duration: ClarifyMotion.completion,
+        curve: ClarifyMotion.standard,
+        child: _lastBadge ?? const SizedBox.shrink(),
+      ),
+    );
+  }
 }
 
 /// Обобщённый бейдж-пилюля (иконка + короткая подпись) — тот же визуальный
@@ -334,13 +452,23 @@ class ClarifyInfoBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 6 * scale, vertical: 2 * scale),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(ClarifyRadius.sm)),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(ClarifyRadius.sm),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 12 * scale, color: fg),
           SizedBox(width: 3 * scale),
-          Text(label, style: TextStyle(fontSize: 11.5 * scale, fontWeight: FontWeight.bold, color: fg)),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11.5 * scale,
+              fontWeight: FontWeight.bold,
+              color: fg,
+            ),
+          ),
         ],
       ),
     );
@@ -377,7 +505,8 @@ Widget? buildRotBadge({
   // сам даёт и вход, и выход одной и той же анимацией; двойная обёртка дала
   // бы вход дважды и никакого выхода (ClarifyBadgeEntrance не умеет уходить).
   return Tooltip(
-    message: '${"Задача не двигается уже".tr(currentLang)} $ageDays ${"дн.".tr(currentLang)}',
+    message:
+        '${"Задача не двигается уже".tr(currentLang)} $ageDays ${"дн.".tr(currentLang)}',
     child: ClarifyInfoBadge(
       icon: LucideIcons.archive,
       label: '$ageDays ${"дн.".tr(currentLang)}',

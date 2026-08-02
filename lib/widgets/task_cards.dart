@@ -299,23 +299,43 @@ class TaskCardBuilders {
 
   Widget _calendarTaskChipRow(Map<String, dynamic> task) {
     final bool isDone = task['is_completed'] == true;
-    final bool hasPriority = task['priority'] != null && task['priority'] != 'none';
-    final Color stripeColor = isDone ? glassBorderColor : (hasPriority ? getPriorityColor(task['priority']) : glassBorderColor);
+    final bool hasPriority =
+        task['priority'] != null && task['priority'] != 'none';
+    final Color stripeColor = isDone
+        ? glassBorderColor
+        : (hasPriority ? getPriorityColor(task['priority']) : glassBorderColor);
     final String? dueTime = task['due_time'] as String?;
     final bool overdue = isOverdue(task);
     // Компактнее, чем в списке/доске (scale*0.75) — тот же бейдж, тот же
     // компонент, просто меньше, чтобы не расталкивать 3-ю строку превью. Без
     // обёртки в быстрые действия (_rotBadge) — тап по всей строке уже ведёт
     // к деталям задачи, где тот же бейдж уже с быстрыми действиями.
-    final rotBadge = buildRotBadge(task: task, isDone: isDone, overdue: overdue, tokens: _t, currentLang: currentLang, scale: _s * 0.75);
-    final rescheduleBadge = buildRescheduleBadge(task: task, isDone: isDone, tokens: _t, currentLang: currentLang, scale: _s * 0.75);
+    final rotBadge = buildRotBadge(
+      task: task,
+      isDone: isDone,
+      overdue: overdue,
+      tokens: _t,
+      currentLang: currentLang,
+      scale: _s * 0.75,
+    );
+    final rescheduleBadge = buildRescheduleBadge(
+      task: task,
+      isDone: isDone,
+      tokens: _t,
+      currentLang: currentLang,
+      scale: _s * 0.75,
+    );
     final priorityLabel = priorityFlagLabel(task['priority']);
 
     return ClarifyPressable(
       onTap: () => onTap(task),
       child: Container(
         margin: EdgeInsets.only(bottom: 1 * _s),
-        decoration: BoxDecoration(border: Border(left: BorderSide(color: stripeColor, width: 2 * _s))),
+        decoration: BoxDecoration(
+          border: Border(
+            left: BorderSide(color: stripeColor, width: 2 * _s),
+          ),
+        ),
         padding: EdgeInsets.symmetric(horizontal: 3 * _s),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -328,14 +348,25 @@ class TaskCardBuilders {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (dueTime != null) ...[
-                  Text(dueTime, style: TextStyle(fontSize: 9 * _s, fontWeight: FontWeight.w600, color: isDone ? textMuted : _t.text3)),
+                  Text(
+                    dueTime,
+                    style: TextStyle(
+                      fontSize: 9 * _s,
+                      fontWeight: FontWeight.w600,
+                      color: isDone ? textMuted : _t.text3,
+                    ),
+                  ),
                   SizedBox(width: 4 * _s),
                 ],
                 Flexible(
                   child: ClarifyStrikeText(
                     text: task['title'] ?? '',
                     isDone: isDone,
-                    style: TextStyle(fontSize: 9 * _s, fontWeight: FontWeight.w600, color: isDone ? textMuted : textColor),
+                    style: TextStyle(
+                      fontSize: 9 * _s,
+                      fontWeight: FontWeight.w600,
+                      color: isDone ? textMuted : textColor,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -351,7 +382,11 @@ class TaskCardBuilders {
             // сколько задач влезает в ячейку.
             SizedBox(
               height: _calendarChipLine2Height * _s,
-              child: (_wasPastDue(task) || priorityLabel.isNotEmpty || rotBadge != null || rescheduleBadge != null)
+              child:
+                  (_wasPastDue(task) ||
+                      priorityLabel.isNotEmpty ||
+                      rotBadge != null ||
+                      rescheduleBadge != null)
                   ? Wrap(
                       spacing: 4 * _s,
                       runSpacing: 1 * _s,
@@ -365,16 +400,31 @@ class TaskCardBuilders {
                               opacity: isDone ? 0 : 1,
                               duration: ClarifyMotion.completion,
                               curve: ClarifyMotion.standard,
-                              child: Icon(LucideIcons.clockAlert, size: 8 * _s, color: _t.danger),
+                              child: Icon(
+                                LucideIcons.clockAlert,
+                                size: 8 * _s,
+                                color: _t.danger,
+                              ),
                             ),
                           ),
                         if (priorityLabel.isNotEmpty)
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(LucideIcons.flag, size: 8 * _s, color: getPriorityColor(task['priority'])),
+                              Icon(
+                                LucideIcons.flag,
+                                size: 8 * _s,
+                                color: getPriorityColor(task['priority']),
+                              ),
                               SizedBox(width: 1 * _s),
-                              Text(priorityLabel, style: TextStyle(fontSize: 8 * _s, fontWeight: FontWeight.bold, color: getPriorityColor(task['priority']))),
+                              Text(
+                                priorityLabel,
+                                style: TextStyle(
+                                  fontSize: 8 * _s,
+                                  fontWeight: FontWeight.bold,
+                                  color: getPriorityColor(task['priority']),
+                                ),
+                              ),
                             ],
                           ),
                         clarifyAnimatedBadgeSlot(rotBadge),
@@ -582,8 +632,12 @@ class TaskCardBuilders {
                                                 icon: LucideIcons.listTodo,
                                               ),
                                       ),
-                                    clarifyAnimatedBadgeSlot(_rotBadge(task, isDone, overdue)),
-                                    clarifyAnimatedBadgeSlot(_rescheduleBadge(task, isDone)),
+                                    clarifyAnimatedBadgeSlot(
+                                      _rotBadge(task, isDone, overdue),
+                                    ),
+                                    clarifyAnimatedBadgeSlot(
+                                      _rescheduleBadge(task, isDone),
+                                    ),
                                     if (task['tags'] != null &&
                                         task['tags']
                                             .toString()
@@ -647,8 +701,32 @@ class TaskCardBuilders {
         task['recurrence'] != null && task['recurrence'] != 'none';
     final stats = getSubtaskStats(task['id']);
     final bool hasSubtasks = stats['total']! > 0;
+    final String? tag = (task['tags'] as String?)?.split(',').first.trim();
 
     final bool overdue = isOverdue(task);
+    // Полоса приоритета слева — тот же визуальный язык, что и на мобильной
+    // версии (mobile_task_row.dart), которого на десктопе раньше не было
+    // (приоритет читался только по цвету обводки чекбокса, живой фидбек
+    // 2026-08-02: "нет цветной полосы слева блока, как на мобильной").
+    final Color stripeColor = isDone
+        ? glassBorderColor
+        : (hasPriority ? getPriorityColor(task['priority']) : glassBorderColor);
+    // Флаг+подпись приоритета убраны из строки метаданных — приоритет теперь
+    // читается только через цвет (обводка чекбокса + полоса слева), отдельный
+    // текстовый бейдж стал избыточным (живой фидбек 2026-08-02, тот же раунд,
+    // где согласована трёхстрочная структура ниже).
+    final rotBadge = _rotBadge(task, isDone, overdue);
+    final rescheduleBadge = _rescheduleBadge(task, isDone);
+    // "Был бы бейдж, если бы задача не была выполнена" — НЕ то же самое, что
+    // rotBadge/rescheduleBadge выше (те специально null, когда isDone, это и
+    // управляет исчезающей анимацией). Нужно отдельно, чтобы решить, монтировать
+    // ли саму 3-ю строку: если гасить обёртку по текущему (уже null) значению,
+    // clarifyAnimatedBadgeSlot размонтируется вместе с ней в тот же кадр, что
+    // и isDone, и анимации исчезновения не будет — тот же приём, что и у
+    // _wasPastDue для иконки просрочки.
+    final bool line3EverRelevant =
+        _rotBadge(task, false, overdue) != null ||
+        _rescheduleBadge(task, false) != null;
 
     // Раньше это был ListTile: leading/trailing он центрирует по всей высоте
     // плитки (с учётом subtitle), а бейдж подзадач в title — по верху title-
@@ -658,299 +736,285 @@ class TaskCardBuilders {
     // сделано в buildBoardTaskCardExpanded.
     return ClarifyCollapsingTaskRow(
       key: ValueKey(task['id']),
-      child: buildGlassContainer(
-        margin: const EdgeInsets.only(bottom: 12),
-        customColor: isDone ? doneCardColor : (overdue ? _t.dangerSoft : null),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        child: GestureDetector(
-          onTap: () => onTap(task),
-          behavior: HitTestBehavior.opaque,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      // margin вынесен НАРУЖУ ClipRRect/Stack (было параметром
+      // buildGlassContainer) — иначе Stack сам получал бы лишние 12px внизу
+      // (от margin внутреннего Container), и полоса приоритета (Positioned
+      // bottom: 0) растягивалась бы до самого низа ЭТОГО отступа, торча за
+      // пределы видимой карточки, а не заканчиваясь вровень с её нижним краем.
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(ClarifyRadius.md),
+          child: Stack(
             children: [
-              ClarifyCheckCircle(
-                size: 22,
-                borderColor: isDone
-                    ? glassBorderColor
-                    : (hasPriority
-                          ? getPriorityColor(task['priority'])
-                          : glassBorderColor),
-                checkedColor: _t.accent,
-                value: isDone,
-                onTap: () => onToggle(task),
-                duration: ClarifyMotion.completion,
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ClarifyStrikeText(
-                            text: task['title'] ?? '',
-                            isDone: isDone,
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: isDone ? textMuted : textColor,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (hasRecurrence)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 8),
-                            child: Icon(
-                              LucideIcons.repeat,
-                              size: 16,
-                              color: isDone ? textMuted : _t.text3,
-                            ),
-                          ),
-                        // Схлопывается, когда сама задача выполнена — счётчик
-                        // подзадач не нужен после закрытия всей задачи целиком.
-                        if (hasSubtasks)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 12),
-                            child: AnimatedSize(
-                              duration: ClarifyMotion.completion,
-                              curve: ClarifyMotion.standard,
-                              child: isDone
-                                  ? const SizedBox.shrink()
-                                  : ClarifySubtaskBadge(
-                                      done: stats['done']!,
-                                      total: stats['total']!,
-                                      tokens: _t,
-                                    ),
-                            ),
-                          ),
-                        if (hasChecklist)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 12),
-                            child: AnimatedSize(
-                              duration: ClarifyMotion.completion,
-                              curve: ClarifyMotion.standard,
-                              child: isDone
-                                  ? const SizedBox.shrink()
-                                  : ClarifySubtaskBadge(
-                                      done: cStats['done']!,
-                                      total: cStats['total']!,
-                                      tokens: _t,
-                                      icon: LucideIcons.listTodo,
-                                    ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    // Гниение/перенос — на второй строке РЯДОМ с иконкой
-                    // просрочки, а не в строке заголовка: ровно та же
-                    // группировка, что и на мобильной версии
-                    // (mobile_task_row.dart — своя, отдельная от даты/тегов/
-                    // счётчиков строка). Раньше стояли в строке заголовка —
-                    // из-за этого визуально терялись среди чекбокса/
-                    // зачёркивания/счётчиков подзадач (фидбек пользователя
-                    // 2026-08-01: "не появились значки переносов и гниения").
-                    // due_date (без due_time) и сами бейджи добавлены в
-                    // условие показа строки ниже — раньше строка целиком не
-                    // рендерилась, если у задачи не было ни due_time, ни
-                    // note/tags/приоритета, даже если гниение/перенос были.
-                    if (task['due_date'] != null ||
-                        task['due_time'] != null ||
-                        task['note'] != null ||
-                        task['tags'] != null ||
-                        priorityFlagLabel(task['priority']).isNotEmpty ||
-                        _rotBadge(task, isDone, overdue) != null ||
-                        _rescheduleBadge(task, isDone) != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        // crossAxisAlignment.center на плоском Row centrирует
-                        // каждый элемент отдельно относительно высоты САМОГО
-                        // высокого соседа (например бейджа гниения/переноса
-                        // со своим внутренним padding) — из-за этого голая
-                        // иконка/текст визуально "съезжали" относительно
-                        // друг друга, хотя формально все центрированы (живой
-                        // фидбек 2026-08-01: "значок просрочки не по
-                        // середине... заметка и тег на другой высоте
-                        // относительно даты"). Группируем каждую пару
-                        // иконка+текст в свой Row — их взаимное выравнивание
-                        // считается только относительно друг друга, а не
-                        // случайного самого высокого элемента строки.
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
+              buildGlassContainer(
+                customColor: isDone
+                    ? doneCardColor
+                    : (overdue ? _t.dangerSoft : null),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 14,
+                ),
+                child: GestureDetector(
+                  onTap: () => onTap(task),
+                  behavior: HitTestBehavior.opaque,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ClarifyCheckCircle(
+                        size: 22,
+                        borderColor: isDone
+                            ? glassBorderColor
+                            : (hasPriority
+                                  ? getPriorityColor(task['priority'])
+                                  : glassBorderColor),
+                        checkedColor: _t.accent,
+                        value: isDone,
+                        onTap: () => onToggle(task),
+                        duration: ClarifyMotion.completion,
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (priorityFlagLabel(task['priority']).isNotEmpty)
-                              GestureDetector(
-                                onTap: () => onPriorityTap(task['priority']),
-                                child: Padding(
-                                  padding: const EdgeInsets.only(right: 12),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    crossAxisAlignment: CrossAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        LucideIcons.flag,
-                                        size: 14,
-                                        color: getPriorityColor(task['priority']),
-                                      ),
-                                      const SizedBox(width: 3),
-                                      Text(
-                                        priorityFlagLabel(task['priority']),
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.bold,
-                                          color: getPriorityColor(task['priority']),
-                                        ),
-                                      ),
-                                    ],
+                            // Строка 1: чекбокс (слева от Column) + заголовок +
+                            // значок повтора. Счётчики подзадач/чек-листа
+                            // переехали на строку 2 (см. ниже) — по
+                            // согласованной структуре 2026-08-02.
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ClarifyStrikeText(
+                                    text: task['title'] ?? '',
+                                    isDone: isDone,
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      color: isDone ? textMuted : textColor,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                              ),
+                                if (hasRecurrence)
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 8),
+                                    child: Icon(
+                                      LucideIcons.repeat,
+                                      size: 16,
+                                      color: isDone ? textMuted : _t.text3,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            // Строка 2: просрочка + дата/время + счётчики
+                            // подзадач/чек-листа + тег. Каждая иконка+текст
+                            // сгруппированы в свой Row (не голые элементы плоского
+                            // Row) — иначе crossAxisAlignment.center центрирует их
+                            // по высоте САМОГО высокого соседа, а не друг относительно
+                            // друга (живой фидбек 2026-08-01: "значок просрочки не
+                            // по середине... на другой высоте относительно даты").
                             if (task['due_date'] != null ||
-                                task['due_time'] != null)
+                                task['due_time'] != null ||
+                                hasSubtasks ||
+                                hasChecklist ||
+                                (tag != null && tag.isNotEmpty))
                               Padding(
-                                padding: const EdgeInsets.only(right: 12),
+                                padding: const EdgeInsets.only(top: 6),
                                 child: Row(
-                                  mainAxisSize: MainAxisSize.min,
                                   crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
-                                    if (_wasPastDue(task))
+                                    if (task['due_date'] != null ||
+                                        task['due_time'] != null)
                                       Padding(
-                                        padding: const EdgeInsets.only(right: 4),
-                                        child: SizedBox(
-                                          width: 16,
-                                          height: 16,
-                                          child: AnimatedOpacity(
-                                            opacity: isDone ? 0 : 1,
-                                            duration: ClarifyMotion.completion,
-                                            curve: ClarifyMotion.standard,
-                                            child: Icon(
-                                              LucideIcons.clockAlert,
-                                              size: 16,
-                                              color: _t.danger,
+                                        padding: const EdgeInsets.only(
+                                          right: 12,
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
+                                          children: [
+                                            if (_wasPastDue(task))
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                  right: 4,
+                                                ),
+                                                child: SizedBox(
+                                                  width: 16,
+                                                  height: 16,
+                                                  child: AnimatedOpacity(
+                                                    opacity: isDone ? 0 : 1,
+                                                    duration: ClarifyMotion
+                                                        .completion,
+                                                    curve:
+                                                        ClarifyMotion.standard,
+                                                    child: Icon(
+                                                      LucideIcons.clockAlert,
+                                                      size: 16,
+                                                      color: _t.danger,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            AnimatedDefaultTextStyle(
+                                              duration:
+                                                  ClarifyMotion.completion,
+                                              curve: ClarifyMotion.standard,
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: overdue
+                                                    ? _t.danger
+                                                    : textMuted,
+                                                fontWeight: overdue
+                                                    ? FontWeight.bold
+                                                    : FontWeight.normal,
+                                              ),
+                                              child: Text(
+                                                "${task['due_date'] != null ? '${task['due_date']} ' : ''}${task['due_time'] ?? ''}",
+                                              ),
                                             ),
+                                          ],
+                                        ),
+                                      ),
+                                    // Схлопывается, когда сама задача выполнена —
+                                    // счётчик не нужен после закрытия всей задачи.
+                                    if (hasSubtasks)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          right: 12,
+                                        ),
+                                        child: AnimatedSize(
+                                          duration: ClarifyMotion.completion,
+                                          curve: ClarifyMotion.standard,
+                                          child: isDone
+                                              ? const SizedBox.shrink()
+                                              : ClarifySubtaskBadge(
+                                                  done: stats['done']!,
+                                                  total: stats['total']!,
+                                                  tokens: _t,
+                                                ),
+                                        ),
+                                      ),
+                                    if (hasChecklist)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          right: 12,
+                                        ),
+                                        child: AnimatedSize(
+                                          duration: ClarifyMotion.completion,
+                                          curve: ClarifyMotion.standard,
+                                          child: isDone
+                                              ? const SizedBox.shrink()
+                                              : ClarifySubtaskBadge(
+                                                  done: cStats['done']!,
+                                                  total: cStats['total']!,
+                                                  tokens: _t,
+                                                  icon: LucideIcons.listTodo,
+                                                ),
+                                        ),
+                                      ),
+                                    if (tag != null && tag.isNotEmpty)
+                                      GestureDetector(
+                                        onTap: () => onTagTap(tag),
+                                        child: Text(
+                                          "[$tag]",
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                            color: _t.accent,
                                           ),
                                         ),
                                       ),
-                                    AnimatedDefaultTextStyle(
-                                      duration: ClarifyMotion.completion,
-                                      curve: ClarifyMotion.standard,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: overdue ? _t.danger : textMuted,
-                                        fontWeight: overdue
-                                            ? FontWeight.bold
-                                            : FontWeight.normal,
-                                      ),
-                                      child: Text(
-                                        "${task['due_date'] != null ? '${task['due_date']} ' : ''}${task['due_time'] ?? ''}",
-                                      ),
-                                    ),
                                   ],
                                 ),
                               ),
-                            // clarifyAnimatedBadgeSlot — анимирует и вход, И
-                            // выход (AnimatedSize+AnimatedOpacity), в точности
-                            // как на мобильной версии.
-                            Padding(
-                              padding: const EdgeInsets.only(right: 12),
-                              child: clarifyAnimatedBadgeSlot(_rotBadge(task, isDone, overdue)),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.only(right: 12),
-                              child: clarifyAnimatedBadgeSlot(_rescheduleBadge(task, isDone)),
-                            ),
-                            if (task['tags'] != null &&
-                                task['tags'].toString().trim().isNotEmpty)
-                              GestureDetector(
-                                onTap: () => onTagTap(
-                                  task['tags'].toString().split(',')[0].trim(),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.only(right: 12),
-                                  child: Text(
-                                    "[${task['tags'].toString().split(',')[0].trim()}]",
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: _t.accent,
+                            // Строка 3: гниение + перенос — отдельно от даты/
+                            // тега/чек-листа (не толпятся в одной строке).
+                            if (line3EverRelevant)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.only(right: 12),
+                                      child: clarifyAnimatedBadgeSlot(rotBadge),
                                     ),
-                                  ),
-                                ),
-                              ),
-                            if (task['note'] != null &&
-                                task['note'].toString().isNotEmpty)
-                              Expanded(
-                                child: Text(
-                                  task['note'],
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: textMuted,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                    clarifyAnimatedBadgeSlot(rescheduleBadge),
+                                  ],
                                 ),
                               ),
                           ],
                         ),
                       ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              if (task['assigned_to'] != null)
-                Builder(
-                  builder: (context) {
-                    var members = workspaceMembers[task['workspace_id']] ?? [];
-                    var member = members.firstWhere(
-                      (m) => m['user_id'] == task['assigned_to'],
-                      orElse: () => <String, dynamic>{},
-                    );
+                      const SizedBox(width: 8),
+                      if (task['assigned_to'] != null)
+                        Builder(
+                          builder: (context) {
+                            var members =
+                                workspaceMembers[task['workspace_id']] ?? [];
+                            var member = members.firstWhere(
+                              (m) => m['user_id'] == task['assigned_to'],
+                              orElse: () => <String, dynamic>{},
+                            );
 
-                    if (member.isEmpty) return const SizedBox();
+                            if (member.isEmpty) return const SizedBox();
 
-                    String rawName =
-                        member['full_name']?.toString().trim() ?? '';
-                    String name = rawName.isNotEmpty ? rawName : '?';
-                    String initial = name[0].toUpperCase();
-                    final avatarColor =
-                        _t.tagPalette[members.indexOf(member) %
-                            _t.tagPalette.length];
+                            String rawName =
+                                member['full_name']?.toString().trim() ?? '';
+                            String name = rawName.isNotEmpty ? rawName : '?';
+                            String initial = name[0].toUpperCase();
+                            final avatarColor =
+                                _t.tagPalette[members.indexOf(member) %
+                                    _t.tagPalette.length];
 
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: Tooltip(
-                        message: "Ответственный: $name",
-                        child: CircleAvatar(
-                          radius: 14,
-                          backgroundColor: avatarColor,
-                          child: Text(
-                            initial,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: Tooltip(
+                                message: "Ответственный: $name",
+                                child: CircleAvatar(
+                                  radius: 14,
+                                  backgroundColor: avatarColor,
+                                  child: Text(
+                                    initial,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      Builder(
+                        builder: (btnContext) => IconButton(
+                          icon: Icon(LucideIcons.x, color: _t.danger, size: 22),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 28,
+                            minHeight: 28,
                           ),
+                          onPressed: () =>
+                              ClarifyCollapsingTaskRow.collapseThenRun(
+                                btnContext,
+                                () => onDelete(task['id']),
+                              ),
                         ),
                       ),
-                    );
-                  },
-                ),
-              Builder(
-                builder: (btnContext) => IconButton(
-                  icon: Icon(LucideIcons.x, color: _t.danger, size: 22),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(
-                    minWidth: 28,
-                    minHeight: 28,
-                  ),
-                  onPressed: () => ClarifyCollapsingTaskRow.collapseThenRun(
-                    btnContext,
-                    () => onDelete(task['id']),
+                    ],
                   ),
                 ),
+              ),
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: 3,
+                child: Container(color: stripeColor),
               ),
             ],
           ),

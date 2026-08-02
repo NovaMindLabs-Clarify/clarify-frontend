@@ -76,8 +76,19 @@ class MobileTaskRow extends StatelessWidget {
     final cStats = checklistStats(task['checklist']);
     final bool hasChecklist = cStats['total']! > 0;
     final String? tag = (task['tags'] as String?)?.split(',').first.trim();
-    final rotBadge = buildRotBadge(task: task, isDone: isDone, overdue: overdue, tokens: t, currentLang: currentLang);
-    final rescheduleBadge = buildRescheduleBadge(task: task, isDone: isDone, tokens: t, currentLang: currentLang);
+    final rotBadge = buildRotBadge(
+      task: task,
+      isDone: isDone,
+      overdue: overdue,
+      tokens: t,
+      currentLang: currentLang,
+    );
+    final rescheduleBadge = buildRescheduleBadge(
+      task: task,
+      isDone: isDone,
+      tokens: t,
+      currentLang: currentLang,
+    );
     // Тап по бейджу гниения открывает быстрые действия вместо простого
     // просмотра — см. showTaskRotQuickActions (пассивный бейдж рискует со
     // временем превратиться в фоновый шум, который перестают замечать).
@@ -89,8 +100,14 @@ class MobileTaskRow extends StatelessWidget {
                 context: context,
                 isDark: Theme.of(context).brightness == Brightness.dark,
                 currentLang: currentLang,
-                onDoToday: () => onQuickUpdateTask({'due_date': formatClarifyDate(DateTime.now())}),
-                onClearDeadline: () => onQuickUpdateTask({'due_date': null, 'due_time': null, 'duration_minutes': null}),
+                onDoToday: () => onQuickUpdateTask({
+                  'due_date': formatClarifyDate(DateTime.now()),
+                }),
+                onClearDeadline: () => onQuickUpdateTask({
+                  'due_date': null,
+                  'due_time': null,
+                  'duration_minutes': null,
+                }),
                 onDelete: onDelete,
               ),
               child: rotBadge,
@@ -115,12 +132,19 @@ class MobileTaskRow extends StatelessWidget {
             duration: ClarifyMotion.completion,
             curve: ClarifyMotion.standard,
             decoration: BoxDecoration(
-              color: isDone ? t.surfaceSunken : (overdue ? t.dangerSoft : t.surface),
+              color: isDone
+                  ? t.surfaceSunken
+                  : (overdue ? t.dangerSoft : t.surface),
               borderRadius: BorderRadius.circular(ClarifyRadius.md),
               // Полоса — канал приоритета ТОЛЬКО (§6.4 REDESIGN_V4_PLAN.md);
               // просрочка теперь читается через фон строки + иконку часов
               // у времени ниже, не через эту же полосу.
-              border: Border(left: BorderSide(color: isDone ? t.border : priorityColor, width: 3)),
+              border: Border(
+                left: BorderSide(
+                  color: isDone ? t.border : priorityColor,
+                  width: 3,
+                ),
+              ),
             ),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
@@ -158,30 +182,94 @@ class MobileTaskRow extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        if (showDate && task['due_date'] != null || task['due_time'] != null || hasSubtasks || hasChecklist || tag != null) ...[
+                        // Строка 2: просрочка + дата/время + счётчики
+                        // подзадач/чек-листа + тег — единая структура с
+                        // desktop-версией (task_cards.dart:buildListTaskCard),
+                        // согласовано 2026-08-02. Иконка просрочки и дата/
+                        // время сгруппированы в свой Row (не голые элементы
+                        // плоского Wrap) — иначе выравнивание считается
+                        // относительно самого высокого соседа в Wrap
+                        // (например бейджа со своим padding), а не друг
+                        // относительно друга (живой фидбек: "значки на другой
+                        // высоте относительно времени и даты").
+                        if (showDate && task['due_date'] != null ||
+                            task['due_time'] != null ||
+                            hasSubtasks ||
+                            hasChecklist ||
+                            tag != null ||
+                            _wasPastDue(task)) ...[
                           const SizedBox(height: 4),
-                          // Строка 1: дата/время/тег/счётчик подзадач — как и
-                          // раньше. Бейджи гниения/переноса сюда НЕ попадают
-                          // даже если есть место (см. вторая строка ниже) —
-                          // по прямому запросу они должны быть строго отдельно
-                          // от даты/времени/тега, не тесниться с ними в Wrap.
                           Wrap(
                             spacing: 8,
                             runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
-                              if (showDate && task['due_date'] != null)
-                                AnimatedDefaultTextStyle(
-                                  duration: ClarifyMotion.completion,
-                                  curve: ClarifyMotion.standard,
-                                  style: TextStyle(fontSize: 12, color: overdue && !isDone ? t.danger : t.text3, fontWeight: FontWeight.w600),
-                                  child: Text(task['due_date']),
-                                ),
-                              if (task['due_time'] != null)
-                                AnimatedDefaultTextStyle(
-                                  duration: ClarifyMotion.completion,
-                                  curve: ClarifyMotion.standard,
-                                  style: TextStyle(fontSize: 12, color: overdue && !isDone ? t.danger : t.text3, fontWeight: FontWeight.w600),
-                                  child: Text(task['due_time']),
+                              if (showDate && task['due_date'] != null ||
+                                  task['due_time'] != null ||
+                                  _wasPastDue(task))
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    // Слот иконки просрочки закреплён по ширине,
+                                    // если дедлайн задачи вообще был в прошлом
+                                    // (см. _wasPastDue) — НЕ по `overdue`,
+                                    // который сам уже false для выполненных
+                                    // задач: иначе слот и не появился бы в тот
+                                    // же ребилд, где isDone стал true, и дата
+                                    // всё равно "прыгала" бы влево.
+                                    if (_wasPastDue(task))
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          right: 4,
+                                        ),
+                                        child: SizedBox(
+                                          width: 12,
+                                          height: 12,
+                                          child: AnimatedOpacity(
+                                            opacity: isDone ? 0 : 1,
+                                            duration: ClarifyMotion.completion,
+                                            curve: ClarifyMotion.standard,
+                                            child: Icon(
+                                              LucideIcons.clockAlert,
+                                              size: 12,
+                                              color: t.danger,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    if (showDate && task['due_date'] != null)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          right: 4,
+                                        ),
+                                        child: AnimatedDefaultTextStyle(
+                                          duration: ClarifyMotion.completion,
+                                          curve: ClarifyMotion.standard,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: overdue && !isDone
+                                                ? t.danger
+                                                : t.text3,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          child: Text(task['due_date']),
+                                        ),
+                                      ),
+                                    if (task['due_time'] != null)
+                                      AnimatedDefaultTextStyle(
+                                        duration: ClarifyMotion.completion,
+                                        curve: ClarifyMotion.standard,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: overdue && !isDone
+                                              ? t.danger
+                                              : t.text3,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        child: Text(task['due_time']),
+                                      ),
+                                  ],
                                 ),
                               // Бейдж подзадач/чек-листа схлопывается, когда сама
                               // задача выполнена — счётчик "N из N" не несёт
@@ -194,7 +282,11 @@ class MobileTaskRow extends StatelessWidget {
                                   curve: ClarifyMotion.standard,
                                   child: isDone
                                       ? const SizedBox.shrink()
-                                      : ClarifySubtaskBadge(done: subtaskStats['done']!, total: subtaskStats['total']!, tokens: t),
+                                      : ClarifySubtaskBadge(
+                                          done: subtaskStats['done']!,
+                                          total: subtaskStats['total']!,
+                                          tokens: t,
+                                        ),
                                 ),
                               if (hasChecklist)
                                 AnimatedSize(
@@ -202,38 +294,54 @@ class MobileTaskRow extends StatelessWidget {
                                   curve: ClarifyMotion.standard,
                                   child: isDone
                                       ? const SizedBox.shrink()
-                                      : ClarifySubtaskBadge(done: cStats['done']!, total: cStats['total']!, tokens: t, icon: LucideIcons.listTodo),
+                                      : ClarifySubtaskBadge(
+                                          done: cStats['done']!,
+                                          total: cStats['total']!,
+                                          tokens: t,
+                                          icon: LucideIcons.listTodo,
+                                        ),
                                 ),
                               if (tag != null && tag.isNotEmpty)
-                                Text('#$tag', style: TextStyle(fontSize: 12, color: t.accent, fontWeight: FontWeight.w600)),
+                                Text(
+                                  '#$tag',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: t.accent,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                             ],
                           ),
                         ],
-                        if (_wasPastDue(task) || rotBadge != null || rescheduleBadge != null) ...[
+                        // Строка 3: гниение + перенос — отдельно от даты/тега/
+                        // чек-листа (не толпятся в одной строке). Гейт на
+                        // "would-be" значениях (isDone: false), не на текущих
+                        // rotBadge/rescheduleBadge — те специально null, когда
+                        // isDone, это и управляет исчезающей анимацией внутри
+                        // clarifyAnimatedBadgeSlot; если гасить саму строку по
+                        // уже-null значению, слот размонтируется в тот же кадр,
+                        // что и isDone, и анимации исчезновения не будет.
+                        if (buildRotBadge(
+                                  task: task,
+                                  isDone: false,
+                                  overdue: overdue,
+                                  tokens: t,
+                                  currentLang: currentLang,
+                                ) !=
+                                null ||
+                            buildRescheduleBadge(
+                                  task: task,
+                                  isDone: false,
+                                  tokens: t,
+                                  currentLang: currentLang,
+                                ) !=
+                                null) ...[
                           const SizedBox(height: 4),
-                          // Строка 2, всегда отдельно от строки 1: иконка
-                          // просрочки + бейджи гниения/переноса.
                           Wrap(
                             spacing: 8,
                             runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
-                              // Слот иконки просрочки закреплён по ширине, если
-                              // дедлайн задачи вообще был в прошлом (см.
-                              // _wasPastDue) — НЕ по `overdue`, который сам уже
-                              // false для выполненных задач: иначе слот и не
-                              // появился бы в тот же ребилд, где isDone стал true,
-                              // и дата всё равно "прыгала" бы влево.
-                              if (_wasPastDue(task))
-                                SizedBox(
-                                  width: 12,
-                                  height: 12,
-                                  child: AnimatedOpacity(
-                                    opacity: isDone ? 0 : 1,
-                                    duration: ClarifyMotion.completion,
-                                    curve: ClarifyMotion.standard,
-                                    child: Icon(LucideIcons.clockAlert, size: 12, color: t.danger),
-                                  ),
-                                ),
                               // clarifyAnimatedBadgeSlot — не только вход, но и
                               // выход анимацией: раньше значки просто исчезали
                               // из Wrap мгновенно, когда становились null.
@@ -248,7 +356,10 @@ class MobileTaskRow extends StatelessWidget {
                   IconButton(
                     icon: Icon(LucideIcons.x, size: 16, color: t.text3),
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                    constraints: const BoxConstraints(
+                      minWidth: 28,
+                      minHeight: 28,
+                    ),
                     onPressed: onDelete,
                   ),
                 ],
