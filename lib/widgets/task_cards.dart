@@ -278,6 +278,18 @@ class TaskCardBuilders {
   // запас высоты. Нужен отдельно от buildCalendarTaskRow (не просто его
   // уменьшением): месячная сетка статична (без скролла) и обязана
   // гарантированно вмещать 3 задачи в ячейке при любом размере окна.
+  // Высота строки-превью в ячейке календаря должна быть ФИКСИРОВАННОЙ (не
+  // зависеть от того, есть ли у задачи бейджи/приоритет) — это единственный
+  // надёжный способ для _CalendarDayTasksPreview (main_content_area.dart)
+  // достоверно посчитать, сколько задач реально влезает в ячейку, не
+  // дублируя здесь и там всю логику "есть ли у задачи вторая строка". Живой
+  // баг (2026-08-02): счётчик "влезает 3" был жёстко зашит без учёта
+  // реальной высоты — пилюля "+1" накладывалась на текст 3-й задачи, когда
+  // задачи стали двухстрочными. Проверено тестом (task_cards_test.dart) —
+  // рендер с бейджами и без даёт одинаковую высоту.
+  static double calendarChipHeight(double scale) => 26 * scale;
+  static const double _calendarChipLine2Height = 13;
+
   Widget _calendarTaskChipRow(Map<String, dynamic> task) {
     final bool isDone = task['is_completed'] == true;
     final bool hasPriority = task['priority'] != null && task['priority'] != 'none';
@@ -325,37 +337,45 @@ class TaskCardBuilders {
             ),
             // Строка 2: приоритет + просрочка + гниение + перенос — та же
             // информация и те же анимации (вход/выход, opacity), что и в
-            // Мой день/Все задачи, просто мельче.
-            if (_wasPastDue(task) || priorityLabel.isNotEmpty || rotBadge != null || rescheduleBadge != null)
-              Wrap(
-                spacing: 4 * _s,
-                runSpacing: 1 * _s,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  if (_wasPastDue(task))
-                    SizedBox(
-                      width: 8 * _s,
-                      height: 8 * _s,
-                      child: AnimatedOpacity(
-                        opacity: isDone ? 0 : 1,
-                        duration: ClarifyMotion.completion,
-                        curve: ClarifyMotion.standard,
-                        child: Icon(LucideIcons.clockAlert, size: 8 * _s, color: _t.danger),
-                      ),
-                    ),
-                  if (priorityLabel.isNotEmpty)
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
+            // Мой день/Все задачи, просто мельче. Высота ВСЕГДА
+            // зарезервирована (SizedBox), даже когда показывать нечего —
+            // без этого высота строки менялась бы от задачи к задаче, и
+            // _CalendarDayTasksPreview не могла бы достоверно посчитать,
+            // сколько задач влезает в ячейку.
+            SizedBox(
+              height: _calendarChipLine2Height * _s,
+              child: (_wasPastDue(task) || priorityLabel.isNotEmpty || rotBadge != null || rescheduleBadge != null)
+                  ? Wrap(
+                      spacing: 4 * _s,
+                      runSpacing: 1 * _s,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        Icon(LucideIcons.flag, size: 8 * _s, color: getPriorityColor(task['priority'])),
-                        SizedBox(width: 1 * _s),
-                        Text(priorityLabel, style: TextStyle(fontSize: 8 * _s, fontWeight: FontWeight.bold, color: getPriorityColor(task['priority']))),
+                        if (_wasPastDue(task))
+                          SizedBox(
+                            width: 8 * _s,
+                            height: 8 * _s,
+                            child: AnimatedOpacity(
+                              opacity: isDone ? 0 : 1,
+                              duration: ClarifyMotion.completion,
+                              curve: ClarifyMotion.standard,
+                              child: Icon(LucideIcons.clockAlert, size: 8 * _s, color: _t.danger),
+                            ),
+                          ),
+                        if (priorityLabel.isNotEmpty)
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(LucideIcons.flag, size: 8 * _s, color: getPriorityColor(task['priority'])),
+                              SizedBox(width: 1 * _s),
+                              Text(priorityLabel, style: TextStyle(fontSize: 8 * _s, fontWeight: FontWeight.bold, color: getPriorityColor(task['priority']))),
+                            ],
+                          ),
+                        clarifyAnimatedBadgeSlot(rotBadge),
+                        clarifyAnimatedBadgeSlot(rescheduleBadge),
                       ],
-                    ),
-                  clarifyAnimatedBadgeSlot(rotBadge),
-                  clarifyAnimatedBadgeSlot(rescheduleBadge),
-                ],
-              ),
+                    )
+                  : null,
+            ),
           ],
         ),
       ),

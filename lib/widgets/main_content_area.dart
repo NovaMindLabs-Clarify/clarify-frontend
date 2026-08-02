@@ -14,6 +14,7 @@ import 'friends_screen.dart';
 import 'messenger_shell.dart';
 import 'project_kanban_board.dart';
 import 'projects_screen.dart';
+import 'task_cards.dart' show TaskCardBuilders;
 
 const List<String> _kWeekdaysRu = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
 
@@ -841,8 +842,19 @@ class _CalendarSectionState extends State<_CalendarSection> {
 /// попапом (REDESIGN_V3_PLAN.md §5.9: пейджер с точками/стрелками было
 /// "криво" при 5+ задачах — заменено на google/apple-calendar паттерн, без
 /// внутреннего свайпа и скачков раскладки сетки).
+///
+/// Количество видимых задач раньше было жёстко зашито в 3 — когда строки
+/// превью стали двухстрочными (приоритет/бейджи, живой фидбек 2026-08-01),
+/// это перестало гарантированно помещаться в ячейку: пилюля "+1" накладывалась
+/// на текст 3-й задачи (живой баг 2026-08-02). Считаем количество от РЕАЛЬНОЙ
+/// доступной высоты ячейки и фиксированной высоты строки
+/// (TaskCardBuilders.calendarChipHeight — фиксирована именно для того, чтобы
+/// этот расчёт был возможен без дублирования логики "есть ли у задачи вторая
+/// строка" здесь и в task_cards.dart). Без прокрутки: если реально не влезает
+/// заявленные 3 — показываем столько, сколько влезает, остальное в "+N", а не
+/// обрезаем/накладываем поверх текста.
 class _CalendarDayTasksPreview extends StatelessWidget {
-  static const int _previewCount = 3;
+  static const double _pillHeight = 16;
 
   final String dayTitle;
   final List<Map<String, dynamic>> tasks;
@@ -864,42 +876,50 @@ class _CalendarDayTasksPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final overflow = tasks.length - _previewCount;
-    final previewTasks = overflow > 0 ? tasks.sublist(0, _previewCount) : tasks;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // ListView вместо просто Column детей — она сама клипует контент,
-        // не помещающийся в отведённую высоту ячейки, вместо RenderFlex
-        // overflow ("BOTTOM OVERFLOWED") на переполненных днях.
-        Expanded(
-          child: ListView(
-            padding: EdgeInsets.zero,
-            physics: const NeverScrollableScrollPhysics(),
-            children: [for (final task in previewTasks) buildCalendarTaskChip(task)],
-          ),
-        ),
-        if (overflow > 0)
-          Padding(
-            padding: EdgeInsets.only(top: 2 * scale),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(ClarifyRadius.sm),
-              onTap: () => showClarifySurface<void>(
-                context: context,
-                builder: (context) => _DayAgendaDialog(
-                  dayTitle: dayTitle,
-                  tasks: tasks,
-                  buildListTaskCard: buildListTaskCard,
-                  t: t,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double chipHeight = TaskCardBuilders.calendarChipHeight(scale);
+        final double pillHeight = _pillHeight * scale;
+        final double availableHeight = constraints.maxHeight.isFinite ? constraints.maxHeight : 0;
+
+        final int maxWithoutPill = chipHeight > 0 ? (availableHeight / chipHeight).floor() : 0;
+        int visibleCount;
+        if (tasks.length <= maxWithoutPill) {
+          visibleCount = tasks.length;
+        } else {
+          final int maxWithPill = chipHeight > 0 ? ((availableHeight - pillHeight) / chipHeight).floor() : 0;
+          visibleCount = maxWithPill.clamp(0, tasks.length);
+        }
+        final int overflow = tasks.length - visibleCount;
+        final previewTasks = tasks.sublist(0, visibleCount);
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (final task in previewTasks) buildCalendarTaskChip(task),
+            if (overflow > 0)
+              Padding(
+                padding: EdgeInsets.only(top: 2 * scale),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(ClarifyRadius.sm),
+                  onTap: () => showClarifySurface<void>(
+                    context: context,
+                    builder: (context) => _DayAgendaDialog(
+                      dayTitle: dayTitle,
+                      tasks: tasks,
+                      buildListTaskCard: buildListTaskCard,
+                      t: t,
+                    ),
+                  ),
+                  child: Text(
+                    "+$overflow",
+                    style: TextStyle(fontSize: 11 * scale, fontWeight: FontWeight.w600, color: t.text2),
+                  ),
                 ),
               ),
-              child: Text(
-                "+$overflow",
-                style: TextStyle(fontSize: 11 * scale, fontWeight: FontWeight.w600, color: t.text2),
-              ),
-            ),
-          ),
-      ],
+          ],
+        );
+      },
     );
   }
 }

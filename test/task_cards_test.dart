@@ -107,5 +107,57 @@ void main() {
       expect(find.text('Задача Два'), findsOneWidget);
       expect(find.text('Задача Три'), findsOneWidget);
     });
+
+    // Регрессия 2026-08-02: пилюля "+1" накладывалась на текст 3-й задачи,
+    // когда строки превью стали двухстрочными (приоритет/бейджи) — высота
+    // строки менялась в зависимости от содержимого задачи, из-за чего
+    // main_content_area.dart не могла достоверно посчитать, сколько задач
+    // реально влезает в ячейку. Фикс — вторая строка ВСЕГДА резервирует
+    // высоту (даже пустая), делая высоту строки константной. Этот тест
+    // проверяет именно это: задача без бейджей и задача с бейджем/приоритетом
+    // должны рендериться с ОДИНАКОВОЙ высотой.
+    testWidgets('высота строки одинакова для задачи с бейджами и без', (tester) async {
+      final builders = _builders();
+      final plainTask = {'id': 1, 'title': 'Простая задача', 'is_completed': false, 'priority': 'none'};
+      final richTask = {'id': 2, 'title': 'Задача с приоритетом', 'is_completed': false, 'priority': 'red'};
+
+      await tester.pumpWidget(MaterialApp(
+        theme: ThemeData(extensions: [ClarifyTokens.light]),
+        home: Scaffold(
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              builders.buildCalendarTaskChip(plainTask),
+              builders.buildCalendarTaskChip(richTask),
+            ],
+          ),
+        ),
+      ));
+      await tester.pump();
+
+      final plainHeight = tester.getSize(find.text('Простая задача')).height;
+      final richHeight = tester.getSize(find.text('Задача с приоритетом')).height;
+      // Сравниваем высоту самих ОБЁРТОК чипов (родитель Column-строки), не
+      // текста — у текста высота одна и та же в обоих случаях по построению,
+      // это ничего не доказывает про вторую строку.
+      final plainChipHeight = tester.getSize(
+        find.ancestor(of: find.text('Простая задача'), matching: find.byType(Column)).first,
+      ).height;
+      final richChipHeight = tester.getSize(
+        find.ancestor(of: find.text('Задача с приоритетом'), matching: find.byType(Column)).first,
+      ).height;
+
+      expect(plainHeight, greaterThan(0));
+      expect(richHeight, greaterThan(0));
+      expect(plainChipHeight, richChipHeight);
+      // TaskCardBuilders.calendarChipHeight — константа, которой пользуется
+      // main_content_area.dart для расчёта количества видимых задач в ячейке
+      // без прокрутки. Если она разойдётся с реальной высотой (например
+      // из-за смены шрифта/паддингов в будущем), тот расчёт снова начнёт
+      // либо накладывать "+N" поверх текста, либо занижать количество
+      // видимых задач — этот assert ловит расхождение здесь, а не по
+      // скриншоту от пользователя.
+      expect(plainChipHeight, TaskCardBuilders.calendarChipHeight(1.0));
+    });
   });
 }
