@@ -925,18 +925,23 @@ class _CalendarDayTasksPreviewState extends State<_CalendarDayTasksPreview> {
         final int overflow = widget.tasks.length - visibleCount;
         final previewTasks = widget.tasks.sublist(0, visibleCount);
 
-        if (_measuredChipHeight == null) {
-          WidgetsBinding.instance.addPostFrameCallback((_) => _measureProbe());
-        }
+        // НЕ гасим повторные измерения после первого успеха: на web шрифт
+        // (Golos Text) грузится асинхронно ПОСЛЕ первого кадра — если зонд
+        // измеряется один-единственный раз до того, как шрифт догрузился,
+        // результат навсегда фиксирует высоту ЗАПАСНОГО системного шрифта
+        // (другие метрики строки), а не реальную. Зонд остаётся
+        // смонтированным и перемеряется на каждом кадре — дёшево (просто
+        // сравнение), но подхватывает досрочно ошибочный замер, когда шрифт
+        // догрузится и вызовет реальный релейаут текста.
+        WidgetsBinding.instance.addPostFrameCallback((_) => _measureProbe());
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (_measuredChipHeight == null)
-              Offstage(
-                offstage: true,
-                child: KeyedSubtree(key: _probeKey, child: widget.buildCalendarTaskChip(widget.tasks.first)),
-              ),
+            Offstage(
+              offstage: true,
+              child: KeyedSubtree(key: _probeKey, child: widget.buildCalendarTaskChip(widget.tasks.first)),
+            ),
             for (final task in previewTasks) widget.buildCalendarTaskChip(task),
             if (overflow > 0)
               Padding(
