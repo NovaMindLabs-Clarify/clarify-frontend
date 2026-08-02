@@ -846,16 +846,24 @@ class _CalendarSectionState extends State<_CalendarSection> {
 /// Количество видимых задач раньше было жёстко зашито в 3 — когда строки
 /// превью стали двухстрочными (приоритет/бейджи, живой фидбек 2026-08-01),
 /// это перестало гарантированно помещаться в ячейку: пилюля "+1" накладывалась
-/// на текст 3-й задачи (живой баг 2026-08-02). Считаем количество от РЕАЛЬНОЙ
-/// доступной высоты ячейки и фиксированной высоты строки
-/// (TaskCardBuilders.calendarChipHeight — фиксирована именно для того, чтобы
-/// этот расчёт был возможен без дублирования логики "есть ли у задачи вторая
-/// строка" здесь и в task_cards.dart). Без прокрутки: если реально не влезает
-/// заявленные 3 — показываем столько, сколько влезает, остальное в "+N", а не
-/// обрезаем/накладываем поверх текста.
-class _CalendarDayTasksPreview extends StatelessWidget {
-  static const double _pillHeight = 16;
-
+/// на текст 3-й задачи (живой баг 2026-08-02). Первая попытка фикса считала
+/// количество от фиксированной ОЦЕНКИ высоты строки
+/// (TaskCardBuilders.calendarChipHeight, подобранной по замеру в
+/// виджет-тесте) — но `flutter test` рендерит текст ДРУГИМ (тестовым)
+/// шрифтом, не настоящим Golos Text, так что "измеренная" в тесте высота не
+/// совпала с реальной высотой в собранном приложении: оценка вышла
+/// избыточно консервативной, и вместо 3 задач показывались только 2 с явно
+/// пустующим местом под ними (тот же день, следующий живой фидбек).
+///
+/// Правильный фикс — не гадать высоту строки константой, а ИЗМЕРИТЬ её по-
+/// настоящему в реальном дереве виджетов: первый рендер кладёт одну "строку-
+/// зонд" офскрин (Offstage — layout выполняется, но не рисуется и не
+/// занимает места у остальных детей), берёт её реальный RenderBox.size.height
+/// после первого кадра и пересчитывает от него — той же самой высоты, что и
+/// у видимых строк, независимо от платформы/шрифта/DPI. До первого измерения
+/// (один кадр) используется консервативная оценка, чтобы не мигать
+/// "слишком многими" задачами, которые тут же пришлось бы убрать.
+class _CalendarDayTasksPreview extends StatefulWidget {
   final String dayTitle;
   final List<Map<String, dynamic>> tasks;
   final Widget Function(Map<String, dynamic>) buildCalendarTaskChip;
@@ -875,45 +883,78 @@ class _CalendarDayTasksPreview extends StatelessWidget {
   });
 
   @override
+  State<_CalendarDayTasksPreview> createState() => _CalendarDayTasksPreviewState();
+}
+
+class _CalendarDayTasksPreviewState extends State<_CalendarDayTasksPreview> {
+  static const double _pillHeight = 16;
+
+  final GlobalKey _probeKey = GlobalKey();
+  double? _measuredChipHeight;
+
+  void _measureProbe() {
+    final renderBox = _probeKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null || !renderBox.hasSize) return;
+    final height = renderBox.size.height;
+    if (!mounted || height <= 0) return;
+    if (_measuredChipHeight == null || (_measuredChipHeight! - height).abs() > 0.5) {
+      setState(() => _measuredChipHeight = height);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final double chipHeight = TaskCardBuilders.calendarChipHeight(scale);
-        final double pillHeight = _pillHeight * scale;
         final double availableHeight = constraints.maxHeight.isFinite ? constraints.maxHeight : 0;
+        // Консервативная оценка ТОЛЬКО для первого кадра, пока реальная
+        // высота ещё не измерена — сознательно занижена (лучше на миг
+        // показать на 1 задачу меньше, чем на кадр показать больше, чем
+        // реально влезает, и тут же обрезать/наложить).
+        final double chipHeight = _measuredChipHeight ?? TaskCardBuilders.calendarChipHeight(widget.scale);
+        final double pillHeight = _pillHeight * widget.scale;
 
         final int maxWithoutPill = chipHeight > 0 ? (availableHeight / chipHeight).floor() : 0;
         int visibleCount;
-        if (tasks.length <= maxWithoutPill) {
-          visibleCount = tasks.length;
+        if (widget.tasks.length <= maxWithoutPill) {
+          visibleCount = widget.tasks.length;
         } else {
           final int maxWithPill = chipHeight > 0 ? ((availableHeight - pillHeight) / chipHeight).floor() : 0;
-          visibleCount = maxWithPill.clamp(0, tasks.length);
+          visibleCount = maxWithPill.clamp(0, widget.tasks.length);
         }
-        final int overflow = tasks.length - visibleCount;
-        final previewTasks = tasks.sublist(0, visibleCount);
+        final int overflow = widget.tasks.length - visibleCount;
+        final previewTasks = widget.tasks.sublist(0, visibleCount);
+
+        if (_measuredChipHeight == null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) => _measureProbe());
+        }
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            for (final task in previewTasks) buildCalendarTaskChip(task),
+            if (_measuredChipHeight == null)
+              Offstage(
+                offstage: true,
+                child: KeyedSubtree(key: _probeKey, child: widget.buildCalendarTaskChip(widget.tasks.first)),
+              ),
+            for (final task in previewTasks) widget.buildCalendarTaskChip(task),
             if (overflow > 0)
               Padding(
-                padding: EdgeInsets.only(top: 2 * scale),
+                padding: EdgeInsets.only(top: 2 * widget.scale),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(ClarifyRadius.sm),
                   onTap: () => showClarifySurface<void>(
                     context: context,
                     builder: (context) => _DayAgendaDialog(
-                      dayTitle: dayTitle,
-                      tasks: tasks,
-                      buildListTaskCard: buildListTaskCard,
-                      t: t,
+                      dayTitle: widget.dayTitle,
+                      tasks: widget.tasks,
+                      buildListTaskCard: widget.buildListTaskCard,
+                      t: widget.t,
                     ),
                   ),
                   child: Text(
                     "+$overflow",
-                    style: TextStyle(fontSize: 11 * scale, fontWeight: FontWeight.w600, color: t.text2),
+                    style: TextStyle(fontSize: 11 * widget.scale, fontWeight: FontWeight.w600, color: widget.t.text2),
                   ),
                 ),
               ),

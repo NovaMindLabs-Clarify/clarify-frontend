@@ -95,6 +95,11 @@ void main() {
       ),
     ));
     await tester.pump();
+    // Второй pump — даёт сработать addPostFrameCallback с реальным замером
+    // высоты строки (Offstage-зонд) и последующему setState/ребилду с уже
+    // скорректированным количеством видимых задач, вместо консервативной
+    // оценки первого кадра.
+    await tester.pump();
 
     expect(find.text('Задача Один'), findsOneWidget);
     expect(find.text('Задача Два'), findsOneWidget);
@@ -184,6 +189,7 @@ void main() {
         ),
       ),
     ));
+    await tester.pump();
     await tester.pump();
 
     // Ключевая гарантия: раскладка не должна упасть (RenderFlex overflow и

@@ -149,15 +149,11 @@ void main() {
 
       expect(plainHeight, greaterThan(0));
       expect(richHeight, greaterThan(0));
+      // Это и есть свойство, на которое опирается _CalendarDayTasksPreview
+      // (main_content_area.dart): раз высота строки одинакова независимо от
+      // содержимого задачи, измерить её по ЛЮБОЙ ОДНОЙ задаче (Offstage-зонд)
+      // достаточно, чтобы знать высоту ВСЕХ остальных строк в этой же ячейке.
       expect(plainChipHeight, richChipHeight);
-      // TaskCardBuilders.calendarChipHeight — константа, которой пользуется
-      // main_content_area.dart для расчёта количества видимых задач в ячейке
-      // без прокрутки. Если она разойдётся с реальной высотой (например
-      // из-за смены шрифта/паддингов в будущем), тот расчёт снова начнёт
-      // либо накладывать "+N" поверх текста, либо занижать количество
-      // видимых задач — этот assert ловит расхождение здесь, а не по
-      // скриншоту от пользователя.
-      expect(plainChipHeight, TaskCardBuilders.calendarChipHeight(1.0));
     });
   });
 }
