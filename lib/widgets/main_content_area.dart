@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../core/clarify_date_format.dart';
 import '../core/priority.dart';
 import '../core/localization.dart';
 import '../core/tags.dart';
@@ -26,6 +27,33 @@ String _formatDate(DateTime date) {
 String _capitalize(String s) {
   if (s.isEmpty) return s;
   return s[0].toUpperCase() + s.substring(1).toLowerCase();
+}
+
+/// id задачи числом. Оптимистично созданная задача до ответа сервера носит
+/// временный ОТРИЦАТЕЛЬНЫЙ id (см. TaskService.addTask), поэтому сравнивать
+/// нужно как числа, а не как строки: '-17…' и '42' лексикографически
+/// сравниваются не в том порядке, в каком задачи реально создавались.
+int _taskIdOf(Map<String, dynamic> task) {
+  final raw = task['id'];
+  if (raw is int) return raw;
+  return int.tryParse(raw?.toString() ?? '') ?? 0;
+}
+
+DateTime? _completedAtOf(Map<String, dynamic> task) {
+  final raw = task['completed_at'];
+  if (raw == null) return null;
+  return DateTime.tryParse(raw.toString());
+}
+
+/// Порядок для колонок "7 дней" и ячеек календаря: по времени, а при равном
+/// времени (у большинства задач его нет вовсе) — по id. Порядок сам по себе
+/// не меняется, но перестаёт зависеть от того, в каком порядке задачи пришли
+/// с сервера: List.sort в Dart не стабильна, и без второго ключа задачи с
+/// одинаковым временем меняли места после каждого фетча.
+int _byTimeThenId(Map<String, dynamic> a, Map<String, dynamic> b) {
+  final timeCompare = (a['due_time'] ?? '23:59').compareTo(b['due_time'] ?? '23:59');
+  if (timeCompare != 0) return timeCompare;
+  return _taskIdOf(a).compareTo(_taskIdOf(b));
 }
 
 class MainContentArea extends StatelessWidget {
@@ -168,25 +196,53 @@ class MainContentArea extends StatelessWidget {
       int sameTimeTiebreak(Map<String, dynamic> a, Map<String, dynamic> b) {
         final tagsA = parseTagsString(a['tags']);
         final tagsB = parseTagsString(b['tags']);
-        return (tagsA.isEmpty ? '' : tagsA.first).compareTo(tagsB.isEmpty ? '' : tagsB.first);
+        final tagCompare = (tagsA.isEmpty ? '' : tagsA.first).compareTo(tagsB.isEmpty ? '' : tagsB.first);
+        if (tagCompare != 0) return tagCompare;
+        // Последний рубеж — id. Без него у задач с одинаковыми временем и
+        // тегом (а чаще всего у обеих нет ни того, ни другого) ключи
+        // сортировки совпадают полностью, а List.sort в Dart НЕ стабильна:
+        // порядок таких задач определялся тем, в каком порядке их отдал
+        // сервер, и менялся при каждом повторном запросе — в том числе при
+        // realtime-фетче сразу после отметки "выполнено". Это и выглядело
+        // как "задача прыгает по списку, ища своё место".
+        return _taskIdOf(a).compareTo(_taskIdOf(b));
+      }
+
+      // Выполненные — отдельным блоком в самом низу (фидбек 2026-09-03).
+      // Раньше отметка вообще не влияла на позицию: задача оставалась среди
+      // активных, а её место в списке пересчитывалось на каждом фетче.
+      int completedRank(Map<String, dynamic> t) => t['is_completed'] == true ? 1 : 0;
+
+      // Внутри блока выполненных — свежие сверху, по моменту отметки.
+      // completed_at появился позже самой отметки задач, поэтому у старых
+      // записей его нет: для них фолбэк — дата задачи, затем id.
+      int completedBlockCompare(Map<String, dynamic> a, Map<String, dynamic> b) {
+        final completedA = _completedAtOf(a);
+        final completedB = _completedAtOf(b);
+        if (completedA != null && completedB != null && completedA != completedB) {
+          return completedB.compareTo(completedA);
+        }
+        if (completedA != null && completedB == null) return -1;
+        if (completedA == null && completedB != null) return 1;
+        final dateA = parseClarifyDate(a['due_date'] as String?);
+        final dateB = parseClarifyDate(b['due_date'] as String?);
+        if (dateA != null && dateB != null && dateA != dateB) return dateB.compareTo(dateA);
+        return _taskIdOf(b).compareTo(_taskIdOf(a));
       }
 
       final effectiveSortByPriority = sortByPriority && selectedMenu != 'Входящие';
-      if (effectiveSortByPriority) {
-        targetTasks.sort((a, b) {
+      targetTasks.sort((a, b) {
+        final doneCompare = completedRank(a).compareTo(completedRank(b));
+        if (doneCompare != 0) return doneCompare;
+        if (completedRank(a) == 1) return completedBlockCompare(a, b);
+        if (effectiveSortByPriority) {
           final rankCompare = priorityRank(a['priority']).compareTo(priorityRank(b['priority']));
           if (rankCompare != 0) return rankCompare;
-          final timeCompare = (a['due_time'] ?? '23:59').compareTo(b['due_time'] ?? '23:59');
-          if (timeCompare != 0) return timeCompare;
-          return sameTimeTiebreak(a, b);
-        });
-      } else {
-        targetTasks.sort((a, b) {
-          final timeCompare = (a['due_time'] ?? '23:59').compareTo(b['due_time'] ?? '23:59');
-          if (timeCompare != 0) return timeCompare;
-          return sameTimeTiebreak(a, b);
-        });
-      }
+        }
+        final timeCompare = (a['due_time'] ?? '23:59').compareTo(b['due_time'] ?? '23:59');
+        if (timeCompare != 0) return timeCompare;
+        return sameTimeTiebreak(a, b);
+      });
       if (targetTasks.isEmpty) {
         final String emptyKey;
         if (selectedMenu == 'Мой день') {
@@ -319,7 +375,7 @@ class MainContentArea extends StatelessWidget {
         final targetDate = DateTime.now().add(Duration(days: index));
         final dateStr = _formatDate(targetDate);
         final dayTasks = filteredTasks.where((t) => t['due_date'] == dateStr && t['parent_id'] == null).toList();
-        dayTasks.sort((a, b) => (a['due_time'] ?? '23:59').compareTo(b['due_time'] ?? '23:59'));
+        dayTasks.sort(_byTimeThenId);
 
         final weekdayName = _capitalize(weekdaysRu[targetDate.weekday - 1]);
         String title = index == 0 ? 'Сегодня'.tr(currentLang) : (index == 1 ? 'Завтра'.tr(currentLang) : weekdayName);
@@ -766,7 +822,7 @@ class _CalendarSectionState extends State<_CalendarSection> {
                     final cellDate = DateTime(year, month, dayNumber);
                     final cellDateStr = _formatDate(cellDate);
                     final dayTasks = widget.filteredTasks.where((t) => t['due_date'] == cellDateStr && t['parent_id'] == null).toList();
-                    dayTasks.sort((a, b) => (a['due_time'] ?? '23:59').compareTo(b['due_time'] ?? '23:59'));
+                    dayTasks.sort(_byTimeThenId);
                     final taskCount = dayTasks.length;
                     final dayTitle = "${_capitalize(_kWeekdaysRu[cellDate.weekday - 1])}, ${dayNumber.toString().padLeft(2, '0')}.${month.toString().padLeft(2, '0')}";
                     return DragTarget<Map<String, dynamic>>(

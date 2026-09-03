@@ -81,9 +81,15 @@ class TaskService {
   Future<List<Map<String, dynamic>>> fetchTasks() async {
     await flushPendingOps();
 
+    // order('id') — не косметика: без него PostgREST отдаёт строки в порядке
+    // физического расположения в таблице, а он меняется после каждого UPDATE
+    // (обновлённая строка переезжает в конец heap). Из-за этого список задач
+    // после отметки "выполнено" приходил в другом порядке, и задачи, у которых
+    // ключи сортировки на клиенте совпадают, визуально прыгали по списку.
     final data = await Supabase.instance.client
         .from('tasks')
         .select()
+        .order('id')
         .timeout(const Duration(seconds: 15));
 
     _inMemoryTasks = List<Map<String, dynamic>>.from(data);
