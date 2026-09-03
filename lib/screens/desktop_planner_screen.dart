@@ -643,7 +643,16 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
             for (final fetched in fetchedTasks) {
               if (_pendingActionIds.contains('toggle_${fetched['id']}')) {
                 final local = tasks.firstWhere((t) => t['id'] == fetched['id'], orElse: () => const {});
-                if (local.isNotEmpty) fetched['is_completed'] = local['is_completed'];
+                if (local.isNotEmpty) {
+                  fetched['is_completed'] = local['is_completed'];
+                  // completed_at — тоже ключ сортировки (внутри блока
+                  // выполненных), и его снимок с сервера так же может быть
+                  // сделан до коммита нашего UPDATE. Без этой строки задача
+                  // успевала переехать ещё раз уже после перестановки — на
+                  // экране это выглядело как повторное мельтешение списка
+                  // через долю секунды после отметки.
+                  fetched['completed_at'] = local['completed_at'];
+                }
               }
             }
           }
@@ -894,6 +903,29 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     if (newTaskId != null && task['parent_id'] == null) { final subtasks = tasks.where((t) => t['parent_id'] == task['id']).toList(); for (var sub in subtasks) { await _createTaskManually({"title": sub['title'], "parent_id": newTaskId, "is_completed": false}); } }
   }
 
+  /// Отпускает «замороженный» порядок задачи — то есть разрешает ей переехать
+  /// в блок выполненных (или обратно наверх).
+  ///
+  /// Ждём не только конца анимации отметки, но и ответа сервера на наш же
+  /// UPDATE. Иначе получается ДВЕ перестановки на один клик: первая — по
+  /// таймеру, вторая — когда realtime-фетч приносит снимок, сделанный до
+  /// коммита нашего запроса. Именно это выглядело как «спустилась на строку и
+  /// снова всё замельтешило».
+  void _releaseFrozenRank(dynamic taskId) {
+    if (!mounted) return;
+    if (_pendingActionIds.contains('toggle_$taskId')) {
+      _reorderReleaseTimers[taskId] = Timer(
+        const Duration(milliseconds: 120),
+        () => _releaseFrozenRank(taskId),
+      );
+      return;
+    }
+    setState(() {
+      _frozenCompletedRanks.remove(taskId);
+      _reorderReleaseTimers.remove(taskId);
+    });
+  }
+
   Future<void> _toggleTask(Map<String, dynamic> task) async {
     final actionId = 'toggle_${task['id']}';
     if (_pendingActionIds.contains(actionId)) return; // Уже в процессе — игнорируем повторный тап
@@ -915,13 +947,8 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     });
 
     _reorderReleaseTimers[task['id']]?.cancel();
-    _reorderReleaseTimers[task['id']] = Timer(ClarifyMotion.completion, () {
-      if (!mounted) return;
-      setState(() {
-        _frozenCompletedRanks.remove(task['id']);
-        _reorderReleaseTimers.remove(task['id']);
-      });
-    });
+    _reorderReleaseTimers[task['id']] =
+        Timer(ClarifyMotion.completion, () => _releaseFrozenRank(task['id']));
 
     await _guardedAction(actionId, () async {
       try {

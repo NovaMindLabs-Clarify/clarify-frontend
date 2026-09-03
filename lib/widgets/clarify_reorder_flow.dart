@@ -1,27 +1,30 @@
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import '../core/theme/design_tokens.dart';
 
-/// Плавный переезд строк, когда меняется ПОРЯДОК уже существующих элементов
-/// списка (фидбек 2026-09-03: отмеченная выполненной задача мгновенно
-/// оказывалась внизу, а соседи так же мгновенно смыкались — движение читалось
-/// как рывок, а не как перестановка).
+/// Показывает смену ПОРЯДКА строк списка как одно связное движение, а не как
+/// мгновенную перерисовку (фидбек 2026-09-03).
 ///
-/// Приём — FLIP: элемент помнит, где он был в прошлом кадре; после
-/// перестроения он уже стоит на новом месте, и мы рисуем его СМЕЩЁННЫМ назад,
-/// в старую точку, а оттуда анимируем смещение к нулю. Поэтому работает при
-/// разной высоте строк — в отличие от расчёта "индекс × высота элемента",
-/// который у карточек задач (бейджи, заметка, чек-лист — всё меняет высоту)
-/// был бы неверным.
+/// Как это выглядит: уезжающая строка схлопывается по высоте на своём старом
+/// месте — соседи при этом плавно поднимаются, потому что это настоящая
+/// анимация раскладки, а не сдвиг картинки поверх неё, — и следом
+/// раскрывается на новом месте.
 ///
-/// Смещение рисуется трансформацией, на раскладку оно не влияет: соседи
-/// занимают освободившееся место сразу и едут своей такой же анимацией,
-/// поэтому "поднимаются наверх" они синхронно с тем, как уезжает вниз
-/// отмеченная задача.
+/// Почему не «строка едет по экрану на новое место»: первая версия делала
+/// именно так (запоминала прежнее положение и анимировала смещение). Она
+/// разваливалась о реальность списка задач — он перестраивается несколько раз
+/// на один клик (оптимистичное обновление, ответ сервера, realtime-фетч), и
+/// каждое перестроение превращалось в новый заезд поверх незакончившегося
+/// предыдущего. Здесь анимация привязана не к кадрам, а к самому факту
+/// перестановки: лишние перестроения с тем же порядком её не трогают вовсе.
+///
+/// Вторая причина: место назначения у выполненной задачи — низ списка, часто
+/// за пределами экрана. Ехать туда «мимо» десятка чужих карточек долго и
+/// бессмысленно, а схлопывание на месте читается одинаково хорошо и когда
+/// цель видна, и когда нет.
 class ClarifyReorderFlow extends StatefulWidget {
   /// Каждый элемент ОБЯЗАН нести key, привязанный к идентичности данных (id
-  /// задачи), а не к позиции: по нему Flutter переиспользует состояние
-  /// элемента при перестановке — без этого "прежнее положение" помнил бы не
-  /// тот элемент, и вместо переезда получилась бы дрожь всего списка.
+  /// задачи), а не к позиции: по нему и определяется, что именно переехало.
   final List<Widget> children;
 
   const ClarifyReorderFlow({super.key, required this.children});
@@ -30,119 +33,155 @@ class ClarifyReorderFlow extends StatefulWidget {
   State<ClarifyReorderFlow> createState() => _ClarifyReorderFlowState();
 }
 
-class _ClarifyReorderFlowState extends State<ClarifyReorderFlow> {
-  final GlobalKey _contentKey = GlobalKey();
+class _ClarifyReorderFlowState extends State<ClarifyReorderFlow>
+    with TickerProviderStateMixin {
+  /// Порядок, который сейчас на экране. Отстаёт от widget.children ровно на
+  /// время схлопывания уезжающей строки.
+  late List<Key> _renderOrder;
 
-  @override
-  Widget build(BuildContext context) {
-    return _FlowScope(
-      contentKey: _contentKey,
-      child: Column(
-        key: _contentKey,
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (final child in widget.children)
-            _FlipItem(key: child.key ?? UniqueKey(), child: child),
-        ],
-      ),
-    );
-  }
-}
+  Key? _leavingKey;
+  Key? _enteringKey;
 
-/// Даёт элементам общую точку отсчёта — сам контейнер списка. Мерить
-/// положение в глобальных координатах нельзя: при прокрутке они меняются у
-/// всех элементов сразу, и каждый скролл выглядел бы как перестановка.
-class _FlowScope extends InheritedWidget {
-  final GlobalKey contentKey;
-
-  const _FlowScope({required this.contentKey, required super.child});
-
-  static _FlowScope? of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<_FlowScope>();
-
-  @override
-  bool updateShouldNotify(_FlowScope oldWidget) => oldWidget.contentKey != contentKey;
-}
-
-class _FlipItem extends StatefulWidget {
-  final Widget child;
-
-  const _FlipItem({required Key key, required this.child}) : super(key: key);
-
-  @override
-  State<_FlipItem> createState() => _FlipItemState();
-}
-
-class _FlipItemState extends State<_FlipItem> with SingleTickerProviderStateMixin {
-  /// Переезд дальше этого расстояния не анимируется: смысл анимации — показать
-  /// связь между "было" и "стало", а строка, ползущая через пол-экрана мимо
-  /// десятка чужих карточек, эту связь наоборот теряет (и надолго перекрывает
-  /// соседей). Такие случаи отрабатывают как раньше — сменой позиции сразу.
-  static const double _maxTravel = 1200;
-
-  late final AnimationController _controller = AnimationController(
+  late final AnimationController _leave = AnimationController(
     vsync: this,
-    duration: ClarifyMotion.deliberate,
+    duration: ClarifyMotion.slow,
   );
-  late final Animation<double> _progress = CurvedAnimation(
-    parent: _controller,
-    curve: ClarifyMotion.standard,
+  late final AnimationController _enter = AnimationController(
+    vsync: this,
+    duration: ClarifyMotion.slow,
+    value: 1,
   );
-
-  double? _lastOffset;
-  double _travelFrom = 0;
 
   @override
   void initState() {
     super.initState();
-    _controller.value = 1; // покоящееся состояние — смещение ноль
-    WidgetsBinding.instance.addPostFrameCallback(_measure);
-  }
-
-  @override
-  void didUpdateWidget(_FlipItem oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    WidgetsBinding.instance.addPostFrameCallback(_measure);
+    _renderOrder = _keysOf(widget.children);
+    _leave.value = 1; // 1 — строка на своём месте в полную высоту
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _leave.dispose();
+    _enter.dispose();
     super.dispose();
   }
 
-  void _measure(Duration _) {
-    if (!mounted) return;
-    final box = context.findRenderObject() as RenderBox?;
-    final content = _FlowScope.of(context)?.contentKey.currentContext?.findRenderObject() as RenderBox?;
-    if (box == null || !box.hasSize || content == null || !content.attached) return;
+  @override
+  void didUpdateWidget(ClarifyReorderFlow oldWidget) {
+    super.didUpdateWidget(oldWidget);
 
-    final offset = box.localToGlobal(Offset.zero, ancestor: content).dy;
-    final previous = _lastOffset;
-    _lastOffset = offset;
+    final nextOrder = _keysOf(widget.children);
+    if (listEquals(nextOrder, _renderOrder)) return;
 
-    // Первое измерение (элемент только появился) — ехать неоткуда: вход
-    // элемента в список анимирует ClarifyCascadeItem, это не наша забота.
-    if (previous == null) return;
+    // Список пополнился или похудел — это не перестановка. Появление новой
+    // строки анимирует ClarifyCascadeItem, удаление — ClarifyCollapsingTaskRow
+    // на стороне карточки; лезть сюда со своей анимацией не нужно.
+    final sameSet = nextOrder.length == _renderOrder.length &&
+        nextOrder.toSet().containsAll(_renderOrder);
+    if (!sameSet) {
+      _adopt(nextOrder);
+      return;
+    }
 
-    final travel = previous - offset;
-    if (travel.abs() < 1 || travel.abs() > _maxTravel) return;
-    if (MediaQuery.of(context).disableAnimations) return;
+    // Уже что-то анимируем — не наслаиваем второе движение поверх первого,
+    // просто принимаем последний известный порядок.
+    if (_leave.isAnimating || _enter.isAnimating) {
+      _adopt(nextOrder);
+      return;
+    }
 
-    setState(() => _travelFrom = travel);
-    _controller.forward(from: 0);
+    final moved = _singleMovedKey(_renderOrder, nextOrder);
+    if (moved == null || MediaQuery.of(context).disableAnimations) {
+      _adopt(nextOrder);
+      return;
+    }
+
+    _startLeave(moved, nextOrder);
+  }
+
+  void _adopt(List<Key> order) {
+    setState(() {
+      _renderOrder = order;
+      _leavingKey = null;
+      _enteringKey = null;
+      _leave.value = 1;
+      _enter.value = 1;
+    });
+  }
+
+  void _startLeave(Key moved, List<Key> nextOrder) {
+    setState(() {
+      _leavingKey = moved;
+      _enteringKey = null;
+    });
+    _leave.value = 1;
+    _leave.reverse().whenComplete(() {
+      if (!mounted) return;
+      setState(() {
+        _renderOrder = nextOrder;
+        _leavingKey = null;
+        _enteringKey = moved;
+        _leave.value = 1;
+      });
+      _enter.forward(from: 0).whenComplete(() {
+        if (!mounted) return;
+        setState(() => _enteringKey = null);
+      });
+    });
+  }
+
+  List<Key> _keysOf(List<Widget> children) => [
+        for (final child in children) child.key ?? UniqueKey(),
+      ];
+
+  /// Ключ единственной переехавшей строки — или null, если перестановка
+  /// сложнее (например, сменилась сортировка целиком): анимировать «переезд»
+  /// там нечего, порядок принимается сразу.
+  Key? _singleMovedKey(List<Key> from, List<Key> to) {
+    for (final key in from) {
+      if (from.indexOf(key) == to.indexOf(key)) continue;
+      final withoutFrom = [...from]..remove(key);
+      final withoutTo = [...to]..remove(key);
+      if (listEquals(withoutFrom, withoutTo)) return key;
+    }
+    return null;
   }
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _progress,
-      builder: (context, child) => Transform.translate(
-        offset: Offset(0, _travelFrom * (1 - _progress.value)),
-        child: child,
-      ),
-      child: widget.child,
+    final byKey = {
+      for (final child in widget.children) child.key: child,
+    };
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final key in _renderOrder)
+          if (byKey[key] case final child?)
+            KeyedSubtree(key: key, child: _wrap(key, child)),
+      ],
+    );
+  }
+
+  Widget _wrap(Key key, Widget child) {
+    if (key == _leavingKey) return _collapsing(_leave, child);
+    if (key == _enteringKey) return _collapsing(_enter, child);
+    return child;
+  }
+
+  /// Схлопывание/раскрытие по высоте с параллельным затуханием — тот же приём,
+  /// что у ClarifyCollapsingTaskRow при удалении задачи, чтобы уход строки из
+  /// списка везде выглядел одинаково.
+  Widget _collapsing(Animation<double> animation, Widget child) {
+    final curved = CurvedAnimation(parent: animation, curve: ClarifyMotion.standard);
+    return SizeTransition(
+      sizeFactor: curved,
+      // Схлопывание прижато к верху строки: низ уезжает вверх, и соседи снизу
+      // поднимаются одним движением. По центру строка складывалась бы внутрь
+      // себя, и подъём соседей читался бы как отдельный рывок.
+      alignment: Alignment.topCenter,
+      child: FadeTransition(opacity: curved, child: child),
     );
   }
 }
