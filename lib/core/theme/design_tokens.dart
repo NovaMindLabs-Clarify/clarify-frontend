@@ -272,6 +272,43 @@ class ClarifyMotion {
   static const Curve spring = Cubic(0.34, 1.56, 0.64, 1.0);
 }
 
+/// Подсказка при наведении в языке приложения (фидбек 2026-09-03): дефолтный
+/// флаттеровский Tooltip — тёмный прямоугольник с системным шрифтом, он
+/// читался как «вынужденная мера», а не часть интерфейса. Задаётся темой, а не
+/// обёрткой-виджетом: так стилизуются РАЗОМ и наши `Tooltip(...)`, и те, что
+/// Flutter рисует сам внутри `IconButton`/`PopupMenuButton` и прочих виджетов,
+/// куда мы не дотянулись бы обёрткой.
+///
+/// Блюра здесь нет намеренно: `TooltipThemeData.decoration` — это обычный
+/// `BoxDecoration`, `BackdropFilter` в него не положить, а ради стекла
+/// пришлось бы отказаться от темы и вернуться к ручной обёртке в каждом месте.
+TooltipThemeData clarifyTooltipTheme(ClarifyTokens t) {
+  return TooltipThemeData(
+    waitDuration: const Duration(milliseconds: 400),
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+    margin: const EdgeInsets.all(4),
+    textStyle: TextStyle(
+      fontFamily: 'Golos Text',
+      fontSize: 13,
+      fontWeight: FontWeight.w600,
+      color: t.text,
+      decoration: TextDecoration.none,
+    ),
+    decoration: BoxDecoration(
+      color: t.surface2,
+      borderRadius: BorderRadius.circular(ClarifyRadius.md),
+      border: Border.all(color: t.border),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.18),
+          blurRadius: 16,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    ),
+  );
+}
+
 /// Пресеты акцента в настройках — фиксированный набор, не произвольный
 /// color-picker, чтобы каждый пресет был заведомо проверен на контраст
 /// через [ClarifyTokens.withAccent]. Индекс 0 — индиго по умолчанию,
