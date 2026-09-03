@@ -96,6 +96,13 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   // в finally, второй вызов с тем же id, пока первый не завершился, игнорируется.
   final Set<String> _pendingActionIds = {};
 
+  // Порядок в списке, «замороженный» на время анимации отметки выполненной:
+  // id задачи → ранг (0 активная / 1 выполненная), который используется при
+  // сортировке вместо фактического is_completed. См. _toggleTask и
+  // MainContentArea.frozenCompletedRanks.
+  final Map<dynamic, int> _frozenCompletedRanks = {};
+  final Map<dynamic, Timer> _reorderReleaseTimers = {};
+
   Future<void> _guardedAction(String actionId, Future<void> Function() action) async {
     if (_pendingActionIds.contains(actionId)) return;
     _pendingActionIds.add(actionId);
@@ -453,6 +460,9 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     _taskService.dispose(); // <--- ЗАКРЫВАЕМ СОКЕТ ЧЕРЕЗ СЕРВИС
     _aiChatController.dispose();
     for (var timer in _activeAlarms.values) {
+      timer.cancel();
+    }
+    for (final timer in _reorderReleaseTimers.values) {
       timer.cancel();
     }
     super.dispose();
@@ -896,7 +906,21 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     setState(() {
       task['is_completed'] = newStatus;
       task['completed_at'] = newCompletedAt;
+      // Порядок в списке пока держим прежний: сперва целиком отыгрывается сама
+      // отметка (чекбокс + зачёркивание, ClarifyMotion.completion), и только
+      // потом строка едет в блок выполненных. Раньше оба движения стартовали
+      // одновременно и мешали друг другу — визуально это и был "рывок".
+      _frozenCompletedRanks[task['id']] = currentStatus ? 1 : 0;
       _applyFilters();
+    });
+
+    _reorderReleaseTimers[task['id']]?.cancel();
+    _reorderReleaseTimers[task['id']] = Timer(ClarifyMotion.completion, () {
+      if (!mounted) return;
+      setState(() {
+        _frozenCompletedRanks.remove(task['id']);
+        _reorderReleaseTimers.remove(task['id']);
+      });
     });
 
     await _guardedAction(actionId, () async {
@@ -920,6 +944,10 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
         setState(() {
           task['is_completed'] = currentStatus;
           task['completed_at'] = currentCompletedAt;
+          // Откат — задача остаётся там же, где была: держать порядок
+          // замороженным больше незачем.
+          _reorderReleaseTimers.remove(task['id'])?.cancel();
+          _frozenCompletedRanks.remove(task['id']);
           _applyFilters();
         });
         print("Ошибка обновления статуса: $e");
@@ -1670,6 +1698,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
                               onSetProjectColor: _setProjectColor,
                               sortByPriority: sortByPriority,
                               onToggleSortByPriority: () => setState(() => sortByPriority = !sortByPriority),
+                              frozenCompletedRanks: _frozenCompletedRanks,
                               pendingChatPartnerId: _pendingChatPartnerId,
                               pendingChatPartnerName: _pendingChatPartnerName,
                               onOpenDirectChat: (partnerId, name) => setState(() {

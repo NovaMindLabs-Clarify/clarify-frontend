@@ -10,6 +10,7 @@ import 'clarify_cascade_item.dart';
 import 'clarify_glass.dart';
 import 'clarify_list_entrance.dart';
 import 'clarify_press_glow.dart';
+import 'clarify_reorder_flow.dart';
 import 'clarify_surface.dart';
 import 'friends_screen.dart';
 import 'messenger_shell.dart';
@@ -94,6 +95,11 @@ class MainContentArea extends StatelessWidget {
   final bool sortByPriority;
   final VoidCallback onToggleSortByPriority;
 
+  /// id задач, у которых на время анимации выполнения порядок «заморожен» на
+  /// прежнем значении is_completed — см. _toggleTask в DesktopPlannerScreen.
+  /// Пусто в обычном состоянии.
+  final Map<dynamic, int> frozenCompletedRanks;
+
   // Открыть личный чат в мессенджере (из карточки друга/профиля) — вместо
   // Navigator.push поверх всего шелла (тогда пропадали бы сайдбар и список
   // чатов, ломая 3-колоночный макет). Родитель переключает selectedMenu на
@@ -130,6 +136,7 @@ class MainContentArea extends StatelessWidget {
     required this.onSetProjectColor,
     required this.sortByPriority,
     required this.onToggleSortByPriority,
+    this.frozenCompletedRanks = const {},
     this.pendingChatPartnerId,
     this.pendingChatPartnerName,
     this.onOpenDirectChat,
@@ -211,7 +218,16 @@ class MainContentArea extends StatelessWidget {
       // Выполненные — отдельным блоком в самом низу (фидбек 2026-09-03).
       // Раньше отметка вообще не влияла на позицию: задача оставалась среди
       // активных, а её место в списке пересчитывалось на каждом фетче.
-      int completedRank(Map<String, dynamic> t) => t['is_completed'] == true ? 1 : 0;
+      // Пока идёт анимация выполнения, ранг заморожен на прежнем значении:
+      // иначе перестановка стартует одновременно с зачёркиванием, два разных
+      // движения накладываются друг на друга и вместе читаются как рывок.
+      // Отпускаем ранг после ClarifyMotion.completion — тогда переезд строки
+      // становится отдельным, различимым движением (ClarifyReorderFlow).
+      int completedRank(Map<String, dynamic> t) {
+        final frozen = frozenCompletedRanks[t['id']];
+        if (frozen != null) return frozen;
+        return t['is_completed'] == true ? 1 : 0;
+      }
 
       // Внутри блока выполненных — свежие сверху, по моменту отметки.
       // completed_at появился позже самой отметки задач, поэтому у старых
@@ -354,13 +370,22 @@ class MainContentArea extends StatelessWidget {
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
-                  children: targetTasks.asMap().entries.map((entry) {
-                    return ClarifyCascadeItem(
-                      key: ValueKey('cascade_${entry.value['id']}'),
-                      index: entry.key,
-                      child: buildListTaskCard(entry.value),
-                    );
-                  }).toList(),
+                  children: [
+                    // Порядок здесь меняется не только при загрузке, но и прямо
+                    // под пальцем — при отметке "выполнено" задача уезжает в
+                    // блок выполненных вниз. ClarifyReorderFlow превращает эту
+                    // смену мест в видимое движение: отмеченная строка едет
+                    // вниз, соседи синхронно поднимаются на её место.
+                    ClarifyReorderFlow(
+                      children: targetTasks.asMap().entries.map((entry) {
+                        return ClarifyCascadeItem(
+                          key: ValueKey('cascade_${entry.value['id']}'),
+                          index: entry.key,
+                          child: buildListTaskCard(entry.value),
+                        );
+                      }).toList(),
+                    ),
+                  ],
                 ),
               ),
             ],
