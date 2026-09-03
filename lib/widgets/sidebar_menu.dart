@@ -80,6 +80,11 @@ class _SidebarMenuState extends State<SidebarMenu> {
   static const double _railWidth = 76;
   static const double _teamsPanelWidth = 240;
 
+  /// Скругление правого края оболочки сайдбара. Принадлежит той колонке,
+  /// которая сейчас крайняя справа: закрыта панель команд — рейлу, открыта —
+  /// панели. См. комментарий в [build].
+  static const double _shellRadius = 24;
+
   late bool _teamsPanelOpen;
 
   @override
@@ -219,10 +224,20 @@ class _SidebarMenuState extends State<SidebarMenu> {
           child: Container(
             decoration: BoxDecoration(
               color: t.surface2,
+              // Панель — крайняя правая колонка сайдбара, пока открыта, поэтому
+              // правое скругление оболочки на это время её (фидбек 2026-09-03:
+              // прямые углы панели встык к скруглённому рейлу выглядели как два
+              // случайно составленных блока). Рейл своё скругление в этот
+              // момент отдаёт — см. build.
+              borderRadius: const BorderRadius.only(
+                topRight: Radius.circular(_shellRadius),
+                bottomRight: Radius.circular(_shellRadius),
+              ),
               boxShadow: [
                 BoxShadow(color: Colors.black.withValues(alpha: widget.isDark ? 0.3 : 0.08), blurRadius: 16, offset: const Offset(4, 0)),
               ],
             ),
+            clipBehavior: Clip.antiAlias,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -270,14 +285,30 @@ class _SidebarMenuState extends State<SidebarMenu> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Container(
-          width: _railWidth * s,
-          decoration: BoxDecoration(
-            color: t.surface,
-            borderRadius: const BorderRadius.only(topRight: Radius.circular(24), bottomRight: Radius.circular(24)),
-          ),
-          child: ClipRRect(
-            borderRadius: const BorderRadius.only(topRight: Radius.circular(24), bottomRight: Radius.circular(24)),
+        // Пока панель команд открыта, правый край оболочки — её край, поэтому
+        // рейл своё скругление на это время убирает: у пары всегда ровно один
+        // скруглённый правый силуэт, а не два встык. Радиус анимируется тем же
+        // темпом, что и выезд панели (мгновенный щелчок угла на фоне плавно
+        // едущей панели читался бы как рассинхрон), но кривой standard, не
+        // spring: у spring есть перелёт, а отрицательный радиус — assert в
+        // Radius.circular.
+        TweenAnimationBuilder<double>(
+          tween: Tween<double>(end: _teamsPanelOpen ? 0 : _shellRadius),
+          duration: ClarifyMotion.slow,
+          curve: ClarifyMotion.standard,
+          builder: (context, radius, child) {
+            final shellShape = BorderRadius.only(
+              topRight: Radius.circular(radius),
+              bottomRight: Radius.circular(radius),
+            );
+            return Container(
+              width: _railWidth * s,
+              decoration: BoxDecoration(color: t.surface, borderRadius: shellShape),
+              child: ClipRRect(borderRadius: shellShape, child: child),
+            );
+          },
+          child: SizedBox(
+            width: _railWidth * s,
             child: Column(
               children: [
                 // Аватар профиля вместо буквы "C" вверху рейла (фидбек
