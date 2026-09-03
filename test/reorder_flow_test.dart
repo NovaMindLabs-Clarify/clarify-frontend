@@ -55,6 +55,30 @@ void main() {
     expect(topOf('C') < topOf('B'), isTrue);
   });
 
+  testWidgets('перерисовка с тем же новым порядком не обрывает анимацию', (tester) async {
+    // Ровно то, что ломало анимацию на живом приложении: пока строка
+    // схлопывается, родитель перестраивает список (ответ сервера,
+    // realtime-фетч) — и приносит тот же самый новый порядок. Раньше это
+    // принималось за новую перестановку, анимация обрывалась и порядок
+    // менялся мгновенно.
+    await tester.pumpWidget(const _Harness());
+    double topOf(String id) => tester.getTopLeft(find.text(id)).dy;
+
+    final state = tester.state<_HarnessState>(find.byType(_Harness));
+    state.reorder(const ['A', 'C', 'B']);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 80));
+
+    state.reorder(['A', 'C', 'B']); // новый список, тот же порядок
+    await tester.pump();
+
+    // Анимация не оборвана: на экране всё ещё прежний порядок.
+    expect(topOf('B') < topOf('C'), isTrue);
+
+    await tester.pumpAndSettle();
+    expect(topOf('C') < topOf('B'), isTrue);
+  });
+
   testWidgets('добавление строки принимается сразу, без анимации переезда', (tester) async {
     await tester.pumpWidget(const _Harness());
 

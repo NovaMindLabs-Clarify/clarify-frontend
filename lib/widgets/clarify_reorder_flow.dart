@@ -39,6 +39,16 @@ class _ClarifyReorderFlowState extends State<ClarifyReorderFlow>
   /// время схлопывания уезжающей строки.
   late List<Key> _renderOrder;
 
+  /// Порядок, в который мы едем прямо сейчас. Нужен именно как поле, а не как
+  /// локальная переменная: пока идёт анимация, родитель успевает перестроить
+  /// список несколько раз (ответ сервера, realtime-фетч, обычный setState
+  /// экрана), и каждый такой rebuild приходит сюда с тем же самым новым
+  /// порядком. Без сравнения с _pendingOrder это выглядело для нас как
+  /// «порядок опять поменялся» — анимация обрывалась и порядок принимался
+  /// мгновенно. Со стороны: строка резко прыгала на новое место, а соседи так
+  /// же резко смыкались.
+  List<Key>? _pendingOrder;
+
   Key? _leavingKey;
   Key? _enteringKey;
 
@@ -71,7 +81,19 @@ class _ClarifyReorderFlowState extends State<ClarifyReorderFlow>
     super.didUpdateWidget(oldWidget);
 
     final nextOrder = _keysOf(widget.children);
-    if (listEquals(nextOrder, _renderOrder)) return;
+    if (listEquals(nextOrder, _renderOrder)) {
+      // Перестановку успели отменить, пока строка схлопывалась (например,
+      // задачу тут же сняли с отметки) — ехать больше некуда, возвращаем
+      // строку на место.
+      if (_pendingOrder != null) _adopt(nextOrder);
+      return;
+    }
+
+    // Тот же самый порядок, в который мы уже едем: это просто очередная
+    // перерисовка родителя (ответ сервера, realtime-фетч, любой setState
+    // экрана), а не новая перестановка. Анимацию не трогаем — содержимое
+    // строк при этом всё равно обновится, оно берётся из свежих детей.
+    if (listEquals(nextOrder, _pendingOrder)) return;
 
     // Список пополнился или похудел — это не перестановка. Появление новой
     // строки анимирует ClarifyCascadeItem, удаление — ClarifyCollapsingTaskRow
@@ -102,6 +124,7 @@ class _ClarifyReorderFlowState extends State<ClarifyReorderFlow>
   void _adopt(List<Key> order) {
     setState(() {
       _renderOrder = order;
+      _pendingOrder = null;
       _leavingKey = null;
       _enteringKey = null;
       _leave.value = 1;
@@ -111,6 +134,7 @@ class _ClarifyReorderFlowState extends State<ClarifyReorderFlow>
 
   void _startLeave(Key moved, List<Key> nextOrder) {
     setState(() {
+      _pendingOrder = nextOrder;
       _leavingKey = moved;
       _enteringKey = null;
     });
@@ -125,7 +149,10 @@ class _ClarifyReorderFlowState extends State<ClarifyReorderFlow>
       });
       _enter.forward(from: 0).whenComplete(() {
         if (!mounted) return;
-        setState(() => _enteringKey = null);
+        setState(() {
+          _enteringKey = null;
+          _pendingOrder = null;
+        });
       });
     });
   }

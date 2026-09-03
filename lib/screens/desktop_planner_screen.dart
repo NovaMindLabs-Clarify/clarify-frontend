@@ -64,6 +64,33 @@ class AiParseHttpException implements Exception {
   String toString() => 'HTTP $statusCode: $body';
 }
 
+/// Отметка "выполнено", сделанная локально и ещё не подтверждённая сервером.
+///
+/// Нужна из-за давней гонки: realtime-событие на НАШЕ ЖЕ изменение прилетает
+/// раньше, чем этот UPDATE становится виден обычному SELECT, поэтому
+/// перезагрузка списка может принести снимок базы, сделанный ДО коммита нашей
+/// отметки, и снять галочку обратно. Прежняя защита действовала только пока
+/// запрос летит на сервер (_pendingActionIds), а опоздавший снимок приходит
+/// уже после ответа — то есть мимо неё. Раньше это выражалось в едва заметном
+/// подмигивании чекбокса; с тех пор как выполненная задача уезжает вниз, та же
+/// гонка читается как "отметка не сработала, задача вернулась".
+class _PinnedCompletion {
+  final bool isCompleted;
+  final String? completedAt;
+  final DateTime pinnedAt;
+
+  _PinnedCompletion({required this.isCompleted, required this.completedAt})
+      : pinnedAt = DateTime.now();
+
+  /// Сервер догнал: в снимке уже наше значение — закрепление можно снимать.
+  bool agreesWith(Map<String, dynamic> fetched) =>
+      (fetched['is_completed'] == true) == isCompleted;
+
+  /// Страховка от вечного закрепления, если подтверждение так и не пришло
+  /// (например, изменение легло в офлайн-очередь и ждёт сети).
+  bool get isExpired => DateTime.now().difference(pinnedAt) > const Duration(seconds: 30);
+}
+
 class DesktopPlannerScreen extends StatefulWidget {
   final bool isDark;
   final VoidCallback toggleTheme;
@@ -102,6 +129,9 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   // MainContentArea.frozenCompletedRanks.
   final Map<dynamic, int> _frozenCompletedRanks = {};
   final Map<dynamic, Timer> _reorderReleaseTimers = {};
+
+  /// Локальные отметки, которые сервер ещё не подтвердил, — см. [_PinnedCompletion].
+  final Map<dynamic, _PinnedCompletion> _pinnedCompletions = {};
 
   Future<void> _guardedAction(String actionId, Future<void> Function() action) async {
     if (_pendingActionIds.contains(actionId)) return;
@@ -639,22 +669,20 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
           // который мог быть сделан ДО того, как наш собственный запрос
           // закоммитился. Именно это было причиной периодического "мигания"
           // чекбокса (отметился/откатился/отметился).
-          if (_pendingActionIds.isNotEmpty) {
-            for (final fetched in fetchedTasks) {
-              if (_pendingActionIds.contains('toggle_${fetched['id']}')) {
-                final local = tasks.firstWhere((t) => t['id'] == fetched['id'], orElse: () => const {});
-                if (local.isNotEmpty) {
-                  fetched['is_completed'] = local['is_completed'];
-                  // completed_at — тоже ключ сортировки (внутри блока
-                  // выполненных), и его снимок с сервера так же может быть
-                  // сделан до коммита нашего UPDATE. Без этой строки задача
-                  // успевала переехать ещё раз уже после перестановки — на
-                  // экране это выглядело как повторное мельтешение списка
-                  // через долю секунды после отметки.
-                  fetched['completed_at'] = local['completed_at'];
-                }
-              }
+          // Пока сервер не подтвердил нашу отметку, локальное значение сильнее
+          // любого приходящего снимка: он мог быть сделан до коммита нашего
+          // UPDATE (см. _PinnedCompletion). Подтвердил — закрепление снимаем и
+          // дальше живём по серверу, включая его completed_at (у него своя
+          // точность, спорить с ней незачем).
+          for (final fetched in fetchedTasks) {
+            final pinned = _pinnedCompletions[fetched['id']];
+            if (pinned == null) continue;
+            if (pinned.agreesWith(fetched) || pinned.isExpired) {
+              _pinnedCompletions.remove(fetched['id']);
+              continue;
             }
+            fetched['is_completed'] = pinned.isCompleted;
+            fetched['completed_at'] = pinned.completedAt;
           }
           tasks = fetchedTasks;
           _isOffline = false;
@@ -911,12 +939,19 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   /// таймеру, вторая — когда realtime-фетч приносит снимок, сделанный до
   /// коммита нашего запроса. Именно это выглядело как «спустилась на строку и
   /// снова всё замельтешило».
-  void _releaseFrozenRank(dynamic taskId) {
+  void _releaseFrozenRank(dynamic taskId, {int attempt = 0}) {
     if (!mounted) return;
-    if (_pendingActionIds.contains('toggle_$taskId')) {
+    // Ждём не только ответа сервера, но и подтверждения нашей отметки в
+    // прилетевшем снимке: пока значение не устоялось, перестановка может
+    // случиться дважды — сначала вниз, потом обратно. Ожидание ограничено ~2
+    // секундами, иначе при офлайн-очереди задача осталась бы висеть на старом
+    // месте вообще навсегда.
+    final unsettled = _pendingActionIds.contains('toggle_$taskId') ||
+        _pinnedCompletions.containsKey(taskId);
+    if (unsettled && attempt < 16) {
       _reorderReleaseTimers[taskId] = Timer(
         const Duration(milliseconds: 120),
-        () => _releaseFrozenRank(taskId),
+        () => _releaseFrozenRank(taskId, attempt: attempt + 1),
       );
       return;
     }
@@ -943,6 +978,10 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
       // потом строка едет в блок выполненных. Раньше оба движения стартовали
       // одновременно и мешали друг другу — визуально это и был "рывок".
       _frozenCompletedRanks[task['id']] = currentStatus ? 1 : 0;
+      _pinnedCompletions[task['id']] = _PinnedCompletion(
+        isCompleted: newStatus,
+        completedAt: newCompletedAt,
+      );
       _applyFilters();
     });
 
@@ -972,9 +1011,10 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
           task['is_completed'] = currentStatus;
           task['completed_at'] = currentCompletedAt;
           // Откат — задача остаётся там же, где была: держать порядок
-          // замороженным больше незачем.
+          // замороженным и закреплять непрошедшую отметку больше незачем.
           _reorderReleaseTimers.remove(task['id'])?.cancel();
           _frozenCompletedRanks.remove(task['id']);
+          _pinnedCompletions.remove(task['id']);
           _applyFilters();
         });
         print("Ошибка обновления статуса: $e");
