@@ -122,6 +122,16 @@ class _ToastOverlayState extends State<_ToastOverlay> with SingleTickerProviderS
     final (accentColor, icon) = _variantStyle(t);
     final curved = CurvedAnimation(parent: _controller, curve: ClarifyMotion.standard);
 
+    // Раньше ширина была жёстко 420 независимо от экрана, и обычные сообщения
+    // приложения ("Фокусирование включено! Уведомления заглушены") на десктопе
+    // переносились на вторую строку при том, что места на экране вагон
+    // (фидбек 2026-09-03). Теперь потолок — реальная ширина за вычетом полей
+    // (left/right по 24 у Positioned выше), но не шире 640: тост во всю ширину
+    // монитора читается хуже, чем компактная плашка. На узких экранах
+    // ограничение как и было — текст честно переносится.
+    final availableWidth = MediaQuery.of(context).size.width - 48;
+    final maxToastWidth = availableWidth < 640 ? availableWidth : 640.0;
+
     return Positioned(
       left: 24,
       right: 24,
@@ -136,7 +146,7 @@ class _ToastOverlayState extends State<_ToastOverlay> with SingleTickerProviderS
               child: GestureDetector(
                 onTap: _dismiss,
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 420),
+                  constraints: BoxConstraints(maxWidth: maxToastWidth),
                   child: ClarifyGlass(
                     borderRadius: BorderRadius.circular(ClarifyRadius.pill),
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
