@@ -18,6 +18,7 @@ import '../core/config.dart';
 import '../core/localization.dart';
 import '../core/tags.dart';
 import '../core/priority.dart';
+import '../core/recurrence.dart';
 import '../core/theme/design_tokens.dart';
 import '../services/task_service.dart';
 import '../widgets/clarify_button.dart';
@@ -908,26 +909,36 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
 
   Future<void> _spawnNextRecurringTask(Map<String, dynamic> task) async {
     DateTime? oldDate = _parseDate(task['due_date']); if (oldDate == null) return;
-    DateTime newDate = oldDate;
-    if (task['recurrence'] == 'daily') {
-      newDate = oldDate.add(const Duration(days: 1));
-    } else if (task['recurrence'] == 'weekdays') {
-      int addDays = 1;
-      if (oldDate.weekday == DateTime.friday) {
-        addDays = 3;
-      } else if (oldDate.weekday == DateTime.saturday) {
-        addDays = 2;
-      }
-      newDate = oldDate.add(Duration(days: addDays));
-    } else if (task['recurrence'] == 'weekly') {
-      newDate = oldDate.add(const Duration(days: 7));
-    } else if (task['recurrence'] == 'monthly') {
-      newDate = DateTime(oldDate.year, oldDate.month + 1, oldDate.day);
-    } else if (task['recurrence'] == 'custom') {
-      final interval = (task['recurrence_interval'] as int?) ?? 1;
-      newDate = oldDate.add(Duration(days: interval));
+
+    // Порождает следующий экземпляр только самый свежий из существующих.
+    // Раньше это делала ЛЮБАЯ отмеченная копия — отсюда лавина: на момент
+    // аудита 04.09.2026 в базе лежало 44 копии одной задачи с датами,
+    // марширующими по месяцам на год вперёд, и 55 клонов её подзадач.
+    // Сами правила — в core/recurrence.dart, там же тесты на них.
+    if (!isLatestRecurringInstance(
+      tasks: tasks,
+      task: task,
+      date: oldDate,
+      parseDate: _parseDate,
+    )) {
+      return;
     }
-    int? newTaskId = await _createTaskManually({"title": task['title'], "due_date": _formatDate(newDate), "due_time": task['due_time'], "note": task['note'], "priority": task['priority'], "tags": task['tags'], "recurrence": task['recurrence'], "recurrence_interval": task['recurrence_interval'], "parent_id": task['parent_id'], "is_completed": false});
+
+    final DateTime? newDate = nextRecurrenceDate(
+      from: oldDate,
+      recurrence: task['recurrence'] as String?,
+      interval: task['recurrence_interval'] as int?,
+    );
+    if (newDate == null) return;
+    final String newDateStr = _formatDate(newDate);
+
+    // Такой экземпляр уже есть — второй не нужен. Страхует от повторной отметки
+    // (снял галочку, поставил обратно) и от гонки двух устройств.
+    if (recurringInstanceExists(tasks: tasks, task: task, dateStr: newDateStr)) return;
+
+    int? newTaskId = await _createTaskManually({"title": task['title'], "due_date": newDateStr, "due_time": task['due_time'], "note": task['note'], "priority": task['priority'], "tags": task['tags'], "recurrence": task['recurrence'], "recurrence_interval": task['recurrence_interval'], "parent_id": task['parent_id'], "is_completed": false});
+    // Подзадачи клонируются только вместе с РЕАЛЬНО созданным родителем: если
+    // создание не прошло (offline/ошибка), клоны подзадач осиротели бы.
     if (newTaskId != null && task['parent_id'] == null) { final subtasks = tasks.where((t) => t['parent_id'] == task['id']).toList(); for (var sub in subtasks) { await _createTaskManually({"title": sub['title'], "parent_id": newTaskId, "is_completed": false}); } }
   }
 
