@@ -103,14 +103,23 @@ class TaskCardBuilders {
   // Тап по бейджу гниения — не просто визуальная метка, а вход в быстрые
   // действия (см. showTaskRotQuickActions): пассивный бейдж рискует со
   // временем стать фоновым шумом, который перестают замечать.
-  Widget? _rotBadge(Map<String, dynamic> task, bool isDone, bool overdue) {
+  Widget? _rotBadge(
+    Map<String, dynamic> task,
+    bool isDone,
+    bool overdue, {
+    bool compact = false,
+  }) {
     final badge = buildRotBadge(
       task: task,
       isDone: isDone,
       overdue: overdue,
       tokens: _t,
       currentLang: currentLang,
-      scale: _s,
+      // _rowScale, а не _s: сигналы живут внутри строки задачи и обязаны
+      // масштабироваться вместе с ней. На узком окне _s опускается до 0.4-0.5,
+      // и фраза «лежит без движения 38 дней» превращалась в нечитаемые 6px.
+      scale: _rowScale,
+      compact: compact,
     );
     if (badge == null) return null;
     return Builder(
@@ -134,13 +143,18 @@ class TaskCardBuilders {
     );
   }
 
-  Widget? _rescheduleBadge(Map<String, dynamic> task, bool isDone) {
+  Widget? _rescheduleBadge(
+    Map<String, dynamic> task,
+    bool isDone, {
+    bool compact = false,
+  }) {
     return buildRescheduleBadge(
       task: task,
       isDone: isDone,
       tokens: _t,
       currentLang: currentLang,
-      scale: _s,
+      scale: _rowScale,
+      compact: compact,
     );
   }
 
@@ -331,6 +345,9 @@ class TaskCardBuilders {
       tokens: _t,
       currentLang: currentLang,
       scale: _s * 0.75,
+      // Ячейка месяца шириной в сотню пикселей: фраза целиком туда не влезет,
+      // а обрезанная многоточием фраза хуже короткого числа.
+      compact: true,
     );
     final rescheduleBadge = buildRescheduleBadge(
       task: task,
@@ -338,6 +355,7 @@ class TaskCardBuilders {
       tokens: _t,
       currentLang: currentLang,
       scale: _s * 0.75,
+      compact: true,
     );
     final priorityLabel = priorityFlagLabel(task['priority']);
 
@@ -676,11 +694,13 @@ class TaskCardBuilders {
                                                 icon: LucideIcons.listTodo,
                                               ),
                                       ),
+                                    // Колонка «7 дней» узкая — сигналы здесь в
+                                    // короткой форме, фраза целиком не влезет.
                                     clarifyAnimatedBadgeSlot(
-                                      _rotBadge(task, isDone, overdue),
+                                      _rotBadge(task, isDone, overdue, compact: true),
                                     ),
                                     clarifyAnimatedBadgeSlot(
-                                      _rescheduleBadge(task, isDone),
+                                      _rescheduleBadge(task, isDone, compact: true),
                                     ),
                                     if (task['tags'] != null &&
                                         task['tags']

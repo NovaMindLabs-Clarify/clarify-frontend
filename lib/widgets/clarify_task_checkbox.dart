@@ -428,49 +428,50 @@ class _ClarifyAnimatedBadgeSlotState extends State<_ClarifyAnimatedBadgeSlot> {
   }
 }
 
-/// Обобщённый бейдж-пилюля (иконка + короткая подпись) — тот же визуальный
-/// язык, что и у [ClarifySubtaskBadge], но без привязки к формату "N/M":
-/// используется для сигналов "задача давно не двигалась" и "перенесена N
-/// раз" на карточках списка/доски (см. task_cards.dart).
+/// Сигнал состояния задачи: цветная точка и фраза словами.
+///
+/// Был пилюлей с заливкой и иконкой (2026-09-04 переделан). Причина: гниение
+/// задачи и счётчик переносов — то, чего нет ни у Todoist, ни у TickTick, ни у
+/// Things, то есть наше главное отличие. А выглядело оно как мелкий
+/// технический бейдж, который нужно расшифровывать: иконка архива и «12 дн.»
+/// сами по себе ни о чём не говорят, смысл открывался только по наведению на
+/// подсказку. Фраза «лежит без движения 12 дней» читается сразу и превращает
+/// список из перечня строк в картину дел.
+///
+/// Заливка убрана намеренно: две цветные пилюли в строке спорили с самим
+/// названием задачи, ради которого строку и читают.
 class ClarifyInfoBadge extends StatelessWidget {
-  final IconData icon;
   final String label;
   final Color fg;
-  final Color bg;
   final double scale;
 
   const ClarifyInfoBadge({
     super.key,
-    required this.icon,
     required this.label,
     required this.fg,
-    required this.bg,
     this.scale = 1.0,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 6 * scale, vertical: 2 * scale),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(ClarifyRadius.sm),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12 * scale, color: fg),
-          SizedBox(width: 3 * scale),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11.5 * scale,
-              fontWeight: FontWeight.bold,
-              color: fg,
-            ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 4 * scale,
+          height: 4 * scale,
+          decoration: BoxDecoration(color: fg, shape: BoxShape.circle),
+        ),
+        SizedBox(width: 5 * scale),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11.5 * scale,
+            fontWeight: FontWeight.w600,
+            color: fg,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -485,6 +486,10 @@ class ClarifyInfoBadge extends StatelessWidget {
 /// warning) цвет: важная задача, которая простаивает, сильнее нуждается во
 /// внимании, чем рядовая (см. идею "срочное вытесняет важное" — один и тот
 /// же механизм с разной окраской, а не отдельная система).
+/// [compact] — короткая форма («38 дн.» вместо «лежит без движения 38 дней»)
+/// для мест, где ширины физически нет: ячейка месяца в календаре и узкая
+/// колонка доски «7 дней». Фраза целиком там просто не поместится, а
+/// обрезанная многоточием фраза хуже короткого числа.
 Widget? buildRotBadge({
   required Map<String, dynamic> task,
   required bool isDone,
@@ -492,6 +497,7 @@ Widget? buildRotBadge({
   required ClarifyTokens tokens,
   required String currentLang,
   double scale = 1.0,
+  bool compact = false,
 }) {
   if (isDone) return null;
   if (!(task['due_date'] == null || overdue)) return null;
@@ -505,16 +511,35 @@ Widget? buildRotBadge({
   // сам даёт и вход, и выход одной и той же анимацией; двойная обёртка дала
   // бы вход дважды и никакого выхода (ClarifyBadgeEntrance не умеет уходить).
   return Tooltip(
-    message:
-        '${"Задача не двигается уже".tr(currentLang)} $ageDays ${"дн.".tr(currentLang)}',
+    message: 'Открыть быстрые действия'.tr(currentLang),
     child: ClarifyInfoBadge(
-      icon: LucideIcons.archive,
-      label: '$ageDays ${"дн.".tr(currentLang)}',
+      // Фраза целиком, а не «12 дн.» с подсказкой по наведению: подсказку
+      // на мобильном не показать вовсе, а сигнал нужен именно там.
+      label: compact
+          ? '$ageDays ${"дн.".tr(currentLang)}'
+          : '${"лежит без движения".tr(currentLang)} $ageDays ${_dayWord(ageDays, currentLang)}',
       fg: isImportant ? tokens.danger : tokens.warning,
-      bg: isImportant ? tokens.dangerSoft : tokens.warningSoft,
       scale: scale,
     ),
   );
+}
+
+/// Склонение слова «день» — русская морфология в интерфейсе считается кодом,
+/// не строкой в словаре (см. core/format.dart в проекте «Акты», тот же принцип).
+String _dayWord(int n, String lang) {
+  if (lang != 'ru') return n == 1 ? 'day' : 'days';
+  final mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 14) return 'дней';
+  switch (n % 10) {
+    case 1:
+      return 'день';
+    case 2:
+    case 3:
+    case 4:
+      return 'дня';
+    default:
+      return 'дней';
+  }
 }
 
 /// Перенос даты вперёд N+ раз (см. AppConfig.rescheduleWarningCount) — общая
@@ -525,18 +550,23 @@ Widget? buildRescheduleBadge({
   required ClarifyTokens tokens,
   required String currentLang,
   double scale = 1.0,
+  bool compact = false,
 }) {
   if (isDone) return null;
   final count = task['reschedule_count'] as int?;
   if (count == null || count < AppConfig.rescheduleWarningCount) return null;
-  return Tooltip(
-    message: '${"Перенесена".tr(currentLang)} $count ${"раз".tr(currentLang)}',
-    child: ClarifyInfoBadge(
-      icon: LucideIcons.history,
-      label: '×$count',
-      fg: tokens.warning,
-      bg: tokens.warningSoft,
-      scale: scale,
-    ),
+  return ClarifyInfoBadge(
+    label: compact
+        ? '×$count'
+        : '${"переносили".tr(currentLang)} $count ${_timesWord(count, currentLang)}',
+    fg: tokens.warning,
+    scale: scale,
   );
+}
+
+String _timesWord(int n, String lang) {
+  if (lang != 'ru') return n == 1 ? 'time' : 'times';
+  final mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 14) return 'раз';
+  return n % 10 == 1 ? 'раз' : 'раза';
 }
