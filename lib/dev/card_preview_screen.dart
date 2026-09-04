@@ -125,6 +125,7 @@ class _CardPreviewScreenState extends State<CardPreviewScreen> {
     'Вариант 3 — День на оси',
     'Вариант 4 — Гибрид, ПК и телефон',
     'Вариант 5 — Своё лицо',
+    'Вариант 6 — Без круга: жест и наведение',
   ];
   static const _subtitles = [
     'Нет рамок и подложек. Иерархию держит только типографика, строка занимает 40px вместо 90.',
@@ -132,6 +133,7 @@ class _CardPreviewScreenState extends State<CardPreviewScreen> {
     'Задачи стоят на реальном времени. Пустые окна и перегруженные часы видно глазом.',
     'Одна и та же строка в двух плотностях: слева ПК, справа телефон в реальной ширине 390px.',
     'Та же анатомия, но без индиго и с днём как ёмкостью. Цвет только там, где он что-то значит.',
+    'Кружка нет. На ПК зона выполнения слева проявляется при наведении, на телефоне — свайп.',
   ];
 
   @override
@@ -139,13 +141,13 @@ class _CardPreviewScreenState extends State<CardPreviewScreen> {
     final t = context.tokens;
     // Пятый вариант живёт в своей палитре — иначе его не с чем сравнивать:
     // весь смысл в том, что уходим от индиго и тёмно-синей базы.
-    if (_variant == 4) {
+    if (_variant == 4 || _variant == 5) {
       return Scaffold(
         backgroundColor: _Ink.bg,
         body: Column(
           children: [
             _switcher(t, onInk: true),
-            const Expanded(child: _VariantOwnFace()),
+            Expanded(child: _variant == 4 ? const _VariantOwnFace() : const _VariantGesture()),
           ],
         ),
       );
@@ -200,7 +202,7 @@ class _CardPreviewScreenState extends State<CardPreviewScreen> {
                 ),
               ),
               const Spacer(),
-              for (var i = 0; i < 5; i++)
+              for (var i = 0; i < 6; i++)
                 Padding(
                   padding: const EdgeInsets.only(left: 8),
                   child: GestureDetector(
@@ -776,6 +778,331 @@ class _InkRow extends StatelessWidget {
           Container(width: 4, height: 4, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
           const SizedBox(width: 6),
           Text(label, style: TextStyle(color: color, fontSize: 11.5, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Вариант 6 — без кружка: наведение на ПК, свайп на телефоне
+// ---------------------------------------------------------------------------
+
+/// Компромисс по живому предложению «убрать круг, отмечать свайпом».
+///
+/// Что взято из предложения: круга в списке нет, на телефоне свайп вправо
+/// отмечает выполненной, подсказка на первой задаче при первом заходе.
+///
+/// Что изменено и почему:
+/// - на десктопе свайпа не существует, а «зажать и протащить» у нас уже занято
+///   переносом задачи между днями и в календарь — один жест с двумя смыслами
+///   гарантированно приводит к тому, что задача отмечается вместо переноса.
+///   Поэтому на ПК вместо круга — зона выполнения по левой кромке строки:
+///   при наведении в ней проявляется галочка, клик закрывает задачу;
+/// - свайп влево НЕ удаляет сразу, а открывает две кнопки. Удаление у нас
+///   необратимое (корзины нет), ставить его на жест рядом с самым частым
+///   действием — заявка на случайные потери;
+/// - у обоих действий есть отмена плашкой на несколько секунд.
+class _VariantGesture extends StatelessWidget {
+  const _VariantGesture();
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(40, 0, 40, 40),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _caption('ПК — КРУГА НЕТ, ЗОНА ВЫПОЛНЕНИЯ СЛЕВА'),
+                const SizedBox(height: 12),
+                _GestureRow(task: demoTasks[1]),
+                _GestureRow(task: demoTasks[2], hovered: true),
+                _GestureRow(task: demoTasks[3]),
+                _GestureRow(task: demoTasks[8]),
+                const SizedBox(height: 10),
+                const Text(
+                  'Вторая строка показана под курсором: галочка проявляется только\n'
+                  'при наведении, в покое список чистый. Пробел на выделенной строке\n'
+                  'делает то же самое — для клавиатуры.',
+                  style: TextStyle(color: _Ink.text3, fontSize: 12, height: 1.6),
+                ),
+                const SizedBox(height: 22),
+                _caption('ОТМЕНА — ОБЯЗАТЕЛЬНА ДЛЯ ОБОИХ ДЕЙСТВИЙ'),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF241F19),
+                    borderRadius: BorderRadius.circular(ClarifyRadius.pill),
+                    border: Border.all(color: _Ink.borderStrong),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(LucideIcons.check, size: 15, color: _Ink.done),
+                      SizedBox(width: 10),
+                      Text('Задача закрыта', style: TextStyle(color: _Ink.text, fontSize: 13.5, fontWeight: FontWeight.w600)),
+                      SizedBox(width: 16),
+                      Text('Отменить', style: TextStyle(color: _Ink.moved, fontSize: 13.5, fontWeight: FontWeight.w700)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 28),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _caption('ТЕЛЕФОН — СВАЙП'),
+              const SizedBox(height: 12),
+              Container(
+                width: 360,
+                decoration: BoxDecoration(
+                  color: _Ink.bg,
+                  border: Border.all(color: _Ink.borderStrong, width: 8),
+                  borderRadius: BorderRadius.circular(34),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(26),
+                  child: Column(
+                    children: [
+                      _SwipeRow(task: demoTasks[1], offset: 96, complete: true),
+                      _SwipeRow(task: demoTasks[2], offset: 0),
+                      _SwipeRow(task: demoTasks[3], offset: -150),
+                      _SwipeRow(task: demoTasks[6], offset: 0),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              const SizedBox(
+                width: 360,
+                child: Text(
+                  'Вправо — закрыть задачу. Влево — не удаление сразу,\n'
+                  'а две кнопки: перенести и удалить.',
+                  style: TextStyle(color: _Ink.text3, fontSize: 12, height: 1.6),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _caption(String text) => Text(
+        text,
+        style: const TextStyle(
+          color: _Ink.text3,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.3,
+        ),
+      );
+}
+
+class _GestureRow extends StatefulWidget {
+  final PreviewTask task;
+  final bool hovered;
+
+  const _GestureRow({required this.task, this.hovered = false});
+
+  @override
+  State<_GestureRow> createState() => _GestureRowState();
+}
+
+class _GestureRowState extends State<_GestureRow> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final task = widget.task;
+    final active = _hover || widget.hovered;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: AnimatedContainer(
+        duration: ClarifyMotion.base,
+        curve: ClarifyMotion.standard,
+        constraints: const BoxConstraints(minHeight: 46),
+        decoration: BoxDecoration(
+          color: active ? const Color(0x0DF2EDE3) : Colors.transparent,
+          border: const Border(bottom: BorderSide(color: _Ink.border)),
+        ),
+        child: Row(
+          children: [
+            // Зона выполнения: в покое пустая, при наведении проявляется
+            // галочка. Ширина 30 — палец и курсор попадают, а в списке пусто.
+            SizedBox(
+              width: 30,
+              child: AnimatedOpacity(
+                duration: ClarifyMotion.base,
+                opacity: active ? 1 : 0,
+                child: Icon(
+                  LucideIcons.check,
+                  size: 17,
+                  color: task.done ? _Ink.done : _Ink.text2,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 11),
+                child: Text(
+                  task.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 14.5,
+                    height: 1.25,
+                    fontWeight: FontWeight.w500,
+                    color: task.done ? _Ink.text3 : _Ink.text,
+                    decoration: task.done ? TextDecoration.lineThrough : null,
+                    decorationColor: _Ink.text3,
+                  ),
+                ),
+              ),
+            ),
+            if (task.durationMinutes > 0 && !task.done)
+              Text('${task.durationMinutes} мин', style: const TextStyle(color: _Ink.text3, fontSize: 12)),
+            if (task.time != null) ...[
+              const SizedBox(width: 14),
+              SizedBox(
+                width: 42,
+                child: Text(
+                  task.time!,
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                    color: _Ink.text2,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(width: 6),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Мобильная строка, показанная в момент свайпа: [offset] > 0 — тянут вправо
+/// (закрыть), < 0 — влево (открылись кнопки).
+class _SwipeRow extends StatelessWidget {
+  final PreviewTask task;
+  final double offset;
+  final bool complete;
+
+  const _SwipeRow({required this.task, required this.offset, this.complete = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 58,
+      // Сдвинутая строка обязана обрезаться по краю экрана: без этого она
+      // вылезает за рамку телефона — на настоящем устройстве так не бывает.
+      child: ClipRect(
+        child: Stack(
+        children: [
+          // Подложка действия — видна ровно настолько, насколько сдвинута строка.
+          if (offset > 0)
+            Positioned.fill(
+              child: Container(
+                color: _Ink.done.withValues(alpha: 0.22),
+                alignment: Alignment.centerLeft,
+                padding: const EdgeInsets.only(left: 22),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(LucideIcons.check, size: 18, color: _Ink.done),
+                    SizedBox(width: 10),
+                    Text('Выполнено', style: TextStyle(color: _Ink.done, fontSize: 13, fontWeight: FontWeight.w700)),
+                  ],
+                ),
+              ),
+            ),
+          if (offset < 0)
+            Positioned.fill(
+              child: Container(
+                alignment: Alignment.centerRight,
+                color: const Color(0xFF241F19),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _action(LucideIcons.calendarClock, 'Перенести', _Ink.moved),
+                    _action(LucideIcons.trash2, 'Удалить', _Ink.overdue),
+                  ],
+                ),
+              ),
+            ),
+          Transform.translate(
+            offset: Offset(offset, 0),
+            child: Container(
+              decoration: const BoxDecoration(
+                color: _Ink.bg,
+                border: Border(bottom: BorderSide(color: _Ink.border)),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              alignment: Alignment.centerLeft,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      task.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 15,
+                        height: 1.25,
+                        fontWeight: FontWeight.w500,
+                        color: complete ? _Ink.text3 : _Ink.text,
+                        decoration: complete ? TextDecoration.lineThrough : null,
+                        decorationColor: _Ink.text3,
+                      ),
+                    ),
+                  ),
+                  if (task.time != null) ...[
+                    const SizedBox(width: 12),
+                    Text(
+                      task.time!,
+                      style: const TextStyle(
+                        color: _Ink.text2,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+        ),
+      ),
+    );
+  }
+
+  Widget _action(IconData icon, String label, Color color) {
+    return Container(
+      width: 75,
+      height: double.infinity,
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 17, color: color),
+          const SizedBox(height: 4),
+          Text(label, style: TextStyle(color: color, fontSize: 10.5, fontWeight: FontWeight.w600)),
         ],
       ),
     );
