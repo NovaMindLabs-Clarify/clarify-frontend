@@ -488,6 +488,11 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
 
   @override
   void dispose() {
+    // Отметка «пользователь видел задачи вот до этого момента» — иначе после
+    // долгой сессии дедлайны, прошедшие уже на глазах у человека (о них
+    // сработали обычные будильники), при следующем запуске приехали бы ещё раз
+    // как «пропущенные». См. _checkMissedDeadlinesOnStartup.
+    _rememberSeenNow();
     _taskService.dispose(); // <--- ЗАКРЫВАЕМ СОКЕТ ЧЕРЕЗ СЕРВИС
     _aiChatController.dispose();
     for (var timer in _activeAlarms.values) {
@@ -731,15 +736,43 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     // пропустил дедлайн, пока оно было закрыто.
     if (kIsWeb) return;
 
-    final overdueTasks = tasks.where((t) => _isOverdue(t)).toList();
-    if (overdueTasks.isEmpty) return;
+    // Сообщаем только о тех дедлайнах, которые прошли ИМЕННО ПОКА ПРИЛОЖЕНИЕ
+    // БЫЛО ЗАКРЫТО. Раньше условием было просто "есть просроченные", и
+    // уведомление «Пока вас не было» прилетало при КАЖДОМ запуске — в том числе
+    // про задачи, просроченные месяц назад, которые человек и так видит в
+    // списке каждый день. Такое уведомление перестают читать за пару дней, и
+    // вместе с ним перестают читать все остальные.
+    final DateTime? lastSeen = _lastSeenAt();
+    _rememberSeenNow();
+    // Первый запуск (или после очистки кэша): точки отсчёта нет, и всё
+    // просроченное формально «пропущено». Молчим — это не новость.
+    if (lastSeen == null) return;
 
-    final firstTitle = overdueTasks.first['title'] ?? '';
-    final body = overdueTasks.length == 1
+    final missed = tasks.where((task) {
+      if (task['is_completed'] == true) return false;
+      final deadline = _taskDeadline(task);
+      if (deadline == null) return false;
+      return deadline.isAfter(lastSeen) && deadline.isBefore(DateTime.now());
+    }).toList();
+    if (missed.isEmpty) return;
+
+    final firstTitle = missed.first['title'] ?? '';
+    final body = missed.length == 1
         ? 'Задача "$firstTitle" просрочена.'
-        : 'Просрочено задач: ${overdueTasks.length}. Например: "$firstTitle".';
+        : 'Просрочено задач: ${missed.length}. Например: "$firstTitle".';
 
     _triggerPushNotification('Пока вас не было', body);
+  }
+
+  /// Когда приложение в последний раз показывало пользователю его задачи.
+  DateTime? _lastSeenAt() {
+    final raw = _settingsBox.get('last_seen_at');
+    if (raw is! String) return null;
+    return DateTime.tryParse(raw);
+  }
+
+  void _rememberSeenNow() {
+    _settingsBox.put('last_seen_at', DateTime.now().toIso8601String());
   }
 
   // --- МАГИЯ REALTIME ---
@@ -2031,6 +2064,24 @@ Map<String, dynamic> _parseSmartInput(String text) {
     }
 
     final taskDateTime = DateTime(date.year, date.month, date.day, hour, minute);
-    return DateTime.now().isAfter(taskDateTime); 
+    return DateTime.now().isAfter(taskDateTime);
+  }
+
+  /// Момент дедлайна задачи. Без времени — конец дня, как и в [_isOverdue].
+  DateTime? _taskDeadline(Map<String, dynamic> task) {
+    final raw = task['due_date'];
+    if (raw is! String) return null;
+    final date = _parseDate(raw);
+    if (date == null) return null;
+
+    int hour = 23;
+    int minute = 59;
+    final time = task['due_time'];
+    if (time != null && time.toString().contains(':')) {
+      final parts = time.toString().split(':');
+      hour = int.tryParse(parts[0]) ?? 23;
+      minute = int.tryParse(parts[1]) ?? 59;
+    }
+    return DateTime(date.year, date.month, date.day, hour, minute);
   }
 }
