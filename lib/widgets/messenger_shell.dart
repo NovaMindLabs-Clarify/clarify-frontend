@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
 import 'chat_message_widgets.dart';
+import 'clarify_illustrations.dart';
 import 'clarify_toast.dart';
 import 'icon_picker_dialog.dart';
 
@@ -83,7 +84,11 @@ class _MessengerShellState extends State<MessengerShell> with SingleTickerProvid
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SizedBox(
-          width: 320 * s,
+          // Нижняя граница ширины: 320 * s на окне 1100px давало ~180px, и
+          // подпись вкладки «Команды» обрезалась на полуслове (2026-09-04).
+          // Список чатов — не декоративная колонка, ему нужна минимальная
+          // читаемая ширина независимо от масштаба окна.
+          width: (320 * s).clamp(250.0, 380.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -122,10 +127,25 @@ class _MessengerShellState extends State<MessengerShell> with SingleTickerProvid
         VerticalDivider(width: 1, thickness: 1, color: t.border),
         Expanded(
           child: switch (_selected) {
+            // Пустое состояние с иллюстрацией, как в списках задач
+            // (2026-09-04): голая серая строка посреди половины экрана
+            // читалась как «здесь что-то сломалось».
             null => Center(
-                child: Text(
-                  'Выберите чат слева'.tr(widget.currentLang),
-                  style: TextStyle(color: t.text3, fontSize: 15 * s),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const ClarifyIllustration(type: ClarifyIllustrationType.teamOrbit, size: 84),
+                    const SizedBox(height: 18),
+                    Text(
+                      'Выберите чат слева'.tr(widget.currentLang),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: t.text2),
+                    ),
+                    const SizedBox(height: 7),
+                    Text(
+                      'Личные переписки и чаты команд — в одном месте'.tr(widget.currentLang),
+                      style: TextStyle(fontSize: 13, color: t.text3),
+                    ),
+                  ],
                 ),
               ),
             _DirectTarget d => _DirectChatPane(

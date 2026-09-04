@@ -91,6 +91,13 @@ class TaskCardBuilders {
   /// читаемости, ниже которой уменьшать нельзя, поэтому не голый [scale], а
   /// сжатый диапазон.
   double get _rowScale => (0.7 + _s * 0.3).clamp(0.88, 1.1);
+
+  /// Масштаб строки-превью в ячейке месяца. Там всё и так мелкое (кегль 9 при
+  /// единичном масштабе), а [_s] на окне 1100px опускается до 0.57 — текст
+  /// превращался в 5 пикселей, то есть в нечитаемую рябь. Нижняя граница
+  /// нужна именно здесь, а не в общем [_rowScale]: ячейка календаря
+  /// принципиально теснее строки списка.
+  double get _chipScale => _s.clamp(0.85, 1.1);
   ClarifyTokens get _t => isDark ? ClarifyTokens.dark : ClarifyTokens.light;
   Color get textColor => _t.text;
   Color get textMuted => _t.text2;
@@ -344,7 +351,7 @@ class TaskCardBuilders {
       overdue: overdue,
       tokens: _t,
       currentLang: currentLang,
-      scale: _s * 0.75,
+      scale: _chipScale * 0.8,
       // Ячейка месяца шириной в сотню пикселей: фраза целиком туда не влезет,
       // а обрезанная многоточием фраза хуже короткого числа.
       compact: true,
@@ -354,7 +361,7 @@ class TaskCardBuilders {
       isDone: isDone,
       tokens: _t,
       currentLang: currentLang,
-      scale: _s * 0.75,
+      scale: _chipScale * 0.8,
       compact: true,
     );
     final priorityLabel = priorityFlagLabel(task['priority']);
@@ -362,13 +369,13 @@ class TaskCardBuilders {
     return ClarifyPressable(
       onTap: () => onTap(task),
       child: Container(
-        margin: EdgeInsets.only(bottom: 1 * _s),
+        margin: EdgeInsets.only(bottom: 1 * _chipScale),
         decoration: BoxDecoration(
           border: Border(
-            left: BorderSide(color: stripeColor, width: 2 * _s),
+            left: BorderSide(color: stripeColor, width: 2 * _chipScale),
           ),
         ),
-        padding: EdgeInsets.symmetric(horizontal: 3 * _s),
+        padding: EdgeInsets.symmetric(horizontal: 3 * _chipScale),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -385,11 +392,11 @@ class TaskCardBuilders {
                 // практике из календаря это оказалось единственным разделом,
                 // где задачу нельзя закрыть в один клик. Тот же компонент и та
                 // же анимация, что в "7 дней"/дневном виде календаря, просто
-                // мельче — размер подобран под кегль первой строки (9 * _s),
+                // мельче — размер подобран под кегль первой строки (9 * _chipScale),
                 // чтобы высота строки-превью не изменилась (от неё считается,
                 // сколько задач влезает в ячейку, см. _CalendarDayTasksPreview).
                 ClarifyCheckCircle(
-                  size: 9 * _s,
+                  size: 9 * _chipScale,
                   borderWidth: hasPriority ? 1.5 : 1.2,
                   borderColor: stripeColor,
                   checkedColor: _t.accent,
@@ -397,24 +404,24 @@ class TaskCardBuilders {
                   onTap: () => onToggle(task),
                   duration: ClarifyMotion.completion,
                 ),
-                SizedBox(width: 3 * _s),
+                SizedBox(width: 3 * _chipScale),
                 if (dueTime != null) ...[
                   Text(
                     dueTime,
                     style: TextStyle(
-                      fontSize: 9 * _s,
+                      fontSize: 9 * _chipScale,
                       fontWeight: FontWeight.w600,
                       color: isDone ? textMuted : _t.text3,
                     ),
                   ),
-                  SizedBox(width: 4 * _s),
+                  SizedBox(width: 4 * _chipScale),
                 ],
                 Flexible(
                   child: ClarifyStrikeText(
                     text: task['title'] ?? '',
                     isDone: isDone,
                     style: TextStyle(
-                      fontSize: 9 * _s,
+                      fontSize: 9 * _chipScale,
                       fontWeight: FontWeight.w600,
                       color: isDone ? textMuted : textColor,
                     ),
@@ -432,28 +439,28 @@ class TaskCardBuilders {
             // _CalendarDayTasksPreview не могла бы достоверно посчитать,
             // сколько задач влезает в ячейку.
             SizedBox(
-              height: _calendarChipLine2Height * _s,
+              height: _calendarChipLine2Height * _chipScale,
               child:
                   (_wasPastDue(task) ||
                       priorityLabel.isNotEmpty ||
                       rotBadge != null ||
                       rescheduleBadge != null)
                   ? Wrap(
-                      spacing: 4 * _s,
-                      runSpacing: 1 * _s,
+                      spacing: 4 * _chipScale,
+                      runSpacing: 1 * _chipScale,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         if (_wasPastDue(task))
                           SizedBox(
-                            width: 8 * _s,
-                            height: 8 * _s,
+                            width: 8 * _chipScale,
+                            height: 8 * _chipScale,
                             child: AnimatedOpacity(
                               opacity: isDone ? 0 : 1,
                               duration: ClarifyMotion.completion,
                               curve: ClarifyMotion.standard,
                               child: Icon(
                                 LucideIcons.clockAlert,
-                                size: 8 * _s,
+                                size: 8 * _chipScale,
                                 color: _t.danger,
                               ),
                             ),
@@ -464,14 +471,14 @@ class TaskCardBuilders {
                             children: [
                               Icon(
                                 LucideIcons.flag,
-                                size: 8 * _s,
+                                size: 8 * _chipScale,
                                 color: getPriorityColor(task['priority']),
                               ),
-                              SizedBox(width: 1 * _s),
+                              SizedBox(width: 1 * _chipScale),
                               Text(
                                 priorityLabel,
                                 style: TextStyle(
-                                  fontSize: 8 * _s,
+                                  fontSize: 8 * _chipScale,
                                   fontWeight: FontWeight.bold,
                                   color: getPriorityColor(task['priority']),
                                 ),
