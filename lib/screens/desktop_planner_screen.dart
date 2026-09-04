@@ -1515,7 +1515,12 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                               ).length;
                                               
                                               // Цветовая кодировка нагрузки
-                                              Color heatColor = todayTasksCount >= 10 ? Colors.redAccent : (todayTasksCount >= 5 ? Colors.orangeAccent : Colors.green);
+                                              // Через токены, а не стоковые Colors.*: после перехода на
+                                              // тёплую палитру (2026-09-04) чистые red/orange/green
+                                              // выглядели вставкой из другого приложения.
+                                              Color heatColor = todayTasksCount >= 10
+                                                  ? _tokens.danger
+                                                  : (todayTasksCount >= 5 ? _tokens.warning : _tokens.success);
                                               
                                               return Padding(
                                                 padding: EdgeInsets.only(right: 8 * _s),
@@ -1543,7 +1548,13 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                                       children: [
                                                         CircleAvatar(
                                                           radius: 18 * _s,
-                                                          backgroundColor: isZen ? Colors.grey.shade600 : Colors.primaries[members.indexOf(m) % Colors.primaries.length].shade700,
+                                                          // Палитра меток проекта вместо радуги Colors.primaries:
+                                                          // стоковые primaries — чистые синий/розовый/бирюзовый,
+                                                          // после перехода на тёплую базу они кричали сильнее
+                                                          // всего остального интерфейса.
+                                                          backgroundColor: isZen
+                                                              ? _tokens.text3
+                                                              : _tokens.tagPalette[members.indexOf(m) % _tokens.tagPalette.length],
                                                           child: Text(initial, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14 * _s)),
                                                         ),
                                                         if (isZen)

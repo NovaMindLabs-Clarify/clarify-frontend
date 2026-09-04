@@ -718,9 +718,15 @@ class _AuthScreenState extends State<AuthScreen> {
                       : const Icon(LucideIcons.logIn, size: 18),
                   label: Text(_yandexStatusText ?? 'Яндекс', overflow: TextOverflow.ellipsis),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.redAccent,
+                    // Фирменный красный Яндекса, а не стоковый Colors.redAccent:
+                    // кнопка входа через чужой сервис — единственное место, где
+                    // цвет вне нашей палитры уместен, но тогда уж настоящий.
+                    backgroundColor: const Color(0xFFFC3F1D),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(ClarifyRadius.pill),
+                    ),
                   ),
                 ),
               ),

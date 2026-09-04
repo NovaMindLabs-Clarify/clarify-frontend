@@ -49,62 +49,85 @@ class ClarifyTokens extends ThemeExtension<ClarifyTokens> {
     required this.tagPalette,
   });
 
+  // Метки команд и проектов — приглушены под тёплую базу (2026-09-04): прежние
+  // чистые индиго/фуксия/бирюза светились на бумажном и графитовом фоне как
+  // из другого приложения. Это НЕ акцент интерфейса, а именно назначаемые
+  // пользователем метки — цвет здесь уместен.
   static const List<Color> _tagPalette = [
-    Color(0xFF4F46E5), // индиго
-    Color(0xFF9333EA), // фиолетовый
-    Color(0xFFDB2777), // розовый
-    Color(0xFF0891B2), // бирюзовый
-    Color(0xFF059669), // изумрудный
-    Color(0xFFCA8A04), // янтарный
-    Color(0xFFEA580C), // терракотовый
-    Color(0xFF475569), // сланцевый
+    Color(0xFF7A6A52), // табак
+    Color(0xFF8A6B7B), // пыльная слива
+    Color(0xFFB5654A), // терракота
+    Color(0xFF4F6F6B), // полынь
+    Color(0xFF6B7F55), // олива
+    Color(0xFFB08A3E), // охра
+    Color(0xFF6E6A80), // сланец
+    Color(0xFF8C5B52), // кирпич
   ];
 
+  // === ПАЛИТРА (переработана 2026-09-04) ===
+  //
+  // Была: сине-чёрная база плюс акцент #4F46E5. Это дефолтный индиго Tailwind,
+  // и связка «тёмно-синий фон + этот индиго + скруглённые блоки» опознаётся как
+  // «собрано нейросетью» раньше, чем человек успевает прочитать содержимое.
+  // Продукт из-за одной только палитры попадал в общую кучу — живой фидбек:
+  // «видел уже два проекта с абсолютно идентичными блочками».
+  //
+  // Стало: тёплая графитовая база в тёмной теме, тёплая бумага в светлой, и
+  // главное — **акцент больше не цвет бренда, а контраст**. accent в тёмной
+  // теме это тёплый почти-белый, в светлой — чернильный: заливка кнопки
+  // становится инверсией фона, а не пятном фиолетового. Цвет в интерфейсе
+  // остаётся только там, где он что-то ЗНАЧИТ: просрочка, перенос, успех.
+  //
+  // Практическая выгода такого решения: ни один виджет не пришлось трогать —
+  // всё, что уже красится через t.accent/t.onAccent, автоматически перешло на
+  // контрастную схему.
   static const light = ClarifyTokens(
-    bg: Color(0xFFF6F6FB),
-    surface: Color(0xFFFFFFFF),
-    surface2: Color(0xFFFAFAFF),
-    surfaceSunken: Color(0xFFEEEEF6),
-    border: Color(0x1A1E1B4B),
-    borderStrong: Color(0x2E1E1B4B),
-    text: Color(0xFF16151F),
-    text2: Color(0xFF57566B),
-    text3: Color(0xFF8C8BA1),
-    accent: Color(0xFF4F46E5),
-    accentHover: Color(0xFF4338CA),
-    accentSoft: Color(0x174F46E5),
-    onAccent: Color(0xFFFFFFFF),
-    danger: Color(0xFFDC2626),
-    dangerSoft: Color(0x1ADC2626),
-    warning: Color(0xFFD97706),
-    warningSoft: Color(0x1FD97706),
-    // Затемнён с исходного #16A34A — тот не проходил WCAG AA как текст (3.30:1 < 4.5:1).
-    success: Color(0xFF15803D),
-    successSoft: Color(0x1A15803D),
+    bg: Color(0xFFF7F4ED),
+    surface: Color(0xFFFFFDF8),
+    surface2: Color(0xFFFBF8F1),
+    surfaceSunken: Color(0xFFEFEAE0),
+    border: Color(0x1A2B2620),
+    borderStrong: Color(0x2E2B2620),
+    text: Color(0xFF1E1B16),
+    text2: Color(0xFF575048),
+    text3: Color(0xFF8B8378),
+    // Чернила по бумаге вместо цветного акцента.
+    accent: Color(0xFF1E1B16),
+    accentHover: Color(0xFF322D25),
+    accentSoft: Color(0x141E1B16),
+    onAccent: Color(0xFFFBF8F1),
+    // Смысловые цвета приглушены под тёплую базу: прежние чистые red/amber/green
+    // на бумажном фоне выглядели инородно, как из другого набора.
+    danger: Color(0xFFB33A2B),
+    dangerSoft: Color(0x1AB33A2B),
+    warning: Color(0xFF9A6B18),
+    warningSoft: Color(0x1F9A6B18),
+    success: Color(0xFF4E6B3C),
+    successSoft: Color(0x1A4E6B3C),
     tagPalette: _tagPalette,
   );
 
   static const dark = ClarifyTokens(
-    bg: Color(0xFF0A0A10),
-    surface: Color(0xFF14141F),
-    surface2: Color(0xFF191927),
-    surfaceSunken: Color(0xFF0F0F17),
-    border: Color(0x14FFFFFF),
-    borderStrong: Color(0x29FFFFFF),
-    text: Color(0xFFF1F1F7),
-    text2: Color(0xFFA6A5BD),
-    text3: Color(0xFF6E6D85),
-    accent: Color(0xFF818CF8),
-    accentHover: Color(0xFFA5ABF6),
-    accentSoft: Color(0x24818CF8),
-    // Тёмный текст на светлом accent — белый даёт только 2.98:1 (не проходит AA), тёмный даёт 6.29:1.
-    onAccent: Color(0xFF14141F),
-    danger: Color(0xFFF87171),
-    dangerSoft: Color(0x24F87171),
-    warning: Color(0xFFFBBF24),
-    warningSoft: Color(0x24FBBF24),
-    success: Color(0xFF4ADE80),
-    successSoft: Color(0x244ADE80),
+    bg: Color(0xFF15130F),
+    surface: Color(0xFF1D1A15),
+    surface2: Color(0xFF241F19),
+    surfaceSunken: Color(0xFF100E0B),
+    border: Color(0x1AF2EDE3),
+    borderStrong: Color(0x33F2EDE3),
+    text: Color(0xFFF2EDE3),
+    text2: Color(0xFFA9A093),
+    text3: Color(0xFF736B60),
+    // Тёплый почти-белый как «акцент»: заливка кнопки — инверсия фона.
+    accent: Color(0xFFF2EDE3),
+    accentHover: Color(0xFFFFFBF3),
+    accentSoft: Color(0x1AF2EDE3),
+    onAccent: Color(0xFF15130F),
+    danger: Color(0xFFE0614C),
+    dangerSoft: Color(0x24E0614C),
+    warning: Color(0xFFD9A441),
+    warningSoft: Color(0x24D9A441),
+    success: Color(0xFF8A9A6B),
+    successSoft: Color(0x248A9A6B),
     tagPalette: _tagPalette,
   );
 
@@ -311,18 +334,27 @@ TooltipThemeData clarifyTooltipTheme(ClarifyTokens t) {
 
 /// Пресеты акцента в настройках — фиксированный набор, не произвольный
 /// color-picker, чтобы каждый пресет был заведомо проверен на контраст
-/// через [ClarifyTokens.withAccent]. Индекс 0 — индиго по умолчанию,
-/// совпадает с [ClarifyTokens.light]/[ClarifyTokens.dark].accent.
+/// через [ClarifyTokens.withAccent].
+///
+/// Индекс 0 — «по умолчанию»: он НЕ применяется через withAccent, а означает
+/// штатную контрастную схему из [ClarifyTokens.light]/[dark], где акцент это
+/// чернила по бумаге (светлая тема) или тёплый почти-белый (тёмная). Значение
+/// в списке нужно только для образца цвета в настройках.
+///
+/// Остальные пресеты (2026-09-04) приглушены под тёплую базу: прежние чистые
+/// индиго/фуксия/бирюза на графитовом и бумажном фоне выглядели как из другого
+/// приложения. Возможность выбрать цвет сохранена — убран только крикливый
+/// набор.
 class ClarifyAccentPresets {
   ClarifyAccentPresets._();
 
   static const List<Color> values = [
-    Color(0xFF4F46E5), // индиго (дефолт)
-    Color(0xFF9333EA), // фиолетовый
-    Color(0xFFDB2777), // розовый
-    Color(0xFF0891B2), // бирюзовый
-    Color(0xFF059669), // изумрудный
-    Color(0xFFEA580C), // терракотовый
+    Color(0xFF2B2620), // по умолчанию — контраст, а не цвет
+    Color(0xFF8C5B52), // кирпич
+    Color(0xFF7A6A52), // табак
+    Color(0xFF4F6F6B), // полынь
+    Color(0xFF6B7F55), // олива
+    Color(0xFF8A6B7B), // пыльная слива
   ];
 }
 

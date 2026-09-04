@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 
 import '../core/app_settings.dart';
+import '../core/theme/design_tokens.dart';
 
 class WindowButtons extends StatefulWidget {
   final bool isDark;
@@ -17,20 +18,23 @@ class WindowButtons extends StatefulWidget {
 class _WindowButtonsState extends State<WindowButtons> {
   @override
   Widget build(BuildContext context) {
-    final iconColor = widget.isDark ? Colors.white70 : Colors.black87;
-    final mouseOverColor = widget.isDark ? Colors.white12 : Colors.black12;
+    // Через токены, а не через Colors.white70/redAccent: на тёплой палитре
+    // (2026-09-04) холодный серый и стоковый красный выбивались из шапки —
+    // единственное место в окне, где это было заметно сразу.
+    final t = context.tokens;
+    final iconColor = t.text2;
 
     final buttonColors = WindowButtonColors(
       iconNormal: iconColor,
-      mouseOver: mouseOverColor,
-      mouseDown: widget.isDark ? Colors.white24 : Colors.black26,
-      iconMouseOver: iconColor,
+      mouseOver: t.accentSoft,
+      mouseDown: t.borderStrong,
+      iconMouseOver: t.text,
     );
 
     final closeButtonColors = WindowButtonColors(
       iconNormal: iconColor,
-      mouseOver: Colors.redAccent,
-      mouseDown: Colors.red,
+      mouseOver: t.danger,
+      mouseDown: t.danger.withValues(alpha: 0.85),
       iconMouseOver: Colors.white,
     );
 

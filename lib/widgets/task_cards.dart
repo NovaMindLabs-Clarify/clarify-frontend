@@ -713,7 +713,30 @@ class TaskCardBuilders {
     );
   }
 
+  /// Строка задачи в списках («Мой день», «Все задачи», «Входящие», команды).
+  ///
+  /// Переписана 2026-09-04. Была: стеклянная карточка со скруглением, полосой
+  /// приоритета и кругом-чекбоксом, ~90px высотой — приём, по которому продукт
+  /// не отличить от любого другого (живой фидбек: «видел уже два проекта с
+  /// абсолютно идентичными блочками»). Стало: строка документа без подложки и
+  /// без круга.
+  ///
+  /// Круг убран не ради минимализма: он занимал место постоянно, а нужен раз
+  /// в день. Вместо него зона выполнения по левой кромке — галочка проявляется
+  /// при наведении, у выполненной задачи видна всегда (иначе состояние
+  /// читалось бы только по зачёркиванию). Крестик удаления тоже показывается
+  /// только под курсором: постоянно висящий крестик и шумит, и провоцирует
+  /// случайные удаления.
+  ///
+  /// Всё поведение прежнее: тап открывает детали, зона выполнения отмечает,
+  /// крестик удаляет через схлопывание, бейджи гниения и переносов со своими
+  /// быстрыми действиями на месте, тег кликабелен, аватар ответственного и
+  /// счётчики подзадач/чек-листа сохранены.
   Widget buildListTaskCard(Map<String, dynamic> task) {
+    return _ListRowShell(builders: this, task: task);
+  }
+
+  Widget _buildListRowBody(Map<String, dynamic> task, {required bool hovered}) {
     final bool isDone = task['is_completed'] == true;
     final cStats = checklistStats(task['checklist']);
     final bool hasChecklist = cStats['total']! > 0;
@@ -726,12 +749,8 @@ class TaskCardBuilders {
 
     final bool overdue = isOverdue(task);
     // Полоса приоритета слева — тот же визуальный язык, что и на мобильной
-    // версии (mobile_task_row.dart), которого на десктопе раньше не было
-    // (приоритет читался только по цвету обводки чекбокса, живой фидбек
-    // 2026-08-02: "нет цветной полосы слева блока, как на мобильной").
-    final Color stripeColor = isDone
-        ? glassBorderColor
-        : (hasPriority ? getPriorityColor(task['priority']) : glassBorderColor);
+    // версии (mobile_task_row.dart). С 2026-09-04 рисуется границей самой
+    // строки, а не отдельным Positioned поверх карточки: карточки больше нет.
     // Флаг+подпись приоритета убраны из строки метаданных — приоритет теперь
     // читается только через цвет (обводка чекбокса + полоса слева), отдельный
     // текстовый бейдж стал избыточным (живой фидбек 2026-08-02, тот же раунд,
@@ -749,52 +768,61 @@ class TaskCardBuilders {
         _rotBadge(task, false, overdue) != null ||
         _rescheduleBadge(task, false) != null;
 
-    // Раньше это был ListTile: leading/trailing он центрирует по всей высоте
-    // плитки (с учётом subtitle), а бейдж подзадач в title — по верху title-
-    // строки. Из-за этого X и бейдж оказывались на разных высотах, когда
-    // была видна subtitle-строка (время/тег/заметка). Обычный Row с единым
-    // crossAxisAlignment.start убирает рассинхронизацию — так же, как уже
-    // сделано в buildBoardTaskCardExpanded.
     return ClarifyCollapsingTaskRow(
       key: ValueKey(task['id']),
-      // margin вынесен НАРУЖУ ClipRRect/Stack (было параметром
-      // buildGlassContainer) — иначе Stack сам получал бы лишние 12px внизу
-      // (от margin внутреннего Container), и полоса приоритета (Positioned
-      // bottom: 0) растягивалась бы до самого низа ЭТОГО отступа, торча за
-      // пределы видимой карточки, а не заканчиваясь вровень с её нижним краем.
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(ClarifyRadius.md),
-          child: Stack(
-            children: [
-              buildGlassContainer(
-                customColor: isDone
-                    ? doneCardColor
-                    : (overdue ? _t.dangerSoft : null),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 14,
-                ),
-                child: GestureDetector(
-                  onTap: () => onTap(task),
-                  behavior: HitTestBehavior.opaque,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+      child: AnimatedContainer(
+        duration: ClarifyMotion.base,
+        curve: ClarifyMotion.standard,
+        constraints: const BoxConstraints(minHeight: 46),
+        decoration: BoxDecoration(
+          // Заливка только у того, что требует внимания, и лёгкая подсветка под
+          // курсором. У обычной задачи фона нет вовсе: именно одинаковая
+          // подложка у всех строк и превращала список в стопку одинаковых
+          // плиток.
+          color: !isDone && overdue
+              ? _t.dangerSoft
+              : (hovered ? _t.accentSoft : Colors.transparent),
+          border: Border(
+            bottom: BorderSide(color: _t.border),
+            // Приоритет — по левой кромке всей строки, без отдельного
+            // Positioned поверх карточки: карточки больше нет.
+            left: BorderSide(
+              color: isDone || !hasPriority
+                  ? Colors.transparent
+                  : getPriorityColor(task['priority']),
+              width: overdue && !isDone ? 3 : 2,
+            ),
+          ),
+        ),
+        padding: const EdgeInsets.fromLTRB(0, 8, 8, 8),
+        child: GestureDetector(
+          onTap: () => onTap(task),
+          behavior: HitTestBehavior.opaque,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      ClarifyCheckCircle(
-                        size: 22,
-                        borderColor: isDone
-                            ? glassBorderColor
-                            : (hasPriority
-                                  ? getPriorityColor(task['priority'])
-                                  : glassBorderColor),
-                        checkedColor: _t.accent,
-                        value: isDone,
-                        onTap: () => onToggle(task),
-                        duration: ClarifyMotion.completion,
+                      // Зона выполнения вместо круга: в покое пустая, галочка
+                      // проявляется под курсором. У выполненной задачи видна
+                      // всегда — иначе состояние читалось бы только по
+                      // зачёркиванию, а в смешанном списке этого мало.
+                      SizedBox(
+                        width: 34,
+                        child: Center(
+                          child: ClarifyPressable(
+                            onTap: () => onToggle(task),
+                            child: AnimatedOpacity(
+                              duration: ClarifyMotion.base,
+                              curve: ClarifyMotion.standard,
+                              opacity: isDone || hovered ? 1 : 0,
+                              child: Icon(
+                                LucideIcons.check,
+                                size: 17,
+                                color: isDone ? _t.success : _t.text2,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
-                      const SizedBox(width: 16),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -809,10 +837,17 @@ class TaskCardBuilders {
                                   child: ClarifyStrikeText(
                                     text: task['title'] ?? '',
                                     isDone: isDone,
+                                    // 18 → 15: в плотной строке заголовок в
+                                    // 18px перебивал собой всё остальное и
+                                    // задавал высоту, из-за которой на экран
+                                    // влезало 6 задач вместо 12.
                                     style: TextStyle(
-                                      fontSize: 18,
+                                      fontSize: 15,
+                                      height: 1.25,
                                       color: isDone ? textMuted : textColor,
-                                      fontWeight: FontWeight.w600,
+                                      fontWeight: overdue && !isDone
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -884,13 +919,16 @@ class TaskCardBuilders {
                                                   ClarifyMotion.completion,
                                               curve: ClarifyMotion.standard,
                                               style: TextStyle(
-                                                fontSize: 14,
+                                                // 14 → 12.5: дата и время —
+                                                // сопровождение заголовка, а не
+                                                // равный ему по весу элемент.
+                                                fontSize: 12.5,
                                                 color: overdue
                                                     ? _t.danger
                                                     : textMuted,
                                                 fontWeight: overdue
-                                                    ? FontWeight.bold
-                                                    : FontWeight.normal,
+                                                    ? FontWeight.w700
+                                                    : FontWeight.w500,
                                               ),
                                               child: Text(
                                                 "${task['due_date'] != null ? '${task['due_date']} ' : ''}${task['due_time'] ?? ''}",
@@ -939,12 +977,17 @@ class TaskCardBuilders {
                                     if (tag != null && tag.isNotEmpty)
                                       GestureDetector(
                                         onTap: () => onTagTap(tag),
+                                        // Было "[$tag]" жирным акцентным цветом.
+                                        // После перехода на контрастный акцент
+                                        // (2026-09-04) метка стала ярче самого
+                                        // заголовка задачи — решётка, обычный
+                                        // вес, приглушённый цвет.
                                         child: Text(
-                                          "[$tag]",
+                                          "#$tag",
                                           style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                            color: _t.accent,
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w500,
+                                            color: _t.text3,
                                           ),
                                         ),
                                       ),
@@ -1011,36 +1054,67 @@ class TaskCardBuilders {
                             );
                           },
                         ),
-                      Builder(
-                        builder: (btnContext) => IconButton(
-                          icon: Icon(LucideIcons.x, color: _t.danger, size: 22),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(
-                            minWidth: 28,
-                            minHeight: 28,
-                          ),
-                          onPressed: () =>
-                              ClarifyCollapsingTaskRow.collapseThenRun(
-                                btnContext,
-                                () => onDelete(task['id']),
+                      // Крестик удаления — только под курсором. Постоянно
+                      // висящий крестик и добавлял шума в каждую строку, и
+                      // провоцировал случайные удаления (задача удаляется
+                      // безвозвратно, корзины нет).
+                      // IgnorePointer, а не отключение кнопки: невидимая, но
+                      // кликабельная зона — это удаление вслепую по случайному
+                      // попаданию мышью.
+                      IgnorePointer(
+                        ignoring: !hovered,
+                        child: AnimatedOpacity(
+                          duration: ClarifyMotion.base,
+                          curve: ClarifyMotion.standard,
+                          opacity: hovered ? 1 : 0,
+                          child: Builder(
+                            builder: (btnContext) => IconButton(
+                              icon: Icon(LucideIcons.x, color: _t.text3, size: 17),
+                              hoverColor: _t.dangerSoft,
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                minWidth: 26,
+                                minHeight: 26,
                               ),
+                              onPressed: () =>
+                                  ClarifyCollapsingTaskRow.collapseThenRun(
+                                    btnContext,
+                                    () => onDelete(task['id']),
+                                  ),
+                            ),
+                          ),
                         ),
                       ),
                     ],
-                  ),
-                ),
-              ),
-              Positioned(
-                left: 0,
-                top: 0,
-                bottom: 0,
-                width: 3,
-                child: Container(color: stripeColor),
-              ),
-            ],
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Обёртка строки списка: держит состояние наведения. Нужна отдельным
+/// виджетом, потому что [TaskCardBuilders] — обычный объект с колбэками, а не
+/// виджет, и своего состояния иметь не может.
+class _ListRowShell extends StatefulWidget {
+  final TaskCardBuilders builders;
+  final Map<String, dynamic> task;
+
+  const _ListRowShell({required this.builders, required this.task});
+
+  @override
+  State<_ListRowShell> createState() => _ListRowShellState();
+}
+
+class _ListRowShellState extends State<_ListRowShell> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: widget.builders._buildListRowBody(widget.task, hovered: _hovered),
     );
   }
 }

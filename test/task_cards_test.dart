@@ -1,8 +1,8 @@
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:frontend/core/theme/design_tokens.dart';
-import 'package:frontend/widgets/clarify_task_checkbox.dart';
 import 'package:frontend/widgets/task_cards.dart';
 
 TaskCardBuilders _builders({
@@ -34,32 +34,65 @@ void main() {
     testWidgets('показывает заголовок задачи', (tester) async {
       final task = {'id': 1, 'title': 'Купить молоко', 'is_completed': false};
 
-      await tester.pumpWidget(MaterialApp(home: Scaffold(body: _builders().buildListTaskCard(task))));
+      await tester.pumpWidget(MaterialApp(
+        theme: ThemeData(extensions: const [ClarifyTokens.light]),
+        home: Scaffold(body: _builders().buildListTaskCard(task)),
+      ));
 
       expect(find.text('Купить молоко'), findsOneWidget);
     });
 
+    // С 2026-09-04 крестик виден и кликабелен только под курсором, поэтому
+    // тест обязан сперва навести мышь — иначе проверял бы поведение, которого
+    // у пользователя нет.
     testWidgets('нажатие на крестик вызывает onDelete с id задачи', (tester) async {
       dynamic deletedId;
       final task = {'id': 42, 'title': 'Задача', 'is_completed': false};
 
       await tester.pumpWidget(MaterialApp(
+        theme: ThemeData(extensions: const [ClarifyTokens.light]),
         home: Scaffold(body: _builders(onDelete: (id) => deletedId = id).buildListTaskCard(task)),
       ));
+
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: Offset.zero);
+      addTearDown(mouse.removePointer);
+      await mouse.moveTo(tester.getCenter(find.text('Задача')));
+      await tester.pumpAndSettle();
+
       await tester.tap(find.byIcon(LucideIcons.x));
       await tester.pumpAndSettle();
 
       expect(deletedId, 42);
     });
 
-    testWidgets('переключение чекбокса вызывает onToggle с самой задачей', (tester) async {
+    testWidgets('крестик не срабатывает, пока курсор не над строкой', (tester) async {
+      dynamic deletedId;
+      final task = {'id': 42, 'title': 'Задача', 'is_completed': false};
+
+      await tester.pumpWidget(MaterialApp(
+        theme: ThemeData(extensions: const [ClarifyTokens.light]),
+        home: Scaffold(body: _builders(onDelete: (id) => deletedId = id).buildListTaskCard(task)),
+      ));
+
+      await tester.tap(find.byIcon(LucideIcons.x), warnIfMissed: false);
+      await tester.pumpAndSettle();
+
+      expect(deletedId, isNull);
+    });
+
+    testWidgets('нажатие на зону выполнения вызывает onToggle с самой задачей', (tester) async {
       Map<String, dynamic>? toggled;
       final task = {'id': 1, 'title': 'Задача', 'is_completed': false};
 
       await tester.pumpWidget(MaterialApp(
+        theme: ThemeData(extensions: const [ClarifyTokens.light]),
         home: Scaffold(body: _builders(onToggle: (t) => toggled = t).buildListTaskCard(task)),
       ));
-      await tester.tap(find.byType(ClarifyCheckCircle));
+      // Круга-чекбокса в строке больше нет: отмечает зона слева, в которой
+      // галочка проявляется при наведении.
+      await tester.tap(find.byIcon(LucideIcons.check));
+      await tester.pumpAndSettle();
 
       expect(toggled, task);
     });
