@@ -199,7 +199,14 @@ class _AccountSettingsPanelState extends State<AccountSettingsPanel> {
     avatarUrl = user?.userMetadata?['avatar_url'];
     email = user?.email ?? '';
     final providers = user?.appMetadata['providers'] as List<dynamic>? ?? [];
-    hasPasswordAuth = providers.contains('email');
+    // Аккаунт, заведённый входом через Яндекс, формально числится
+    // email-провайдером, но СВОЕГО пароля у человека нет и никогда не было:
+    // раньше он вычислялся приложением по формуле, теперь его нет вовсе (A1).
+    // Без этой проверки настройки предлагали «Изменить пароль» и требовали
+    // ввести текущий — тупик, из которого пользователь не выходил (B8).
+    // Метку ставит бэкенд при каждом входе через Яндекс.
+    final isYandexAccount = user?.userMetadata?['auth_source'] == 'yandex';
+    hasPasswordAuth = providers.contains('email') && !isYandexAccount;
     nameController = TextEditingController(text: fullName);
     oldPasswordController = TextEditingController();
     newPasswordController = TextEditingController();
