@@ -82,9 +82,9 @@ class _BlobPainter extends CustomPainter {
       path.quadraticBezierTo(pts[i].dx, pts[i].dy, mid.dx, mid.dy);
     }
     path.close();
-    canvas.drawPath(path, Paint()..color = color.withOpacity(0.12));
+    canvas.drawPath(path, Paint()..color = color.withValues(alpha: 0.12));
 
-    final dotPaint = Paint()..color = color.withOpacity(0.35);
+    final dotPaint = Paint()..color = color.withValues(alpha: 0.35);
     for (var i = 0; i < 3; i++) {
       final angle = random.nextDouble() * 2 * pi;
       final dist = baseRadius * (0.7 + random.nextDouble() * 0.15);

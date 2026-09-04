@@ -211,9 +211,13 @@ class _MobileTasksScreenState extends State<MobileTasksScreen> {
                   // элемент к тому же наезжал на крестик удаления.
                   buildDefaultDragHandles: false,
                   itemCount: tasks.length,
-                  onReorder: (oldIndex, newIndex) {
+                  // onReorderItem вместо устаревшего onReorder: он сам
+                  // пересчитывает newIndex с учётом уже вынутого элемента,
+                  // поэтому прежняя ручная поправка `if (newIndex > oldIndex)
+                  // newIndex -= 1` здесь была бы двойной и сдвигала бы задачу
+                  // на позицию выше нужной.
+                  onReorderItem: (oldIndex, newIndex) {
                     setState(() {
-                      if (newIndex > oldIndex) newIndex -= 1;
                       final item = tasks.removeAt(oldIndex);
                       tasks.insert(newIndex, item);
                     });

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -44,6 +43,7 @@ import '../dialogs/manual_add_dialog.dart';
 import '../dialogs/edit_task_dialog.dart';
 import '../dialogs/task_details_dialog.dart';
 import '../dialogs/account_settings_dialog.dart';
+import '../core/log.dart';
 
 /// Бросается _sendToAiAssistant, когда /tasks/parse отвечает не-200 —
 /// отдельный тип нужен, чтобы отличать "сервер ответил ошибкой" от
@@ -198,7 +198,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
           }
         });
       }
-    } catch (e) { print("Ошибка загрузки статусов Zen: $e"); }
+    } catch (e) { logError("Ошибка загрузки статусов Zen: $e"); }
   }
 
   // Включаем/Выключаем режим
@@ -226,7 +226,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
           variant: ClarifyToastVariant.info,
         );
       }
-    } catch (e) { print("Ошибка активации Zen: $e"); }
+    } catch (e) { logError("Ошибка активации Zen: $e"); }
   }
 
   // Функция скачивает имена и профили участников из базы
@@ -243,7 +243,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
         });
       }
     } catch (e) {
-      print("Ошибка загрузки профилей: $e");
+      logError("Ошибка загрузки профилей: $e");
     }
   }
 
@@ -482,7 +482,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     try {
       await Supabase.instance.client.from('workspaces').update({'icon': iconKey}).eq('id', workspaceId);
     } catch (e) {
-      print("Не удалось сохранить иконку команды: $e");
+      logError("Не удалось сохранить иконку команды: $e");
     }
   }
 
@@ -531,7 +531,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
         if (mounted) setState(() => workspaces = []);
       }
     } catch (e) {
-      print("Ошибка загрузки команд: $e");
+      logError("Ошибка загрузки команд: $e");
     }
   }
 
@@ -630,7 +630,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
 
       await notification.show();
     } catch (e) {
-      print("Ошибка отправки пуша: $e");
+      logError("Ошибка отправки пуша: $e");
       // Если пуш не сработал, показываем внутриигровой снекбар
       if (mounted) {
         ClarifyToast.show(context, "$title: $body", variant: ClarifyToastVariant.info);
@@ -697,7 +697,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
         _checkDailyReviewTrigger();
       }
     } catch (e) {
-      print("!!! РЕАЛЬНАЯ ОШИБКА БАЗЫ ДАННЫХ: $e");
+      logError("!!! РЕАЛЬНАЯ ОШИБКА БАЗЫ ДАННЫХ: $e");
       if (mounted) {
         setState(() {
           _isOffline = true;
@@ -884,7 +884,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     } catch (e) {
       // addTask уже поставил создание в очередь на повтор (TaskService.flushPendingOps) —
       // сообщаем об этом пользователю, а не просто теряем ошибку молча (см. print ниже).
-      print("Ошибка создания задачи: $e".tr(widget.currentLang));
+      logError("Ошибка создания задачи: $e".tr(widget.currentLang));
       if (mounted) {
         setState(() {
           _pendingOpsCount = _taskService.pendingOpsCount;
@@ -916,7 +916,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     } catch (e) {
       // updateTask уже поставил изменение в очередь на повтор (TaskService.flushPendingOps) —
       // сообщаем об этом пользователю, а не просто теряем изменение молча.
-      print("Ошибка обновления задачи: $e".tr(widget.currentLang));
+      logError("Ошибка обновления задачи: $e".tr(widget.currentLang));
       if (mounted) {
         setState(() => _pendingOpsCount = _taskService.pendingOpsCount);
         final message = e is PostgrestException
@@ -1048,7 +1048,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
           _pinnedCompletions.remove(task['id']);
           _applyFilters();
         });
-        print("Ошибка обновления статуса: $e");
+        logError("Ошибка обновления статуса: $e");
       }
     });
   }
@@ -1203,7 +1203,7 @@ void _checkBurnoutWarning(String dateStr) {
     try {
       await _taskService.deleteTask(taskId); // <--- ИСПОЛЬЗУЕМ СЕРВИС
     } catch (e) {
-      print("Ошибка удаления: $e".tr(widget.currentLang));
+      logError("Ошибка удаления: $e".tr(widget.currentLang));
       if (mounted) {
         setState(() => _pendingOpsCount = _taskService.pendingOpsCount);
         final message = e is PostgrestException
@@ -1589,7 +1589,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                                           child: Text(initial, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14 * _s)),
                                                         ),
                                                         if (isZen)
-                                                          Icon(LucideIcons.flower, color: Colors.white.withOpacity(0.9), size: 20 * _s),
+                                                          Icon(LucideIcons.flower, color: Colors.white.withValues(alpha: 0.9), size: 20 * _s),
                                                           
                                                         // 🚀 РИСУЕМ БЕЙДЖИК НАГРУЗКИ
                                                         if (!isZen && todayTasksCount > 0)
@@ -1821,9 +1821,13 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                   _currentCalendarDate = newDate;
                                 });
                               },
+                              // newIndex приходит из onReorderItem уже
+                              // пересчитанным под вынутый элемент — своя
+                              // поправка `if (newIndex > oldIndex) newIndex -= 1`
+                              // стала бы второй по счёту и роняла бы задачу на
+                              // позицию выше той, куда её отпустили.
                               onReorderTasks: (oldIndex, newIndex, targetTasks) {
                                 setState(() {
-                                  if (newIndex > oldIndex) newIndex -= 1;
                                   final item = targetTasks.removeAt(oldIndex);
                                   targetTasks.insert(newIndex, item);
                                 });

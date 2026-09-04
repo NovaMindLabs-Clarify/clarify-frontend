@@ -245,7 +245,7 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
           title: 'Уведомления'.tr(currentLang),
           trailing: Switch(
             value: AppSettings.pushSubscribed,
-            activeColor: t.accent,
+            activeThumbColor: t.accent,
             onChanged: (val) async {
               if (kIsWeb) {
                 final error = val
@@ -272,7 +272,7 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
           title: 'Ежедневный обзор'.tr(currentLang),
           trailing: Switch(
             value: AppSettings.dailyReviewEnabled,
-            activeColor: t.accent,
+            activeThumbColor: t.accent,
             onChanged: (val) => setState(() => AppSettings.dailyReviewEnabled = val),
           ),
         ),
@@ -317,7 +317,7 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
         ClarifySettingsCard(
           icon: widget.isDark ? LucideIcons.moon : LucideIcons.sun,
           title: 'Тёмная тема'.tr(currentLang),
-          trailing: Switch(value: widget.isDark, activeColor: t.accent, onChanged: (_) => widget.toggleTheme()),
+          trailing: Switch(value: widget.isDark, activeThumbColor: t.accent, onChanged: (_) => widget.toggleTheme()),
         ),
         const SizedBox(height: 8),
         ClarifySettingsCard(
@@ -362,7 +362,7 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
           title: 'Меньше анимаций'.tr(currentLang),
           trailing: Switch(
             value: AppSettings.reducedMotionOverride.value,
-            activeColor: t.accent,
+            activeThumbColor: t.accent,
             onChanged: (val) => setState(() => AppSettings.setReducedMotionOverride(val)),
           ),
         ),

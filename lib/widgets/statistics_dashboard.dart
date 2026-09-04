@@ -442,7 +442,7 @@ class _StatisticsDashboardState extends State<StatisticsDashboard> {
                 buildHealthRow(
                   LucideIcons.triangleAlert,
                   "Перегруженные дни".tr(currentLang),
-                  "${"Из ближайших 7".tr(currentLang)}",
+                  "Из ближайших 7".tr(currentLang),
                   overloadedDaysCount,
                 ),
               ],

@@ -57,7 +57,7 @@ class SidebarMenu extends StatefulWidget {
   };
 
   const SidebarMenu({
-    Key? key,
+    super.key,
     required this.isDark,
     required this.scale,
     required this.currentLang,
@@ -70,7 +70,7 @@ class SidebarMenu extends StatefulWidget {
     required this.onWorkspaceSelected,
     required this.onSearchTap,
     required this.userAccountBlockCollapsed,
-  }) : super(key: key);
+  });
 
   @override
   State<SidebarMenu> createState() => _SidebarMenuState();

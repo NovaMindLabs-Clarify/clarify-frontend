@@ -112,7 +112,7 @@ class MainContentArea extends StatelessWidget {
   final void Function(String partnerId, String partnerName)? onOpenDirectChat;
 
   const MainContentArea({
-    Key? key,
+    super.key,
     required this.selectedMenu,
     required this.currentLang,
     required this.filteredTasks,
@@ -143,7 +143,7 @@ class MainContentArea extends StatelessWidget {
     this.pendingChatPartnerId,
     this.pendingChatPartnerName,
     this.onOpenDirectChat,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -378,7 +378,11 @@ class MainContentArea extends StatelessWidget {
                 child: child,
               );
             },
-            onReorder: (int oldIndex, int newIndex) {
+            // onReorderItem вместо устаревшего onReorder: newIndex здесь уже
+            // пересчитан с учётом вынутого элемента, поэтому обработчик НЕ
+            // должен вычитать единицу сам (см. onReorderTasks в
+            // desktop_planner_screen.dart).
+            onReorderItem: (int oldIndex, int newIndex) {
               onReorderTasks(oldIndex, newIndex, targetTasks);
             },
             children: targetTasks.asMap().entries.map((entry) {
@@ -406,8 +410,8 @@ class MainContentArea extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (dayCapacity != null) dayCapacity,
-              if (sortToggle != null) sortToggle,
+              ?dayCapacity,
+              ?sortToggle,
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -450,7 +454,7 @@ class MainContentArea extends StatelessWidget {
         final bool isToday = index == 0;
 
         return DragTarget<Map<String, dynamic>>(
-          onAccept: (Map<String, dynamic> task) => onTaskDropped(task, dateStr, dayTasks.length),
+          onAcceptWithDetails: (details) => onTaskDropped(details.data, dateStr, dayTasks.length),
           builder: (context, candidateData, rejectedData) {
             return buildGlassContainer(
               margin: EdgeInsets.only(right: index == 6 ? 0 : 12 * scale),
@@ -892,7 +896,7 @@ class _CalendarSectionState extends State<_CalendarSection> {
                     final taskCount = dayTasks.length;
                     final dayTitle = "${_capitalize(_kWeekdaysRu[cellDate.weekday - 1])}, ${dayNumber.toString().padLeft(2, '0')}.${month.toString().padLeft(2, '0')}";
                     return DragTarget<Map<String, dynamic>>(
-                      onAccept: (Map<String, dynamic> task) => widget.onTaskDropped(task, cellDateStr, taskCount),
+                      onAcceptWithDetails: (details) => widget.onTaskDropped(details.data, cellDateStr, taskCount),
                       builder: (context, candidateData, rejectedData) {
                         return _CalendarCellHover(
                           builder: (hovered) => widget.buildGlassContainer(

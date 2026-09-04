@@ -52,7 +52,7 @@ class ClarifySettingsCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 12),
                   Expanded(child: Text(title, style: TextStyle(color: t.text, fontWeight: FontWeight.w600, fontSize: 14.5))),
-                  if (trailing != null) trailing!,
+                  ?trailing,
                 ],
               ),
             ),

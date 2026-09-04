@@ -90,7 +90,7 @@ void showAccountSettingsDialog({
 
   showClarifySurface(
     context: context,
-    barrierColor: Colors.black.withOpacity(0.4),
+    barrierColor: Colors.black.withValues(alpha: 0.4),
     builder: (context) => AccountSettingsPanel(
       isDark: isDark,
       textColor: textColor,
@@ -701,7 +701,7 @@ class _AccountSettingsPanelState extends State<AccountSettingsPanel> {
             title: "Автозапуск с Windows".tr(currentLang),
             trailing: Switch(
               value: isAutostart,
-              activeColor: t.accent,
+              activeThumbColor: t.accent,
               onChanged: (val) async {
                 setState(() => isAutostart = val);
                 if (val) {
@@ -719,7 +719,7 @@ class _AccountSettingsPanelState extends State<AccountSettingsPanel> {
             title: "Закрытие в трей".tr(currentLang),
             trailing: Switch(
               value: AppSettings.closeToTray,
-              activeColor: t.accent,
+              activeThumbColor: t.accent,
               onChanged: (val) => setState(() => AppSettings.closeToTray = val),
             ),
           ),
@@ -769,7 +769,7 @@ class _AccountSettingsPanelState extends State<AccountSettingsPanel> {
           title: "Уведомления".tr(currentLang),
           trailing: Switch(
             value: AppSettings.notificationsEnabled,
-            activeColor: t.accent,
+            activeThumbColor: t.accent,
             onChanged: (val) => setState(() => AppSettings.notificationsEnabled = val),
           ),
         ),
@@ -801,7 +801,7 @@ class _AccountSettingsPanelState extends State<AccountSettingsPanel> {
           title: "Ежедневный обзор".tr(currentLang),
           trailing: Switch(
             value: AppSettings.dailyReviewEnabled,
-            activeColor: t.accent,
+            activeThumbColor: t.accent,
             onChanged: (val) => setState(() => AppSettings.dailyReviewEnabled = val),
           ),
         ),
@@ -869,7 +869,7 @@ class _AccountSettingsPanelState extends State<AccountSettingsPanel> {
           title: "Меньше анимаций".tr(currentLang),
           trailing: Switch(
             value: AppSettings.reducedMotionOverride.value,
-            activeColor: t.accent,
+            activeThumbColor: t.accent,
             onChanged: (val) => setState(() => AppSettings.setReducedMotionOverride(val)),
           ),
         ),

@@ -252,8 +252,9 @@ class _ClarifyStrikeTextState extends State<ClarifyStrikeText>
                   parent: _fade,
                   curve: ClarifyMotion.standard,
                 ).value.clamp(0.0, 1.0);
-                if (width <= 0.001 || opacity <= 0.001)
+                if (width <= 0.001 || opacity <= 0.001) {
                   return const SizedBox.shrink();
+                }
                 return Align(
                   alignment: Alignment.centerLeft,
                   child: Opacity(

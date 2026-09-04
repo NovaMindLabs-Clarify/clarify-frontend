@@ -169,7 +169,7 @@ void showManualAddDialog({
 
   showClarifyResponsiveSurface(
     context: context,
-    barrierColor: Colors.black.withOpacity(0.4),
+    barrierColor: Colors.black.withValues(alpha: 0.4),
     builder: (context) {
       return StatefulBuilder(
         builder: (context, setStateDialog) {
@@ -300,8 +300,9 @@ void showManualAddDialog({
                                 currentLang: currentLang,
                                 initialDate: selectedDate,
                               );
-                              if (picked != null)
+                              if (picked != null) {
                                 setStateDialog(() => selectedDate = picked);
+                              }
                             },
                           ),
                         ),
@@ -320,8 +321,9 @@ void showManualAddDialog({
                                 currentLang: currentLang,
                                 initialTime: selectedTime ?? TimeOfDay.now(),
                               );
-                              if (picked != null)
+                              if (picked != null) {
                                 setStateDialog(() => selectedTime = picked);
+                              }
                             },
                           ),
                         ),
@@ -664,7 +666,7 @@ void showManualAddDialog({
                       borderSide: BorderSide(color: glassBorderColor),
                     ),
                   ),
-                  value: selectedAssigneeId,
+                  initialValue: selectedAssigneeId,
                   items: [
                     DropdownMenuItem(
                       value: null,
@@ -774,16 +776,18 @@ void showManualAddDialog({
 
                       if (isDuplicating) {
                         onDuplicateHandled();
-                        if (context.mounted)
+                        if (context.mounted) {
                           ClarifyToast.show(
                             context,
                             "Задача скопирована!".tr(currentLang),
                             variant: ClarifyToastVariant.success,
                           );
+                        }
                       }
 
-                      if (context.mounted)
+                      if (context.mounted) {
                         setStateDialog(() => isSaving = false);
+                      }
                     },
                   ),
                 ],

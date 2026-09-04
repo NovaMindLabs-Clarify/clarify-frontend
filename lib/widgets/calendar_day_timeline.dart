@@ -79,7 +79,7 @@ class _CalendarDayTimelineState extends State<CalendarDayTimeline> {
     final Map<String, int> sameTimeIndex = {};
 
     return DragTarget<Map<String, dynamic>>(
-      onAccept: (task) => widget.onTaskDropped(task, _formatDate(widget.date)),
+      onAcceptWithDetails: (details) => widget.onTaskDropped(details.data, _formatDate(widget.date)),
       builder: (context, candidateData, rejectedData) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,

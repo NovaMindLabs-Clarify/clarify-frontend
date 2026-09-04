@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import '../core/log.dart';
 
 class TaskService {
   final Box _tasksBox = Hive.box('tasks_cache');
@@ -259,7 +260,7 @@ class TaskService {
       _removeOptimisticTask(tempId);
       rethrow;
     } catch (e) {
-      print("Фоновое сохранение на сервер не удалось: $e");
+      logError("Фоновое сохранение на сервер не удалось: $e");
       // Задача уже показана пользователю (optimistic UI) — без очереди она
       // бы бесследно исчезла при следующем успешном fetchTasks(), который
       // полностью перезаписывает _inMemoryTasks данными с сервера.

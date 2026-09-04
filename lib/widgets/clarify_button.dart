@@ -84,12 +84,15 @@ class ClarifyButton extends StatelessWidget {
           // одинаково читаем в обеих темах.
         ).copyWith(
           overlayColor: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.pressed))
+            if (states.contains(WidgetState.pressed)) {
               return t.accent.withValues(alpha: 0.16);
-            if (states.contains(WidgetState.hovered))
+            }
+            if (states.contains(WidgetState.hovered)) {
               return t.accent.withValues(alpha: 0.08);
-            if (states.contains(WidgetState.focused))
+            }
+            if (states.contains(WidgetState.focused)) {
               return t.accent.withValues(alpha: 0.08);
+            }
             return Colors.transparent;
           }),
         );

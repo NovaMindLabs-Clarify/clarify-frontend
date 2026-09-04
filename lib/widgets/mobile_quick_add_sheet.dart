@@ -545,11 +545,12 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
                       hintText: 'Добавить пункт...'.tr(widget.currentLang),
                       dense: true,
                       onSubmitted: (text) {
-                        if (text.trim().isNotEmpty)
+                        if (text.trim().isNotEmpty) {
                           setState(() {
                             _subtasks.add(text.trim());
                             _subtaskController.clear();
                           });
+                        }
                       },
                     ),
                   ),
@@ -561,11 +562,12 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
                     ),
                     icon: Icon(LucideIcons.plus, color: t.accent),
                     onPressed: () {
-                      if (_subtaskController.text.trim().isNotEmpty)
+                      if (_subtaskController.text.trim().isNotEmpty) {
                         setState(() {
                           _subtasks.add(_subtaskController.text.trim());
                           _subtaskController.clear();
                         });
+                      }
                     },
                   ),
                 ],
@@ -588,7 +590,7 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
                       isDense: true,
                       border: InputBorder.none,
                     ),
-                    value: _workspaceId,
+                    initialValue: _workspaceId,
                     items: [
                       DropdownMenuItem(value: null, child: Text('Личная задача'.tr(widget.currentLang), style: TextStyle(color: t.text))),
                       ...widget.workspaces.map(
@@ -622,7 +624,7 @@ class _MobileQuickAddFormState extends State<_MobileQuickAddForm> {
                         isDense: true,
                         border: InputBorder.none,
                       ),
-                      value: _assigneeId,
+                      initialValue: _assigneeId,
                       items: [
                         DropdownMenuItem(value: null, child: Text('Никто'.tr(widget.currentLang), style: TextStyle(color: t.text))),
                         ...(widget.workspaceMembers[_workspaceId] ?? []).map(

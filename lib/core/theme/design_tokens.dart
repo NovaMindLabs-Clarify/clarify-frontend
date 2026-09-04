@@ -184,7 +184,7 @@ class ClarifyTokens extends ThemeExtension<ClarifyTokens> {
     return copyWith(
       accent: accent,
       accentHover: Color.lerp(accent, Colors.black, 0.12),
-      accentSoft: accent.withOpacity(0.12),
+      accentSoft: accent.withValues(alpha: 0.12),
       onAccent: accent.computeLuminance() > 0.45 ? const Color(0xFF14141F) : Colors.white,
     );
   }

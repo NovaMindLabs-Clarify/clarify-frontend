@@ -124,7 +124,7 @@ void showEditTaskDialog({
 
   showClarifyResponsiveSurface(
     context: context,
-    barrierColor: Colors.black.withOpacity(0.4),
+    barrierColor: Colors.black.withValues(alpha: 0.4),
     builder: (context) {
       return StatefulBuilder(
         builder: (context, setStateDialog) {
@@ -212,8 +212,9 @@ void showEditTaskDialog({
                                 currentLang: currentLang,
                                 initialDate: selectedDate,
                               );
-                              if (picked != null)
+                              if (picked != null) {
                                 setStateDialog(() => selectedDate = picked);
+                              }
                             },
                           ),
                         ),
@@ -232,8 +233,9 @@ void showEditTaskDialog({
                                 currentLang: currentLang,
                                 initialTime: selectedTime ?? TimeOfDay.now(),
                               );
-                              if (picked != null)
+                              if (picked != null) {
                                 setStateDialog(() => selectedTime = picked);
+                              }
                             },
                           ),
                         ),
@@ -621,7 +623,7 @@ void showEditTaskDialog({
                       borderSide: BorderSide(color: glassBorderColor),
                     ),
                   ),
-                  value: selectedAssigneeId,
+                  initialValue: selectedAssigneeId,
                   items: [
                     DropdownMenuItem(
                       value: null,
@@ -738,8 +740,9 @@ void showEditTaskDialog({
                       });
 
                       if (context.mounted) Navigator.of(context).pop();
-                      if (context.mounted)
+                      if (context.mounted) {
                         setStateDialog(() => isSaving = false);
+                      }
                     },
                   ),
                 ],

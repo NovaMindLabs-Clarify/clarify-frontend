@@ -9,7 +9,7 @@ import '../core/theme/design_tokens.dart';
 class WindowButtons extends StatefulWidget {
   final bool isDark;
 
-  const WindowButtons({Key? key, required this.isDark}) : super(key: key);
+  const WindowButtons({super.key, required this.isDark});
 
   @override
   State<WindowButtons> createState() => _WindowButtonsState();

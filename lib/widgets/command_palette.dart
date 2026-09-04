@@ -119,7 +119,7 @@ void showCommandPalette({
 }) {
   showClarifySurface(
     context: context,
-    barrierColor: Colors.black.withOpacity(0.6),
+    barrierColor: Colors.black.withValues(alpha: 0.6),
     builder: (context) {
       return _CommandPalette(
         currentLang: currentLang,
@@ -361,7 +361,7 @@ class _CommandPaletteState extends State<_CommandPalette> {
     return MouseRegion(
       onEnter: index == null ? null : (_) => _setHighlight(index),
       child: Material(
-        color: highlighted ? t.accent.withOpacity(0.12) : Colors.transparent,
+        color: highlighted ? t.accent.withValues(alpha: 0.12) : Colors.transparent,
         borderRadius: BorderRadius.circular(ClarifyRadius.sm),
         child: InkWell(
           borderRadius: BorderRadius.circular(ClarifyRadius.sm),

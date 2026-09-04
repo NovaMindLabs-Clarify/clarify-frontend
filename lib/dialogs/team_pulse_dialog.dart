@@ -14,7 +14,7 @@ import '../core/theme/design_tokens.dart';
 Widget _buildStatCard(String title, String value, Color color, double scale, String currentLang, Color textColor) {
   return Container(
     padding: EdgeInsets.all(16 * scale),
-    decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(16 * scale), border: Border.all(color: color.withOpacity(0.3))),
+    decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16 * scale), border: Border.all(color: color.withValues(alpha: 0.3))),
     child: Column(
       children: [
         Text(value, style: TextStyle(fontSize: 32 * scale, fontWeight: FontWeight.w900, color: color)),
@@ -65,7 +65,7 @@ void showTeamPulseDialog({
 
   showClarifySurface(
     context: context,
-    barrierColor: Colors.black.withOpacity(0.4),
+    barrierColor: Colors.black.withValues(alpha: 0.4),
     builder: (context) {
       return Center(
         child: Material(

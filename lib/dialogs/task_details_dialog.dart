@@ -9,6 +9,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
+import '../core/log.dart';
 
 /// Диалог деталей задачи: чек-лист подзадач + обсуждение (комментарии).
 /// Вынесено из DesktopPlannerScreen (P3.1, docs/IMPROVEMENT_PLAN.md) —
@@ -50,7 +51,7 @@ void showTaskDetailsDialog({
 
   showClarifyResponsiveSurface(
     context: context,
-    barrierColor: Colors.black.withOpacity(0.4),
+    barrierColor: Colors.black.withValues(alpha: 0.4),
     builder: (context) {
       return StatefulBuilder(builder: (context, setStateDialog) {
 
@@ -88,7 +89,7 @@ void showTaskDetailsDialog({
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          if (task['priority'] != null && task['priority'] != 'none') Container(margin: const EdgeInsets.only(right: 12), width: 14, height: 14, decoration: BoxDecoration(shape: BoxShape.circle, color: getPriorityColor(task['priority']), boxShadow: [BoxShadow(color: getPriorityColor(task['priority']).withOpacity(0.5), blurRadius: 8)])),
+                          if (task['priority'] != null && task['priority'] != 'none') Container(margin: const EdgeInsets.only(right: 12), width: 14, height: 14, decoration: BoxDecoration(shape: BoxShape.circle, color: getPriorityColor(task['priority']), boxShadow: [BoxShadow(color: getPriorityColor(task['priority']).withValues(alpha: 0.5), blurRadius: 8)])),
                           Expanded(child: Text(task['title'] ?? '', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: textColor))),
                         ],
                       ),
@@ -301,7 +302,7 @@ void showTaskDetailsDialog({
                                 try {
                                   await Supabase.instance.client.from('task_comments').insert(newComment);
                                 } catch (e) {
-                                  print("Ошибка отправки комментария: $e");
+                                  logError("Ошибка отправки комментария: $e");
                                 }
                               }
                             )
@@ -331,7 +332,7 @@ void showTaskDetailsDialog({
                               try {
                                 await Supabase.instance.client.from('task_comments').insert(newComment);
                               } catch (e) {
-                                print("Ошибка отправки комментария: $e");
+                                logError("Ошибка отправки комментария: $e");
                               }
                             }
                           )

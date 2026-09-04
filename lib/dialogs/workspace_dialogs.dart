@@ -6,6 +6,7 @@ import '../widgets/clarify_toast.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
+import '../core/log.dart';
 
 /// Диалоги управления проектами (папками) и командами (воркспейсами).
 /// Вынесено из DesktopPlannerScreen (P3.1, docs/IMPROVEMENT_PLAN.md) — логика
@@ -27,7 +28,7 @@ void showCreateWorkspaceDialog({
 
   showClarifySurface(
     context: context,
-    barrierColor: Colors.black.withOpacity(0.4),
+    barrierColor: Colors.black.withValues(alpha: 0.4),
     builder: (context) => StatefulBuilder(builder: (context, setStateDialog) {
       return Center(
         child: Material(
@@ -95,7 +96,7 @@ void showCreateWorkspaceDialog({
                             await onWorkspaceCreated(); // Обновляем список команд
                             if (context.mounted) Navigator.pop(context);
                           } catch (e) {
-                            print("Ошибка создания команды: $e");
+                            logError("Ошибка создания команды: $e");
                             if (context.mounted) setStateDialog(() => isCreating = false);
                           }
                         },
@@ -128,7 +129,7 @@ void showInviteMemberDialog({
 
   showClarifySurface(
     context: context,
-    barrierColor: Colors.black.withOpacity(0.4),
+    barrierColor: Colors.black.withValues(alpha: 0.4),
     builder: (context) => StatefulBuilder(builder: (context, setStateDialog) {
       return Center(
         child: Material(
@@ -196,7 +197,7 @@ void showInviteMemberDialog({
                               );
                             }
                           } catch (e) {
-                            print("Ошибка приглашения: $e");
+                            logError("Ошибка приглашения: $e");
                             if (context.mounted) {
                               ClarifyToast.show(context, 'Ошибка сети: $e', variant: ClarifyToastVariant.danger);
                               setStateDialog(() => isSending = false);
@@ -233,7 +234,7 @@ void showLeaveOrDeleteWorkspaceDialog({
 
   showClarifySurface(
     context: context,
-    barrierColor: Colors.black.withOpacity(0.4),
+    barrierColor: Colors.black.withValues(alpha: 0.4),
     builder: (context) => StatefulBuilder(builder: (context, setStateDialog) {
       return Center(
         child: Material(
@@ -289,7 +290,7 @@ void showLeaveOrDeleteWorkspaceDialog({
                               );
                             }
                           } catch (e) {
-                            print("Ошибка удаления/выхода из команды: $e");
+                            logError("Ошибка удаления/выхода из команды: $e");
                             if (context.mounted) {
                               ClarifyToast.show(context, 'Ошибка сети: $e', variant: ClarifyToastVariant.danger);
                               setStateDialog(() => isLoading = false);

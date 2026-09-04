@@ -27,7 +27,7 @@ void showSearchDialog({
   String query = '';
   showClarifySurface(
     context: context,
-    barrierColor: Colors.black.withOpacity(0.6),
+    barrierColor: Colors.black.withValues(alpha: 0.6),
     builder: (context) {
       return StatefulBuilder(builder: (context, setStateDialog) {
         final searchResults = query.isEmpty ? [] : tasks.where((t) =>

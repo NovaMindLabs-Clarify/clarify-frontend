@@ -34,6 +34,7 @@ import 'screens/privacy_consent_screen.dart';
 import 'services/status_bar_style.dart';
 // Вставь это где-то среди других импортов
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'core/log.dart';
 
 // ------------------------------------------------
 // 1. ПРИНИМАЕМ АРГУМЕНТЫ КОМАНДНОЙ СТРОКИ ДЛЯ SILENT BOOT
@@ -114,7 +115,11 @@ Future<void> main(List<String> args) async {
   // 3. Подключаемся к базе, используя безопасные переменные окружения
   await Supabase.initialize(
     url: dotenv.env['SUPABASE_URL']!,
-    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
+    // publishableKey вместо anonKey: то же самое значение, но anonKey помечен
+    // устаревшим и уедет в следующей мажорной версии supabase_flutter.
+    // Переменная окружения оставлена прежней — менять её пришлось бы разом во
+    // всех сборках и на Render, ради переименования это того не стоит.
+    publishableKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
 
   runApp(const SmartPlannerApp());
@@ -408,7 +413,7 @@ class _AuthScreenState extends State<AuthScreen> {
   void _initDeepLinks() {
     _appLinks = AppLinks();
     _linkSubscription = _appLinks.uriLinkStream.listen((uri) {
-      print('🔥 Поймали ссылку из браузера: $uri');
+      logDebug('🔥 Поймали ссылку из браузера: $uri');
     });
   }
 
@@ -439,7 +444,7 @@ class _AuthScreenState extends State<AuthScreen> {
         await Supabase.instance.client.auth.updateUser(UserAttributes(data: {'full_name': name}));
       }
     } catch (e) {
-      print('Ошибка верификации: $e'); 
+      logError('Ошибка верификации: $e'); 
       if (mounted) {
         ClarifyToast.show(context, 'Неверный код!'.tr(widget.currentLang), variant: ClarifyToastVariant.danger);
       }
@@ -486,7 +491,7 @@ class _AuthScreenState extends State<AuthScreen> {
         TextField(
           controller: _otpController, style: TextStyle(color: textColor, fontSize: 24, letterSpacing: 8, fontWeight: FontWeight.bold), 
           textAlign: TextAlign.center, maxLength: 8, keyboardType: TextInputType.number,
-          decoration: InputDecoration(counterText: "", hintText: "00000000", hintStyle: TextStyle(color: textMuted.withOpacity(0.3)), filled: true, fillColor: isDark ? Colors.black.withOpacity(0.2) : Colors.white.withOpacity(0.4), border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none)),
+          decoration: InputDecoration(counterText: "", hintText: "00000000", hintStyle: TextStyle(color: textMuted.withValues(alpha: 0.3)), filled: true, fillColor: isDark ? Colors.black.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.4), border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none)),
         ),
         const SizedBox(height: 32),
         ClarifyButton(
@@ -693,7 +698,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
         Container(
           padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(color: isDark ? Colors.black.withOpacity(0.2) : Colors.white.withOpacity(0.4), borderRadius: BorderRadius.circular(14)),
+          decoration: BoxDecoration(color: isDark ? Colors.black.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.4), borderRadius: BorderRadius.circular(14)),
           child: Row(
             children: [
               Expanded(child: AuthModeTab(label: "Войти".tr(widget.currentLang), active: _mode == AuthMode.login, textColor: textColor, accent: t.accent, onAccent: t.onAccent, onTap: () => setState(() => _mode = AuthMode.login))),
@@ -745,7 +750,7 @@ class _AuthScreenState extends State<AuthScreen> {
             decoration: InputDecoration(
               labelText: "Как вас зовут?".tr(widget.currentLang),
               labelStyle: TextStyle(color: textMuted),
-              filled: true, fillColor: isDark ? Colors.black.withOpacity(0.2) : Colors.white.withOpacity(0.4),
+              filled: true, fillColor: isDark ? Colors.black.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.4),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
               prefixIcon: Icon(LucideIcons.user, color: textMuted),
             ),
@@ -758,7 +763,7 @@ class _AuthScreenState extends State<AuthScreen> {
           decoration: InputDecoration(
             labelText: "Ваш Email".tr(widget.currentLang),
             labelStyle: TextStyle(color: textMuted),
-            filled: true, fillColor: isDark ? Colors.black.withOpacity(0.2) : Colors.white.withOpacity(0.4),
+            filled: true, fillColor: isDark ? Colors.black.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.4),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
             prefixIcon: Icon(LucideIcons.mail, color: textMuted),
           ),
@@ -1031,7 +1036,7 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
                             backgroundColor: t.surfaceSunken,
                             backgroundImage: _avatarBytes != null ? MemoryImage(_avatarBytes!) : null,
                             child: _avatarBytes == null
-                                ? Icon(LucideIcons.user, size: 50, color: textMuted.withOpacity(0.5))
+                                ? Icon(LucideIcons.user, size: 50, color: textMuted.withValues(alpha: 0.5))
                                 : null,
                           ),
                           Container(
@@ -1050,8 +1055,8 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
                       textAlign: TextAlign.center,
                       decoration: InputDecoration(
                         hintText: "Ваше имя или никнейм".tr(widget.currentLang),
-                        hintStyle: TextStyle(color: textMuted.withOpacity(0.5), fontWeight: FontWeight.normal),
-                        filled: true, fillColor: isDark ? Colors.black.withOpacity(0.2) : Colors.white.withOpacity(0.4),
+                        hintStyle: TextStyle(color: textMuted.withValues(alpha: 0.5), fontWeight: FontWeight.normal),
+                        filled: true, fillColor: isDark ? Colors.black.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.4),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
                       ),
                     ),
