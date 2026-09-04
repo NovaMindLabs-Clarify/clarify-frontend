@@ -524,6 +524,8 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
           setState(() {
             workspaces = List<Map<String, dynamic>>.from(data);
           });
+          // Переподписываемся уже зная команды — см. _initRealtime.
+          _initRealtime();
         }
       } else {
         if (mounted) setState(() => workspaces = []);
@@ -742,9 +744,18 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
 
   // --- МАГИЯ REALTIME ---
   void _initRealtime() {
+    // Команды известны не сразу — _fetchWorkspaces отрабатывает уже после
+    // старта, поэтому он вызывает этот метод повторно с готовым списком.
+    // Без командных id правки коллег в общих задачах до нас не долетают:
+    // подписка на свои задачи фильтруется по user_id, а владелец командной
+    // задачи — тот, кто её создал.
     _taskService.initRealtime(
       onTasksChanged: () => _fetchTasks(),
       onZenChanged: () => _fetchZenStatuses(),
+      workspaceIds: workspaces
+          .map((w) => w['id'])
+          .whereType<int>()
+          .toList(),
     );
   }
 

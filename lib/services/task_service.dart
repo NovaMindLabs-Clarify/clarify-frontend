@@ -98,27 +98,98 @@ class TaskService {
   }
 
   // 3. Подписка на сокеты (Realtime)
-  void initRealtime({required Function onTasksChanged, required Function onZenChanged}) {
-    _realtimeChannel = Supabase.instance.client.channel('public_changes');
-    _realtimeChannel!
-        .onPostgresChanges(
-            event: PostgresChangeEvent.all, 
-            schema: 'public', 
-            table: 'tasks',
-            callback: (payload) {
-              // При любом внешнем изменении перечитываем сеть
-              onTasksChanged();
-            })
-        .onPostgresChanges(
-            event: PostgresChangeEvent.all, 
-            schema: 'public', 
-            table: 'user_status',
-            callback: (payload) => onZenChanged())
-        .subscribe();
+  //
+  // Раньше подписка на tasks шла по ВСЕЙ таблице без фильтра: сервер на каждое
+  // изменение проверял права для каждого подписчика, а клиент в ответ
+  // перечитывал свои задачи целиком. Пока пользователей десяток — незаметно, на
+  // сотне активных это постоянный шквал лишней работы у всех сразу.
+  //
+  // Теперь два адресных фильтра вместо одного всеохватного:
+  //   * свои задачи — по user_id;
+  //   * командные — по workspace_id из списка команд пользователя (одной
+  //     подпиской через in-фильтр, а не по подписке на команду).
+  // Фильтр по user_id один не годится: у командной задачи владелец — тот, кто
+  // её создал, и правки коллег до нас бы не долетали.
+  //
+  // Список команд известен не сразу (грузится после старта), поэтому метод
+  // рассчитан на повторный вызов: старый канал закрывается, открывается новый.
+  // Повторная подписка с тем же набором команд пропускается — незачем рвать
+  // рабочее соединение на каждый перерисованный экран.
+  List<int>? _subscribedWorkspaceIds;
+
+  void initRealtime({
+    required Function onTasksChanged,
+    required Function onZenChanged,
+    List<int> workspaceIds = const [],
+  }) {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    final sorted = [...workspaceIds]..sort();
+    if (_realtimeChannel != null &&
+        _subscribedWorkspaceIds != null &&
+        _sameIds(_subscribedWorkspaceIds!, sorted)) {
+      return;
+    }
+
+    _realtimeChannel?.unsubscribe();
+
+    final channel = Supabase.instance.client.channel('clarify_changes');
+
+    channel.onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'tasks',
+      filter: PostgresChangeFilter(
+        type: PostgresChangeFilterType.eq,
+        column: 'user_id',
+        value: user.id,
+      ),
+      callback: (payload) => onTasksChanged(),
+    );
+
+    if (sorted.isNotEmpty) {
+      channel.onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'tasks',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.inFilter,
+          column: 'workspace_id',
+          value: sorted,
+        ),
+        callback: (payload) => onTasksChanged(),
+      );
+    }
+
+    // user_status фильтром не сужаем СОЗНАТЕЛЬНО: экран показывает статусы
+    // коллег, а не только свой. Кого именно видно, решает RLS на таблице
+    // (sql/rls_visibility.sql) — до неё сюда прилетали статусы вообще всех
+    // пользователей сервиса.
+    channel.onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'user_status',
+      callback: (payload) => onZenChanged(),
+    );
+
+    channel.subscribe();
+    _realtimeChannel = channel;
+    _subscribedWorkspaceIds = sorted;
+  }
+
+  bool _sameIds(List<int> a, List<int> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 
   void dispose() {
     _realtimeChannel?.unsubscribe();
+    _realtimeChannel = null;
+    _subscribedWorkspaceIds = null;
   }
   
   // 5. Создание задачи (Мгновенный Optimistic UI + Фикс типов для календаря)
