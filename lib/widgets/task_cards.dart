@@ -329,7 +329,6 @@ class TaskCardBuilders {
   // РЕАЛЬНОЕ измерение (Offstage-зонд) — после него эта константа не влияет
   // ни на что.
   static double calendarChipHeight(double scale) => 28 * scale;
-  static const double _calendarChipLine2Height = 13;
 
   Widget _calendarTaskChipRow(Map<String, dynamic> task) {
     final bool isDone = task['is_completed'] == true;
@@ -363,134 +362,132 @@ class TaskCardBuilders {
       scale: _chipScale * 0.8,
       compact: true,
     );
-    return ClarifyPressable(
-      onTap: () => onTap(task),
-      child: Container(
-        margin: EdgeInsets.only(bottom: 1 * _chipScale),
-        decoration: BoxDecoration(
-          border: Border(
-            left: BorderSide(color: stripeColor, width: 2 * _chipScale),
-          ),
-        ),
-        padding: EdgeInsets.symmetric(horizontal: 3 * _chipScale),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Строка 1: время (если задано и если оно влезает) + название.
-            // Время — своя Text, не часть ClarifyStrikeText: временная метка не
-            // «перечёркнутый факт», даже когда сама задача выполнена.
-            //
-            // Время показывается только в достаточно широкой ячейке
-            // (2026-09-04). Раньше оно печаталось всегда и съедало треть
-            // строки: в узкой ячейке от названия оставалось три-четыре буквы
-            // с многоточием — «Работ…», по такому названию задачу не узнать.
-            // Час и минуты есть в дневном виде и в деталях задачи, а в сетке
-            // месяца важнее понять, ЧТО за задача.
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final showTime = dueTime != null && constraints.maxWidth >= 108;
-                return Row(
+    // Размеры считаются от РЕАЛЬНОЙ ширины ячейки, а не от масштаба окна
+    // (2026-09-04). Прежняя привязка к scale давала обе крайности сразу: на
+    // окне 1100px строка сжималась в нечитаемую рябь, а на полном экране, где
+    // ячейка размером с визитку, текст упирался в потолок масштаба и тонул в
+    // пустоте. Ячейке важна её собственная ширина, а не то, какое окно вокруг.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double width = constraints.maxWidth;
+        // 0.055 от ширины: на узкой ячейке (100px) даёт нижнюю границу
+        // читаемости, на широкой (275px) — спокойный кегль 14, соразмерный
+        // самой ячейке. Границы жёсткие, чтобы на экстремумах не уехало.
+        final double titleSize = (width * 0.055).clamp(9.5, 14.0);
+        final double timeSize = titleSize - 1.5;
+        final double circleSize = titleSize * 0.9;
+        // Время прячем, только если оно физически отнимает у названия больше,
+        // чем даёт само: на узкой ячейке от названия оставались три буквы с
+        // многоточием. Порог — по ширине ячейки, а не по масштабу окна.
+        final bool showTime = dueTime != null && width >= 108;
+
+        return ClarifyPressable(
+          onTap: () => onTap(task),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 1),
+            decoration: BoxDecoration(
+              border: Border(
+                left: BorderSide(color: stripeColor, width: 2),
+              ),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 3),
+            child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Отметить выполненной прямо из ячейки месяца (фидбек
-                // 2026-09-03): раньше кружка тут не было сознательно —
-                // предполагалось отмечать по тапу в деталях задачи, но на
-                // практике из календаря это оказалось единственным разделом,
-                // где задачу нельзя закрыть в один клик. Тот же компонент и та
-                // же анимация, что в "7 дней"/дневном виде календаря, просто
-                // мельче — размер подобран под кегль первой строки (9 * _chipScale),
-                // чтобы высота строки-превью не изменилась (от неё считается,
-                // сколько задач влезает в ячейку, см. _CalendarDayTasksPreview).
-                ClarifyCheckCircle(
-                  size: 9 * _chipScale,
-                  borderWidth: hasPriority ? 1.5 : 1.2,
-                  borderColor: stripeColor,
-                  checkedColor: _t.accent,
-                  value: isDone,
-                  onTap: () => onToggle(task),
-                  duration: ClarifyMotion.completion,
+                // Строка 1: время (если влезает) + название. Время — своя Text,
+                // не часть ClarifyStrikeText: временная метка не «перечёркнутый
+                // факт», даже когда сама задача выполнена.
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Отметить выполненной прямо из ячейки месяца (фидбек
+                    // 2026-09-03): раньше кружка тут не было сознательно —
+                    // предполагалось отмечать по тапу в деталях задачи, но на
+                    // практике календарь оказался единственным разделом, где
+                    // задачу нельзя закрыть в один клик.
+                    ClarifyCheckCircle(
+                      size: circleSize,
+                      borderWidth: hasPriority ? 1.5 : 1.2,
+                      borderColor: stripeColor,
+                      checkedColor: _t.accent,
+                      value: isDone,
+                      onTap: () => onToggle(task),
+                      duration: ClarifyMotion.completion,
+                    ),
+                    const SizedBox(width: 4),
+                    if (showTime) ...[
+                      Text(
+                        dueTime,
+                        style: TextStyle(
+                          fontSize: timeSize,
+                          fontWeight: FontWeight.w600,
+                          color: isDone ? textMuted : _t.text3,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                    ],
+                    Flexible(
+                      child: ClarifyStrikeText(
+                        text: task['title'] ?? '',
+                        isDone: isDone,
+                        style: TextStyle(
+                          fontSize: titleSize,
+                          fontWeight: FontWeight.w600,
+                          color: isDone ? textMuted : textColor,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(width: 3 * _chipScale),
-                if (showTime) ...[
-                  Text(
-                    dueTime,
-                    style: TextStyle(
-                      fontSize: 9 * _chipScale,
-                      fontWeight: FontWeight.w600,
-                      color: isDone ? textMuted : _t.text3,
-                    ),
-                  ),
-                  SizedBox(width: 4 * _chipScale),
-                ],
-                Flexible(
-                  child: ClarifyStrikeText(
-                    text: task['title'] ?? '',
-                    isDone: isDone,
-                    // 9 → 10.5: освободившееся от времени место отдано
-                    // названию. Кегль 9 при и без того мелком масштабе читался
-                    // на пределе, а именно название здесь главное.
-                    style: TextStyle(
-                      fontSize: 10.5 * _chipScale,
-                      fontWeight: FontWeight.w600,
-                      color: isDone ? textMuted : textColor,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                // Строка 2: просрочка + гниение + перенос. Высота ВСЕГДА
+                // зарезервирована, даже когда показывать нечего — без этого
+                // высота строки менялась бы от задачи к задаче, и
+                // _CalendarDayTasksPreview не могла бы достоверно посчитать,
+                // сколько задач влезает в ячейку.
+                SizedBox(
+                  height: titleSize * 1.25,
+                  child:
+                      (_wasPastDue(task) ||
+                          rotBadge != null ||
+                          rescheduleBadge != null)
+                      ? Wrap(
+                          spacing: 4,
+                          runSpacing: 1,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            if (_wasPastDue(task))
+                              SizedBox(
+                                width: timeSize,
+                                height: timeSize,
+                                child: AnimatedOpacity(
+                                  opacity: isDone ? 0 : 1,
+                                  duration: ClarifyMotion.completion,
+                                  curve: ClarifyMotion.standard,
+                                  child: Icon(
+                                    LucideIcons.clockAlert,
+                                    size: timeSize,
+                                    color: _t.danger,
+                                  ),
+                                ),
+                              ),
+                            // Подпись приоритета («P1»…«P4») из ячейки месяца
+                            // убрана (2026-09-04): приоритет и так виден
+                            // цветной кромкой слева и обводкой кружка, а
+                            // буквенный код без легенды ничего не сообщает.
+                            clarifyAnimatedBadgeSlot(rotBadge),
+                            clarifyAnimatedBadgeSlot(rescheduleBadge),
+                          ],
+                        )
+                      : null,
                 ),
               ],
-                );
-              },
             ),
-            // Строка 2: приоритет + просрочка + гниение + перенос — та же
-            // информация и те же анимации (вход/выход, opacity), что и в
-            // Мой день/Все задачи, просто мельче. Высота ВСЕГДА
-            // зарезервирована (SizedBox), даже когда показывать нечего —
-            // без этого высота строки менялась бы от задачи к задаче, и
-            // _CalendarDayTasksPreview не могла бы достоверно посчитать,
-            // сколько задач влезает в ячейку.
-            SizedBox(
-              height: _calendarChipLine2Height * _chipScale,
-              child:
-                  (_wasPastDue(task) ||
-                      rotBadge != null ||
-                      rescheduleBadge != null)
-                  ? Wrap(
-                      spacing: 4 * _chipScale,
-                      runSpacing: 1 * _chipScale,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        if (_wasPastDue(task))
-                          SizedBox(
-                            width: 8 * _chipScale,
-                            height: 8 * _chipScale,
-                            child: AnimatedOpacity(
-                              opacity: isDone ? 0 : 1,
-                              duration: ClarifyMotion.completion,
-                              curve: ClarifyMotion.standard,
-                              child: Icon(
-                                LucideIcons.clockAlert,
-                                size: 8 * _chipScale,
-                                color: _t.danger,
-                              ),
-                            ),
-                          ),
-                        // Подпись приоритета («P1»…«P4») из ячейки месяца
-                        // убрана (2026-09-04): она занимала место рядом с
-                        // названием, а сам приоритет и так виден цветной
-                        // кромкой слева и цветом обводки кружка. Буквенный код
-                        // без легенды всё равно ничего не сообщал тому, кто её
-                        // не помнит.
-                        clarifyAnimatedBadgeSlot(rotBadge),
-                        clarifyAnimatedBadgeSlot(rescheduleBadge),
-                      ],
-                    )
-                  : null,
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
