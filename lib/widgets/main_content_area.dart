@@ -894,11 +894,14 @@ class _CalendarSectionState extends State<_CalendarSection> {
                     return DragTarget<Map<String, dynamic>>(
                       onAccept: (Map<String, dynamic> task) => widget.onTaskDropped(task, cellDateStr, taskCount),
                       builder: (context, candidateData, rejectedData) {
-                        return widget.buildGlassContainer(
+                        return _CalendarCellHover(
+                          builder: (hovered) => widget.buildGlassContainer(
                           // Пустая ячейка — surfaceSunken, заполненная — обычная surface: два разных,
                           // но согласованных состояния вместо одинаковых голых прямоугольников
-                          // (§9.3/DESIGN_IDEAS.md P1.4) — плюс приглушённая подпись "Свободно" в
-                          // пустой ячейке вместо молчаливой пустоты.
+                          // (§9.3/DESIGN_IDEAS.md P1.4). Подпись "Свободно" убрана (фидбек
+                          // 2026-09-04): повторённая в 25 пустых ячейках сразу, она читалась
+                          // как шум и спорила с задачами за внимание — фона surfaceSunken
+                          // достаточно, чтобы отличить пустой день от занятого.
                           customColor: candidateData.isNotEmpty ? widget.highlightColor : (taskCount == 0 ? widget.emptyCellColor : null),
                           padding: EdgeInsets.symmetric(horizontal: 8 * s, vertical: 4 * s),
                           // Кнопка "+" раньше была отдельной строкой в Column — вместе с
@@ -907,7 +910,9 @@ class _CalendarSectionState extends State<_CalendarSection> {
                           // "помещается всего одна задача, даже без переполнения"). Теперь
                           // она наложена поверх контента (Stack/Positioned), а не занимает
                           // свою строку в раскладке — число и превью получают всю высоту
-                          // ячейки целиком.
+                          // ячейки целиком. И показывается только под курсором: 35 плюсиков
+                          // разом — это сетка кнопок, а не календарь. На узкой раскладке
+                          // (тач, где наведения нет) остаётся видимой всегда.
                           child: Stack(
                             children: [
                               Column(
@@ -918,8 +923,12 @@ class _CalendarSectionState extends State<_CalendarSection> {
                                     child: Text("$dayNumber", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12 * s, color: cellDateStr == _formatDate(DateTime.now()) ? t.accent : widget.textColor)),
                                   ),
                                   Expanded(
+                                    // width: infinity, а не SizedBox.shrink() — иначе Column
+                                    // (не-Positioned ребёнок Stack) сжимается по ширине до
+                                    // числа дня, Stack вслед за ним, и "+" с right: 0
+                                    // оказывается у левого края ячейки.
                                     child: taskCount == 0
-                                        ? Center(child: Text("Свободно".tr(widget.currentLang), style: TextStyle(fontSize: 11 * s, color: widget.textMuted, fontWeight: FontWeight.w600)))
+                                        ? const SizedBox(width: double.infinity)
                                         : _CalendarDayTasksPreview(dayTitle: dayTitle, tasks: dayTasks, buildCalendarTaskChip: widget.buildCalendarTaskChip, buildListTaskCard: widget.buildListTaskCard, scale: s, t: t, currentLang: widget.currentLang),
                                   ),
                                 ],
@@ -927,16 +936,24 @@ class _CalendarSectionState extends State<_CalendarSection> {
                               Positioned(
                                 right: 0,
                                 bottom: 0,
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(999),
-                                  onTap: () => widget.onPlusTap(cellDate, taskCount),
-                                  child: Padding(
-                                    padding: EdgeInsets.all(2 * s),
-                                    child: Icon(LucideIcons.plus, color: widget.textMuted, size: 14 * s),
+                                child: IgnorePointer(
+                                  ignoring: !(hovered || isCompact),
+                                  child: AnimatedOpacity(
+                                    opacity: (hovered || isCompact) ? 1 : 0,
+                                    duration: ClarifyMotion.fast,
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(999),
+                                      onTap: () => widget.onPlusTap(cellDate, taskCount),
+                                      child: Padding(
+                                        padding: EdgeInsets.all(2 * s),
+                                        child: Icon(LucideIcons.plus, color: widget.textMuted, size: 14 * s),
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
                             ],
+                          ),
                           ),
                         );
                       },
@@ -957,6 +974,31 @@ class _CalendarSectionState extends State<_CalendarSection> {
         ],
       );
     });
+  }
+}
+
+/// Наведение на ячейку месяца — чтобы показывать "+" только под курсором.
+/// Отдельный маленький виджет, а не setState всего календаря: перестраивается
+/// одна ячейка, а не сетка из 35.
+class _CalendarCellHover extends StatefulWidget {
+  final Widget Function(bool hovered) builder;
+
+  const _CalendarCellHover({required this.builder});
+
+  @override
+  State<_CalendarCellHover> createState() => _CalendarCellHoverState();
+}
+
+class _CalendarCellHoverState extends State<_CalendarCellHover> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: widget.builder(_hovered),
+    );
   }
 }
 
