@@ -381,7 +381,8 @@ class TaskCardBuilders {
         // многоточием. Порог — по ширине ячейки, а не по масштабу окна.
         final bool showTime = dueTime != null && width >= 108;
 
-        return ClarifyPressable(
+        return _HoverRowShell(
+          builder: (hovered) => ClarifyPressable(
           onTap: () => onTap(task),
           child: Container(
             margin: const EdgeInsets.only(bottom: 1),
@@ -402,20 +403,33 @@ class TaskCardBuilders {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // Отметить выполненной прямо из ячейки месяца (фидбек
-                    // 2026-09-03): раньше кружка тут не было сознательно —
-                    // предполагалось отмечать по тапу в деталях задачи, но на
-                    // практике календарь оказался единственным разделом, где
-                    // задачу нельзя закрыть в один клик.
-                    ClarifyCheckCircle(
-                      size: circleSize,
-                      borderWidth: hasPriority ? 1.5 : 1.2,
-                      borderColor: stripeColor,
-                      checkedColor: _t.accent,
-                      value: isDone,
-                      onTap: () => onToggle(task),
-                      duration: ClarifyMotion.completion,
+                    // 2026-09-03: календарь был единственным разделом, где
+                    // задачу нельзя закрыть в один клик). С 2026-09-04 это тот
+                    // же приём, что в списках: не постоянный кружок, а галочка,
+                    // проявляющаяся под курсором. У выполненной задачи она
+                    // видна всегда — иначе состояние читалось бы только по
+                    // зачёркиванию.
+                    //
+                    // Ширина зоны зарезервирована независимо от наведения:
+                    // иначе название дёргалось бы вбок каждый раз, когда курсор
+                    // заходит на строку.
+                    SizedBox(
+                      width: circleSize + 4,
+                      child: ClarifyPressable(
+                        onTap: () => onToggle(task),
+                        child: AnimatedOpacity(
+                          duration: ClarifyMotion.base,
+                          curve: ClarifyMotion.standard,
+                          opacity: isDone || hovered ? 1 : 0,
+                          child: Icon(
+                            LucideIcons.check,
+                            size: circleSize,
+                            color: isDone ? _t.success : _t.text2,
+                          ),
+                        ),
+                      ),
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 2),
                     if (showTime) ...[
                       Text(
                         dueTime,
@@ -485,6 +499,7 @@ class TaskCardBuilders {
                 ),
               ],
             ),
+          ),
           ),
         );
       },
