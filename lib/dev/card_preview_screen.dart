@@ -1,0 +1,855 @@
+import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+
+import '../core/theme/design_tokens.dart';
+
+/// ВРЕМЕННЫЙ экран для выбора вида строки задачи. Открывается только запуском
+/// с аргументом `--card-preview` и ни из какого места интерфейса не доступен.
+/// Когда вид выбран — этот файл и ветка в main.dart удаляются целиком.
+///
+/// Здесь сознательно НЕ переиспользуются TaskCardBuilders: смысл превью в том,
+/// чтобы сравнить принципиально разные подходы к строке, а не разные настройки
+/// одного и того же. Данные — реалистичный набор задач, покрывающий все
+/// состояния (просрочка, гниение, переносы, чек-лист, выполненная, без даты).
+
+class PreviewTask {
+  final String title;
+  final String? time;
+  final String? tag;
+  final String priority; // none | blue | orange | red
+  final bool done;
+  final bool overdue;
+  final int rotDays;
+  final int rescheduled;
+  final int checklistDone;
+  final int checklistTotal;
+  final int durationMinutes;
+
+  const PreviewTask({
+    required this.title,
+    this.time,
+    this.tag,
+    this.priority = 'none',
+    this.done = false,
+    this.overdue = false,
+    this.rotDays = 0,
+    this.rescheduled = 0,
+    this.checklistDone = 0,
+    this.checklistTotal = 0,
+    this.durationMinutes = 0,
+  });
+}
+
+const demoTasks = <PreviewTask>[
+  PreviewTask(
+    title: 'Отправить смету по объекту на Приморской',
+    time: '09:30',
+    tag: 'работа',
+    priority: 'red',
+    overdue: true,
+    rescheduled: 5,
+    durationMinutes: 45,
+  ),
+  PreviewTask(
+    title: 'Созвон с подрядчиком по кабелю 35 кВ',
+    time: '11:00',
+    tag: 'работа',
+    priority: 'orange',
+    durationMinutes: 60,
+  ),
+  PreviewTask(
+    title: 'Разобрать почту и выставить счета',
+    time: '13:00',
+    tag: 'работа',
+    checklistDone: 2,
+    checklistTotal: 5,
+    durationMinutes: 90,
+  ),
+  PreviewTask(
+    title: 'Забрать документы из БТИ',
+    time: '16:00',
+    tag: 'личное',
+    priority: 'blue',
+    durationMinutes: 30,
+  ),
+  PreviewTask(
+    title: 'Продлить страховку на машину',
+    tag: 'личное',
+    rotDays: 12,
+  ),
+  PreviewTask(
+    title: 'Придумать название для новой функции',
+    rotDays: 6,
+  ),
+  PreviewTask(
+    title: 'Купить корм коту',
+    tag: 'дом',
+    time: '19:00',
+    durationMinutes: 15,
+  ),
+  PreviewTask(
+    title: 'Записаться к стоматологу',
+    tag: 'здоровье',
+    rescheduled: 3,
+  ),
+  PreviewTask(title: 'Оплатить домен clarify.app', time: '08:00', done: true),
+  PreviewTask(title: 'Сделать бэкап проекта', done: true, tag: 'работа'),
+];
+
+Color _priorityColor(ClarifyTokens t, String priority) {
+  switch (priority) {
+    case 'red':
+      return t.danger;
+    case 'orange':
+      return t.warning;
+    case 'blue':
+      return t.accent;
+    default:
+      return t.text3;
+  }
+}
+
+class CardPreviewScreen extends StatefulWidget {
+  const CardPreviewScreen({super.key});
+
+  @override
+  State<CardPreviewScreen> createState() => _CardPreviewScreenState();
+}
+
+class _CardPreviewScreenState extends State<CardPreviewScreen> {
+  int _variant = 0;
+
+  static const _titles = [
+    'Вариант 1 — Документ',
+    'Вариант 2 — Состояние',
+    'Вариант 3 — День на оси',
+    'Вариант 4 — Гибрид, ПК и телефон',
+  ];
+  static const _subtitles = [
+    'Нет рамок и подложек. Иерархию держит только типографика, строка занимает 40px вместо 90.',
+    'Вид строки задаёт её состояние: просрочка, гниение, переносы. Список читается как картина дел.',
+    'Задачи стоят на реальном времени. Пустые окна и перегруженные часы видно глазом.',
+    'Одна и та же строка в двух плотностях: слева ПК, справа телефон в реальной ширине 390px.',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Scaffold(
+      backgroundColor: t.bg,
+      body: Column(
+        children: [
+          _switcher(t),
+          Expanded(
+            child: _variant == 3
+                ? const _VariantHybrid()
+                : Center(
+                    child: SizedBox(
+                      width: 760,
+                      child: switch (_variant) {
+                        0 => const _VariantDocument(),
+                        1 => const _VariantState(),
+                        _ => const _VariantTimeline(),
+                      },
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _switcher(ClarifyTokens t) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(40, 28, 40, 20),
+      alignment: Alignment.centerLeft,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                _titles[_variant],
+                style: TextStyle(
+                  fontFamily: 'Unbounded',
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: t.text,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const Spacer(),
+              for (var i = 0; i < 4; i++)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: GestureDetector(
+                    onTap: () => setState(() => _variant = i),
+                    child: Container(
+                      width: 34,
+                      height: 34,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: _variant == i ? t.accent : Colors.transparent,
+                        border: Border.all(color: _variant == i ? t.accent : t.border),
+                        borderRadius: BorderRadius.circular(ClarifyRadius.sm),
+                      ),
+                      child: Text(
+                        '${i + 1}',
+                        style: TextStyle(
+                          color: _variant == i ? t.onAccent : t.text2,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(_subtitles[_variant], style: TextStyle(color: t.text3, fontSize: 13, height: 1.5)),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Вариант 1 — «Документ»
+// ---------------------------------------------------------------------------
+
+class _VariantDocument extends StatelessWidget {
+  const _VariantDocument();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final active = demoTasks.where((task) => !task.done).toList();
+    final done = demoTasks.where((task) => task.done).toList();
+
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 40),
+      children: [
+        _section(t, 'Сегодня', '${active.length} задач · 4 ч 20 мин'),
+        for (final task in active) _row(t, task),
+        const SizedBox(height: 28),
+        _section(t, 'Выполнено', '${done.length}'),
+        for (final task in done) _row(t, task),
+      ],
+    );
+  }
+
+  Widget _section(ClarifyTokens t, String title, String meta) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontFamily: 'Unbounded',
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: t.text,
+              letterSpacing: -0.2,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(meta, style: TextStyle(color: t.text3, fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
+  Widget _row(ClarifyTokens t, PreviewTask task) {
+    final color = _priorityColor(t, task.priority);
+    return Container(
+      height: 40,
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: t.border.withValues(alpha: 0.55))),
+      ),
+      child: Row(
+        children: [
+          // Кружок выполнения — обводка тонкая, 16px: в плотном списке
+          // 22-пиксельный кружок начинает доминировать над самим текстом.
+          Container(
+            width: 16,
+            height: 16,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: task.done ? t.accent : Colors.transparent,
+              border: Border.all(
+                color: task.done ? t.accent : (task.priority == 'none' ? t.borderStrong : color),
+                width: 1.4,
+              ),
+            ),
+            child: task.done ? const Icon(LucideIcons.check, size: 10, color: Colors.white) : null,
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              task.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 14.5,
+                height: 1.2,
+                fontWeight: task.overdue ? FontWeight.w600 : FontWeight.w500,
+                color: task.done ? t.text3 : (task.overdue ? t.danger : t.text),
+                decoration: task.done ? TextDecoration.lineThrough : null,
+                decorationColor: t.text3,
+              ),
+            ),
+          ),
+          if (task.checklistTotal > 0) ...[
+            Text(
+              '${task.checklistDone}/${task.checklistTotal}',
+              style: TextStyle(color: t.text3, fontSize: 12, fontFeatures: const [FontFeature.tabularFigures()]),
+            ),
+            const SizedBox(width: 14),
+          ],
+          if (task.tag != null) ...[
+            Text('#${task.tag}', style: TextStyle(color: t.text3, fontSize: 12.5)),
+            const SizedBox(width: 14),
+          ],
+          SizedBox(
+            width: 44,
+            child: Text(
+              task.time ?? '',
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: task.overdue ? t.danger : t.text2,
+                fontSize: 12.5,
+                fontWeight: task.overdue ? FontWeight.w700 : FontWeight.w500,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Вариант 2 — «Состояние»
+// ---------------------------------------------------------------------------
+
+class _VariantState extends StatelessWidget {
+  const _VariantState();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(40, 0, 40, 40),
+      children: [for (final task in demoTasks) _row(t, task)],
+    );
+  }
+
+  Widget _row(ClarifyTokens t, PreviewTask task) {
+    // Вес строки задаётся состоянием, а не оформлением: просроченная тяжелее
+    // обычной, гниющая — легче и глуше, выполненная почти растворяется.
+    final bool urgent = task.overdue;
+    final bool rotting = task.rotDays >= 5 && !task.done;
+    final double titleSize = urgent ? 17 : (task.priority == 'red' || task.priority == 'orange' ? 15.5 : 14.5);
+    final Color titleColor = task.done
+        ? t.text3
+        : urgent
+            ? t.text
+            : rotting
+                ? t.text2
+                : t.text;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Container(
+        padding: EdgeInsets.fromLTRB(14, urgent ? 14 : 9, 14, urgent ? 14 : 9),
+        decoration: BoxDecoration(
+          // Приоритет и срочность — мягкой заливкой слева направо, а не
+          // двухпиксельной полоской, которую на тёмной теме почти не видно.
+          gradient: urgent
+              ? LinearGradient(
+                  colors: [t.danger.withValues(alpha: 0.16), t.danger.withValues(alpha: 0.0)],
+                  stops: const [0, 0.55],
+                )
+              : task.priority != 'none' && !task.done
+                  ? LinearGradient(
+                      colors: [
+                        _priorityColor(t, task.priority).withValues(alpha: 0.10),
+                        _priorityColor(t, task.priority).withValues(alpha: 0.0),
+                      ],
+                      stops: const [0, 0.4],
+                    )
+                  : null,
+          border: Border(
+            left: BorderSide(
+              color: task.done
+                  ? Colors.transparent
+                  : urgent
+                      ? t.danger
+                      : task.priority != 'none'
+                          ? _priorityColor(t, task.priority)
+                          : Colors.transparent,
+              width: urgent ? 3 : 2,
+            ),
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: urgent ? 20 : 17,
+              height: urgent ? 20 : 17,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: task.done ? t.accent : Colors.transparent,
+                border: Border.all(
+                  color: task.done ? t.accent : (urgent ? t.danger : t.borderStrong),
+                  width: 1.5,
+                ),
+              ),
+              child: task.done ? const Icon(LucideIcons.check, size: 11, color: Colors.white) : null,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    task.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: titleSize,
+                      height: 1.25,
+                      fontWeight: urgent ? FontWeight.w700 : FontWeight.w600,
+                      color: titleColor,
+                      decoration: task.done ? TextDecoration.lineThrough : null,
+                      decorationColor: t.text3,
+                    ),
+                  ),
+                  if (urgent || rotting || task.rescheduled >= 3)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Row(
+                        children: [
+                          if (urgent)
+                            _signal(t, LucideIcons.clockAlert, 'просрочено', t.danger),
+                          if (task.rescheduled >= 3)
+                            _signal(t, LucideIcons.arrowRight, 'переносили ${task.rescheduled} раз', t.warning),
+                          if (rotting)
+                            _signal(t, LucideIcons.hourglass, 'лежит ${task.rotDays} дней', t.text3),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            if (task.time != null)
+              Padding(
+                padding: const EdgeInsets.only(left: 12),
+                child: Text(
+                  task.time!,
+                  style: TextStyle(
+                    color: urgent ? t.danger : t.text2,
+                    fontSize: 13,
+                    fontWeight: urgent ? FontWeight.w700 : FontWeight.w500,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _signal(ClarifyTokens t, IconData icon, String label, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 14),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 5),
+          Text(label, style: TextStyle(color: color, fontSize: 11.5, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Вариант 4 — гибрид первого и второго, сразу в двух плотностях
+// ---------------------------------------------------------------------------
+
+/// Плотность строки. Это единственное, чем отличается ПК от телефона: анатомия
+/// строки, шрифты и сигналы состояния одни и те же. Так десктоп и мобильный
+/// перестают быть двумя разными реализациями, которые расходятся со временем
+/// (сейчас это ровно так: task_cards.dart и mobile_task_row.dart живут своей
+/// жизнью и уже разъехались).
+enum RowDensity { desktop, mobile }
+
+class HybridTaskRow extends StatelessWidget {
+  final PreviewTask task;
+  final RowDensity density;
+
+  const HybridTaskRow({super.key, required this.task, required this.density});
+
+  bool get _mobile => density == RowDensity.mobile;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final bool urgent = task.overdue && !task.done;
+    final bool rotting = task.rotDays >= 5 && !task.done;
+    final bool hasSignals = urgent || rotting || task.rescheduled >= 3;
+    final Color accent = urgent ? t.danger : _priorityColor(t, task.priority);
+
+    // Высота: на ПК плотно (44), на телефоне не ниже 56 — палец меньше 48
+    // логических пикселей не попадает, это не вкус, а требование к касанию.
+    final double minHeight = _mobile ? 56 : 44;
+
+    return Container(
+      constraints: BoxConstraints(minHeight: minHeight),
+      padding: EdgeInsets.fromLTRB(_mobile ? 14 : 12, _mobile ? 10 : 7, _mobile ? 12 : 8, _mobile ? 10 : 7),
+      decoration: BoxDecoration(
+        // Заливка — только у того, что требует внимания. У обычной задачи фона
+        // нет вовсе: именно одинаковый фон у всех строк и делал список
+        // «стопкой одинаковых плиток».
+        gradient: urgent
+            ? LinearGradient(
+                colors: [t.danger.withValues(alpha: 0.14), t.danger.withValues(alpha: 0)],
+                stops: const [0, 0.5],
+              )
+            : null,
+        border: Border(
+          bottom: BorderSide(color: t.border.withValues(alpha: 0.5)),
+          left: BorderSide(
+            color: task.done || task.priority == 'none' && !urgent ? Colors.transparent : accent,
+            width: urgent ? 3 : 2,
+          ),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: _mobile ? 20 : 17,
+            height: _mobile ? 20 : 17,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: task.done ? t.accent : Colors.transparent,
+              border: Border.all(
+                color: task.done
+                    ? t.accent
+                    : urgent
+                        ? t.danger
+                        : task.priority != 'none'
+                            ? accent
+                            : t.borderStrong,
+                width: 1.5,
+              ),
+            ),
+            child: task.done ? Icon(LucideIcons.check, size: _mobile ? 12 : 10, color: Colors.white) : null,
+          ),
+          SizedBox(width: _mobile ? 14 : 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  task.title,
+                  maxLines: _mobile ? 2 : 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: urgent ? (_mobile ? 15.5 : 15.5) : (_mobile ? 15 : 14.5),
+                    height: 1.25,
+                    fontWeight: urgent ? FontWeight.w700 : FontWeight.w500,
+                    color: task.done ? t.text3 : (rotting ? t.text2 : t.text),
+                    decoration: task.done ? TextDecoration.lineThrough : null,
+                    decorationColor: t.text3,
+                  ),
+                ),
+                if (hasSignals)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 3),
+                    child: Wrap(
+                      spacing: 12,
+                      runSpacing: 2,
+                      children: [
+                        if (urgent) _signal(t, LucideIcons.clockAlert, 'просрочено', t.danger),
+                        if (task.rescheduled >= 3)
+                          _signal(t, LucideIcons.arrowRight, 'перенос ×${task.rescheduled}', t.warning),
+                        if (rotting) _signal(t, LucideIcons.hourglass, '${task.rotDays} дней', t.text3),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          // Тег на телефоне не показываем: на 390px он отбирает ширину у
+          // названия, ради которого строку и читают. На ПК места хватает.
+          if (!_mobile && task.tag != null && !task.done) ...[
+            const SizedBox(width: 10),
+            Text('#${task.tag}', style: TextStyle(color: t.text3, fontSize: 12.5)),
+          ],
+          if (task.checklistTotal > 0) ...[
+            const SizedBox(width: 10),
+            Text(
+              '${task.checklistDone}/${task.checklistTotal}',
+              style: TextStyle(
+                color: t.text3,
+                fontSize: 12,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+          if (task.time != null) ...[
+            const SizedBox(width: 10),
+            Text(
+              task.time!,
+              style: TextStyle(
+                color: urgent ? t.danger : t.text2,
+                fontSize: _mobile ? 13 : 12.5,
+                fontWeight: urgent ? FontWeight.w700 : FontWeight.w500,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _signal(ClarifyTokens t, IconData icon, String label, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 11, color: color),
+        const SizedBox(width: 4),
+        Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+      ],
+    );
+  }
+}
+
+class _VariantHybrid extends StatelessWidget {
+  const _VariantHybrid();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(left: 40, right: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _label(t, 'ПК — 44px на строку'),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: ListView(
+                    children: [
+                      for (final task in demoTasks)
+                        HybridTaskRow(task: task, density: RowDensity.desktop),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(right: 40),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _label(t, 'Телефон — 390px, 56px на строку'),
+              const SizedBox(height: 10),
+              // Реальная ширина экрана телефона, а не «примерно узкое место»:
+              // иначе не увидеть, что именно перестаёт помещаться.
+              Container(
+                width: 390,
+                height: 560,
+                decoration: BoxDecoration(
+                  color: t.bg,
+                  border: Border.all(color: t.borderStrong, width: 8),
+                  borderRadius: BorderRadius.circular(34),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(26),
+                  child: ListView(
+                    padding: const EdgeInsets.only(top: 8),
+                    children: [
+                      for (final task in demoTasks)
+                        HybridTaskRow(task: task, density: RowDensity.mobile),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _label(ClarifyTokens t, String text) {
+    return Text(
+      text,
+      style: TextStyle(color: t.text3, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.1),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Вариант 3 — «День на оси»
+// ---------------------------------------------------------------------------
+
+class _VariantTimeline extends StatelessWidget {
+  const _VariantTimeline();
+
+  static const _startHour = 8;
+  static const _endHour = 21;
+  static const _hourHeight = 46.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    final timed = demoTasks.where((task) => task.time != null && !task.done).toList();
+    final untimed = demoTasks.where((task) => task.time == null && !task.done).toList();
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          flex: 3,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.only(left: 40, bottom: 40),
+            child: SizedBox(
+              height: (_endHour - _startHour + 1) * _hourHeight,
+              child: Stack(
+                children: [
+                  for (var hour = _startHour; hour <= _endHour; hour++)
+                    Positioned(
+                      top: (hour - _startHour) * _hourHeight,
+                      left: 0,
+                      right: 0,
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 42,
+                            child: Text(
+                              '${hour.toString().padLeft(2, '0')}:00',
+                              style: TextStyle(
+                                color: t.text3.withValues(alpha: 0.7),
+                                fontSize: 11,
+                                fontFeatures: const [FontFeature.tabularFigures()],
+                              ),
+                            ),
+                          ),
+                          Expanded(child: Container(height: 1, color: t.border.withValues(alpha: 0.45))),
+                        ],
+                      ),
+                    ),
+                  for (final task in timed) _block(t, task),
+                ],
+              ),
+            ),
+          ),
+        ),
+        SizedBox(
+          width: 250,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 40, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'БЕЗ ВРЕМЕНИ',
+                  style: TextStyle(
+                    color: t.text3,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                for (final task in untimed)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: t.surface,
+                        borderRadius: BorderRadius.circular(ClarifyRadius.sm),
+                        border: Border.all(color: t.border),
+                      ),
+                      child: Text(
+                        task.title,
+                        maxLines: 2,
+                        style: TextStyle(color: t.text2, fontSize: 13, height: 1.35),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _block(ClarifyTokens t, PreviewTask task) {
+    final parts = task.time!.split(':');
+    final hour = int.parse(parts[0]);
+    final minute = int.parse(parts[1]);
+    final top = (hour - _startHour) * _hourHeight + (minute / 60) * _hourHeight;
+    final height = (task.durationMinutes / 60) * _hourHeight;
+    final color = task.overdue ? t.danger : _priorityColor(t, task.priority);
+
+    return Positioned(
+      top: top,
+      left: 52,
+      right: 8,
+      height: height < 26 ? 26 : height,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: (task.priority == 'none' ? t.accent : color).withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(6),
+          border: Border(
+            left: BorderSide(color: task.priority == 'none' ? t.accent : color, width: 3),
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                task.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: t.text,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Text(
+              '${task.durationMinutes} мин',
+              style: TextStyle(color: t.text3, fontSize: 11),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

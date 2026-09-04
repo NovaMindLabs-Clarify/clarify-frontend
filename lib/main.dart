@@ -23,6 +23,7 @@ import 'core/last_tap_tracker.dart';
 import 'core/localization.dart';
 import 'core/privacy_policy_text.dart';
 import 'core/theme/design_tokens.dart';
+import 'dev/card_preview_screen.dart';
 import 'widgets/clarify_button.dart';
 import 'widgets/clarify_glass.dart';
 import 'widgets/clarify_surface.dart';
@@ -66,6 +67,36 @@ Future<void> main(List<String> args) async {
   }
 
   bool isAutostart = args.contains('--autostart');
+
+  // ВРЕМЕННО (выбор вида строки задачи, сентябрь 2026): запуск с
+  // --card-preview открывает экран сравнения вариантов вместо приложения.
+  // Ни из какого места интерфейса он не доступен и в обычном запуске не
+  // участвует. Удаляется вместе с lib/dev/card_preview_screen.dart, как
+  // только вариант выбран.
+  if (args.contains('--card-preview')) {
+    runApp(
+      MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          brightness: Brightness.dark,
+          fontFamily: 'Golos Text',
+          scaffoldBackgroundColor: ClarifyTokens.dark.bg,
+          extensions: const [ClarifyTokens.dark],
+          useMaterial3: true,
+        ),
+        home: const CardPreviewScreen(),
+      ),
+    );
+    if (!kIsWeb) {
+      doWhenWindowReady(() {
+        appWindow.size = const Size(1000, 760);
+        appWindow.alignment = Alignment.center;
+        appWindow.title = 'Clarify — варианты строки задачи';
+        appWindow.show();
+      });
+    }
+    return;
+  }
 
   // На вебе Hive.initFlutter() сам поднимает IndexedDB-бэкенд — Hive.init(dir.path)
   // выше для веба не вызывается, отдельного веб-пути тут не нужно.
