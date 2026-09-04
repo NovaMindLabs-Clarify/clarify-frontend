@@ -886,7 +886,16 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
       // сообщаем об этом пользователю, а не просто теряем ошибку молча (см. print ниже).
       print("Ошибка создания задачи: $e".tr(widget.currentLang));
       if (mounted) {
-        setState(() => _pendingOpsCount = _taskService.pendingOpsCount);
+        setState(() {
+          _pendingOpsCount = _taskService.pendingOpsCount;
+          // Сервис уже убрал из кэша задачу, которую сервер отклонил (B7) —
+          // забираем актуальный список, иначе отклонённая задача осталась бы
+          // висеть на экране до следующего полного перечитывания и исчезла бы
+          // потом молча. При сетевой ошибке она в кэше остаётся: уйдёт из
+          // очереди отложенных операций, когда сеть вернётся.
+          tasks = List<Map<String, dynamic>>.from(_taskService.getCachedTasks());
+          _applyFilters();
+        });
         final message = e is PostgrestException
             ? "Не удалось сохранить: ".tr(widget.currentLang) + e.message
             : "Не удалось сохранить задачу на сервере. Отправим, когда сеть восстановится.".tr(widget.currentLang);
