@@ -14,7 +14,6 @@ import 'package:tray_manager/tray_manager.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:hotkey_manager/hotkey_manager.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:local_notifier/local_notifier.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
 import 'core/app_settings.dart';
@@ -22,6 +21,7 @@ import 'core/config.dart';
 import 'core/last_tap_tracker.dart';
 import 'core/localization.dart';
 import 'core/privacy_policy_text.dart';
+import 'core/secure_hive.dart';
 import 'core/theme/design_tokens.dart';
 import 'dev/card_preview_screen.dart';
 import 'widgets/clarify_button.dart';
@@ -49,9 +49,6 @@ Future<void> main(List<String> args) async {
   // launch_at_startup/hotkey_manager не имеют веб-реализации (MissingPluginException
   // при вызове на вебе, до runApp() — белый экран без единой прорисовки кадра).
   if (!kIsWeb) {
-    final dir = await getApplicationDocumentsDirectory();
-    Hive.init(dir.path);
-
     // --- НАСТРОЙКА WINDOWS УВЕДОМЛЕНИЙ ---
     await localNotifier.setup(
       appName: 'Clarify',
@@ -98,12 +95,10 @@ Future<void> main(List<String> args) async {
     return;
   }
 
-  // На вебе Hive.initFlutter() сам поднимает IndexedDB-бэкенд — Hive.init(dir.path)
-  // выше для веба не вызывается, отдельного веб-пути тут не нужно.
-  await Hive.initFlutter();
-  await Hive.openBox('tasks_cache');
-  await Hive.openBox('settings');
-  await Hive.openBox('pending_ops');
+  // Боксы открываются зашифрованными и из служебной папки приложения, а не из
+  // «Документов» открытым текстом (A7 аудита) — см. core/secure_hive.dart, там
+  // же разовый перенос старого кэша и веб-ветка.
+  await openClarifyBoxes();
 
   if (!kIsWeb) {
     await hotKeyManager.unregisterAll();

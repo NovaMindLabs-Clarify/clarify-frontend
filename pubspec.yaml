@@ -57,6 +57,10 @@ dependencies:
   animations: ^2.0.11
   record: ^7.1.1
   http_parser: ^4.1.2
+  # Ключ шифрования локального кэша Hive — в защищённом хранилище ОС
+  # (на Windows DPAPI), см. lib/core/secure_hive.dart.
+  flutter_secure_storage: ^9.2.2
+  path: ^1.9.0
 
 dev_dependencies:
   flutter_test:
