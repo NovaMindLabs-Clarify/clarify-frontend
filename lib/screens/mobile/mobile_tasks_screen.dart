@@ -201,6 +201,15 @@ class _MobileTasksScreenState extends State<MobileTasksScreen> {
               // по направлению и по задержке распознавания.
               : ReorderableListView.builder(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+                  // На десктопных платформах ReorderableListView рисует СВОЮ
+                  // ручку перетаскивания поверх строки (две горизонтальные
+                  // полосы у правого края) — она видна в веб-версии и в узком
+                  // окне приложения на Windows, где включается мобильная
+                  // раскладка. Своя ручка нам не нужна: перетаскивание уже
+                  // запускается долгим нажатием на самой строке
+                  // (ReorderableDelayedDragStartListener ниже), а лишний
+                  // элемент к тому же наезжал на крестик удаления.
+                  buildDefaultDragHandles: false,
                   itemCount: tasks.length,
                   onReorder: (oldIndex, newIndex) {
                     setState(() {

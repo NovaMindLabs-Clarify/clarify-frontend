@@ -350,25 +350,18 @@ class MainContentArea extends StatelessWidget {
             children: targetTasks.asMap().entries.map((entry) {
               final index = entry.key;
               final task = entry.value;
+              // Отдельной ручки-хвата больше нет (2026-09-04): перетаскивание
+              // запускается долгим нажатием на самой строке, как и на
+              // мобильном. Ручка была лишним элементом в каждой строке и
+              // ломала выравнивание — на узком окне наезжала на крестик
+              // удаления.
               return ClarifyCascadeItem(
                 key: ValueKey('cascade_${task['id']}'),
                 index: index,
-                child: Row(
+                child: ReorderableDelayedDragStartListener(
                   key: ValueKey(task['id'].toString()),
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: buildListTaskCard(task)),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 4, top: 14),
-                      child: ReorderableDragStartListener(
-                        index: index,
-                        child: MouseRegion(
-                          cursor: SystemMouseCursors.grab,
-                          child: Icon(LucideIcons.gripVertical, size: 18, color: textMuted),
-                        ),
-                      ),
-                    ),
-                  ],
+                  index: index,
+                  child: buildListTaskCard(task),
                 ),
               );
             }).toList(),
