@@ -9,6 +9,7 @@ import '../core/theme/design_tokens.dart';
 import 'calendar_day_timeline.dart';
 import 'clarify_cascade_item.dart';
 import 'clarify_day_load_warning.dart' show ClarifyDayCapacity, dayLoadMinutes;
+import 'clarify_illustrations.dart';
 import 'clarify_glass.dart';
 import 'clarify_list_entrance.dart';
 import 'clarify_press_glow.dart';
@@ -263,16 +264,49 @@ class MainContentArea extends StatelessWidget {
       });
       if (targetTasks.isEmpty) {
         final String emptyKey;
+        final String hintKey;
+        final ClarifyIllustrationType illustration;
         if (selectedMenu == 'Мой день') {
           emptyKey = 'На сегодня ничего не запланировано';
+          hintKey = 'Хороший момент, чтобы решить, чем займётесь';
+          illustration = ClarifyIllustrationType.sunHorizon;
         } else if (selectedMenu == 'Входящие') {
           emptyKey = 'Во входящих пока пусто';
+          hintKey = 'Сюда попадают задачи без даты';
+          illustration = ClarifyIllustrationType.inboxEmpty;
         } else if (selectedMenu.startsWith('ws_')) {
           emptyKey = 'В этой команде пока нет задач';
+          hintKey = 'Создайте первую и назначьте ответственного';
+          illustration = ClarifyIllustrationType.teamOrbit;
         } else {
           emptyKey = 'Задач пока нет';
+          hintKey = 'Нажмите «Создать задачу», чтобы начать';
+          illustration = ClarifyIllustrationType.checklistFold;
         }
-        return Center(child: Text(emptyKey.tr(currentLang), style: TextStyle(color: textMuted, fontSize: 18)));
+        // Было: одна серая строка по центру пустого экрана — она читалась как
+        // сбой загрузки, а видит её первым делом как раз новый человек.
+        // Иллюстрации и подсказки уже были на мобильном (mobile_tasks_screen),
+        // на десктопе их просто не довели.
+        return Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClarifyIllustration(type: illustration, size: 84),
+              const SizedBox(height: 18),
+              Text(
+                emptyKey.tr(currentLang),
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: t.text2),
+              ),
+              const SizedBox(height: 7),
+              Text(
+                hintKey.tr(currentLang),
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: t.text3),
+              ),
+            ],
+          ),
+        );
       }
 
       // Полоса ёмкости дня — только в «Моём дне»: в «Всех задачах» или в
