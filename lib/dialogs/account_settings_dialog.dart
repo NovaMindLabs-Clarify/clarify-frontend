@@ -560,15 +560,20 @@ class _AccountSettingsPanelState extends State<AccountSettingsPanel> {
                           UserAttributes(data: {'full_name': nameController.text.trim()}),
                         );
                         widget.onProfileChanged();
-                        if (mounted) {
+                        // context.mounted, а не mounted: тост показывается ИМЕННО
+                        // в этом контексте, а он принадлежит вложенному
+                        // билдеру — «живость» State про него ничего не говорит.
+                        if (context.mounted) {
                           ClarifyToast.show(context, 'Имя сохранено!'.tr(currentLang), variant: ClarifyToastVariant.success);
                         }
                       } catch (e) {
-                        if (mounted) {
+                        if (context.mounted) {
                           ClarifyToast.show(context, "${'Ошибка: '.tr(currentLang)}$e", variant: ClarifyToastVariant.danger);
                         }
                       } finally {
-                        setState(() => isLoading = false);
+                        // setState после await — только если State ещё жив,
+                        // иначе Flutter бросит исключение прямо здесь.
+                        if (mounted) setState(() => isLoading = false);
                       }
                     },
             ),
@@ -1088,7 +1093,7 @@ class _AccountSettingsPanelState extends State<AccountSettingsPanel> {
             if (await canLaunchUrl(url)) {
               await launchUrl(url, mode: LaunchMode.externalApplication);
             } else {
-              if (mounted) {
+              if (context.mounted) {
                 ClarifyToast.show(context, "Не удалось открыть Telegram".tr(currentLang), variant: ClarifyToastVariant.danger);
               }
             }
@@ -1212,14 +1217,20 @@ class _AccountSettingsPanelState extends State<AccountSettingsPanel> {
 
                                 await Supabase.instance.client.auth.updateUser(UserAttributes(password: newPass));
 
-                                setState(() {
-                                  isChangingPassword = false;
-                                  oldPasswordController.clear();
-                                  newPasswordController.clear();
-                                  confirmPasswordController.clear();
-                                });
-
                                 if (mounted) {
+                                  setState(() {
+                                    isChangingPassword = false;
+                                    oldPasswordController.clear();
+                                    newPasswordController.clear();
+                                    confirmPasswordController.clear();
+                                  });
+                                }
+
+                                // context.mounted, а не mounted: и тост, и
+                                // Navigator работают с ЭТИМ контекстом, а он от
+                                // вложенного билдера — «живость» State про него
+                                // ничего не гарантирует.
+                                if (context.mounted) {
                                   ClarifyToast.show(
                                     context,
                                     hasPasswordAuth
@@ -1230,7 +1241,7 @@ class _AccountSettingsPanelState extends State<AccountSettingsPanel> {
                                   if (!hasPasswordAuth && !widget.asFullPage) Navigator.of(context).pop();
                                 }
                               } on AuthException catch (e) {
-                                if (mounted) {
+                                if (context.mounted) {
                                   if (e.message.contains('Invalid login credentials')) {
                                     ClarifyToast.show(context, 'Неверный текущий пароль!'.tr(currentLang), variant: ClarifyToastVariant.danger);
                                   } else {
@@ -1238,11 +1249,11 @@ class _AccountSettingsPanelState extends State<AccountSettingsPanel> {
                                   }
                                 }
                               } catch (e) {
-                                if (mounted) {
+                                if (context.mounted) {
                                   ClarifyToast.show(context, "${'Ошибка: '.tr(currentLang)}$e", variant: ClarifyToastVariant.danger);
                                 }
                               } finally {
-                                setState(() => isLoading = false);
+                                if (mounted) setState(() => isLoading = false);
                               }
                             },
                     ),

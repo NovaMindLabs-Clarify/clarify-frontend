@@ -1352,7 +1352,8 @@ void _checkBurnoutWarning(String dateStr) {
     await _guardedAction(actionId, () async {
       await _fetchTasks();
       _checkBurnoutWarning(targetDateStr);
-      if (currentTargetTaskCount >= AppConfig.dailyTaskLimit) { ClarifyToast.show(context, "Лимит 100 задач!".tr(widget.currentLang), variant: ClarifyToastVariant.danger); return; }
+      // mounted после await: экран мог закрыться, пока шёл _fetchTasks.
+      if (currentTargetTaskCount >= AppConfig.dailyTaskLimit) { if (mounted) ClarifyToast.show(context, "Лимит 100 задач!".tr(widget.currentLang), variant: ClarifyToastVariant.danger); return; }
       if (HardwareKeyboard.instance.isControlPressed) {
         int? newTaskId = await _createTaskManually({"title": task['title'], "due_date": targetDateStr, "due_time": task['due_time'], "note": task['note'], "priority": task['priority'], "tags": task['tags'], "recurrence": task['recurrence'], "recurrence_interval": task['recurrence_interval'], "parent_id": task['parent_id'], "is_completed": false});
         if (newTaskId != null && task['parent_id'] == null) {

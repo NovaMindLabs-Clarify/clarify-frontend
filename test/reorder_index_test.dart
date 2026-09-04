@@ -48,11 +48,12 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: useLegacy
-              // ignore: deprecated_member_use — здесь устаревший колбэк нужен
-              // намеренно: тест сравнивает его поведение с новым.
               ? ReorderableListView.builder(
                   buildDefaultDragHandles: false,
                   itemCount: items.length,
+                  // Устаревший колбэк здесь намеренно: тест сравнивает его
+                  // поведение с новым, в этом весь смысл проверки.
+                  // ignore: deprecated_member_use
                   onReorder: legacyHandler,
                   itemBuilder: itemBuilder,
                 )

@@ -791,14 +791,17 @@ class _AuthScreenState extends State<AuthScreen> {
                 email: email,
                 data: _mode == AuthMode.register ? {'full_name': _nameController.text.trim()} : null,
               );
-              if (context.mounted) {
+              // mounted самого State, а не context.mounted: здесь `context` —
+              // это и есть State.context, и проверять надо живость State, иначе
+              // setState рядом сработает на выброшенном виджете.
+              if (mounted) {
                 ClarifyToast.show(context, 'Код отправлен на почту!'.tr(widget.currentLang), variant: ClarifyToastVariant.success);
                 setState(() => _isOtpMode = true);
               }
             } catch (e) {
-              if (context.mounted) ClarifyToast.show(context, "${'Ошибка: '.tr(widget.currentLang)}$e", variant: ClarifyToastVariant.danger);
+              if (mounted) ClarifyToast.show(context, "${'Ошибка: '.tr(widget.currentLang)}$e", variant: ClarifyToastVariant.danger);
             } finally {
-              if (context.mounted) setState(() => _isLoading = false);
+              if (mounted) setState(() => _isLoading = false);
             }
           },
         ),
