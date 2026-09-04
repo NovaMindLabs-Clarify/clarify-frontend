@@ -124,17 +124,32 @@ class _CardPreviewScreenState extends State<CardPreviewScreen> {
     'Вариант 2 — Состояние',
     'Вариант 3 — День на оси',
     'Вариант 4 — Гибрид, ПК и телефон',
+    'Вариант 5 — Своё лицо',
   ];
   static const _subtitles = [
     'Нет рамок и подложек. Иерархию держит только типографика, строка занимает 40px вместо 90.',
     'Вид строки задаёт её состояние: просрочка, гниение, переносы. Список читается как картина дел.',
     'Задачи стоят на реальном времени. Пустые окна и перегруженные часы видно глазом.',
     'Одна и та же строка в двух плотностях: слева ПК, справа телефон в реальной ширине 390px.',
+    'Та же анатомия, но без индиго и с днём как ёмкостью. Цвет только там, где он что-то значит.',
   ];
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
+    // Пятый вариант живёт в своей палитре — иначе его не с чем сравнивать:
+    // весь смысл в том, что уходим от индиго и тёмно-синей базы.
+    if (_variant == 4) {
+      return Scaffold(
+        backgroundColor: _Ink.bg,
+        body: Column(
+          children: [
+            _switcher(t, onInk: true),
+            const Expanded(child: _VariantOwnFace()),
+          ],
+        ),
+      );
+    }
     return Scaffold(
       backgroundColor: t.bg,
       body: Column(
@@ -159,7 +174,13 @@ class _CardPreviewScreenState extends State<CardPreviewScreen> {
     );
   }
 
-  Widget _switcher(ClarifyTokens t) {
+  Widget _switcher(ClarifyTokens t, {bool onInk = false}) {
+    final titleColor = onInk ? _Ink.text : t.text;
+    final mutedColor = onInk ? _Ink.text3 : t.text3;
+    final borderColor = onInk ? _Ink.border : t.border;
+    final activeColor = onInk ? _Ink.text : t.accent;
+    final activeText = onInk ? _Ink.bg : t.onAccent;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(40, 28, 40, 20),
       alignment: Alignment.centerLeft,
@@ -174,12 +195,12 @@ class _CardPreviewScreenState extends State<CardPreviewScreen> {
                   fontFamily: 'Unbounded',
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
-                  color: t.text,
+                  color: titleColor,
                   letterSpacing: -0.5,
                 ),
               ),
               const Spacer(),
-              for (var i = 0; i < 4; i++)
+              for (var i = 0; i < 5; i++)
                 Padding(
                   padding: const EdgeInsets.only(left: 8),
                   child: GestureDetector(
@@ -189,14 +210,14 @@ class _CardPreviewScreenState extends State<CardPreviewScreen> {
                       height: 34,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: _variant == i ? t.accent : Colors.transparent,
-                        border: Border.all(color: _variant == i ? t.accent : t.border),
+                        color: _variant == i ? activeColor : Colors.transparent,
+                        border: Border.all(color: _variant == i ? activeColor : borderColor),
                         borderRadius: BorderRadius.circular(ClarifyRadius.sm),
                       ),
                       child: Text(
                         '${i + 1}',
                         style: TextStyle(
-                          color: _variant == i ? t.onAccent : t.text2,
+                          color: _variant == i ? activeText : mutedColor,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -206,7 +227,7 @@ class _CardPreviewScreenState extends State<CardPreviewScreen> {
             ],
           ),
           const SizedBox(height: 6),
-          Text(_subtitles[_variant], style: TextStyle(color: t.text3, fontSize: 13, height: 1.5)),
+          Text(_subtitles[_variant], style: TextStyle(color: mutedColor, fontSize: 13, height: 1.5)),
         ],
       ),
     );
@@ -474,6 +495,286 @@ class _VariantState extends StatelessWidget {
         children: [
           Icon(icon, size: 12, color: color),
           const SizedBox(width: 5),
+          Text(label, style: TextStyle(color: color, fontSize: 11.5, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Вариант 5 — «Своё лицо»: другая палитра + день как ёмкость
+// ---------------------------------------------------------------------------
+
+/// Палитра без индиго. Тёплая графитовая база вместо сине-чёрной и —
+/// главное — **никакого фирменного акцента в оформлении**. Цвет появляется
+/// только там, где несёт смысл: просрочка, перенос, выполнено. Кнопки,
+/// выделение и активные состояния делаются контрастом и типографикой.
+///
+/// Причина: тёмно-синий фон плюс акцент 4F46E5 (это дефолтный индиго Tailwind)
+/// плюс скруглённые блоки — ровно та триада, которая опознаётся как «собрано
+/// нейросетью» раньше, чем человек успевает прочитать содержимое. Уйти от неё
+/// дешевле и эффективнее, чем переделывать анатомию строки.
+class _Ink {
+  _Ink._();
+
+  static const bg = Color(0xFF15130F);
+  static const border = Color(0x1AF2EDE3);
+  static const borderStrong = Color(0x33F2EDE3);
+
+  static const text = Color(0xFFF2EDE3);
+  static const text2 = Color(0xFFA9A093);
+  static const text3 = Color(0xFF736B60);
+
+  // Смысловые цвета — единственные цветные пятна в интерфейсе.
+  static const overdue = Color(0xFFE0614C);
+  static const moved = Color(0xFFD9A441);
+  static const done = Color(0xFF8A9A6B);
+}
+
+class _VariantOwnFace extends StatelessWidget {
+  const _VariantOwnFace();
+
+  @override
+  Widget build(BuildContext context) {
+    final active = demoTasks.where((task) => !task.done).toList();
+    final done = demoTasks.where((task) => task.done).toList();
+    final plannedMinutes = demoTasks.where((t) => !t.done).fold<int>(0, (sum, t) => sum + t.durationMinutes);
+
+    return Center(
+      child: SizedBox(
+        width: 720,
+        child: ListView(
+          padding: const EdgeInsets.only(bottom: 40),
+          children: [
+            _DayCapacityHeader(plannedMinutes: plannedMinutes, capacityMinutes: 360),
+            const SizedBox(height: 22),
+            for (final task in active) _InkRow(task: task),
+            const SizedBox(height: 26),
+            Padding(
+              padding: const EdgeInsets.only(left: 2, bottom: 8),
+              child: Text(
+                'ЗАКРЫТО СЕГОДНЯ — ${done.length}',
+                style: const TextStyle(
+                  color: _Ink.text3,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.4,
+                ),
+              ),
+            ),
+            for (final task in done) _InkRow(task: task),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// День как ёмкость, а не как перечень. Ни у Todoist, ни у TickTick, ни у
+/// Things такого нет: они показывают, СКОЛЬКО задач, но не сколько от дня
+/// осталось. У нас длительность задач уже есть — значит есть и ответ.
+class _DayCapacityHeader extends StatelessWidget {
+  final int plannedMinutes;
+  final int capacityMinutes;
+
+  const _DayCapacityHeader({required this.plannedMinutes, required this.capacityMinutes});
+
+  String _human(int minutes) {
+    final h = minutes ~/ 60;
+    final m = minutes % 60;
+    if (h == 0) return '$m мин';
+    if (m == 0) return '$h ч';
+    return '$h ч $m мин';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ratio = (plannedMinutes / capacityMinutes).clamp(0.0, 1.4);
+    final overloaded = ratio > 1.0;
+    final tight = ratio > 0.8;
+    final barColor = overloaded ? _Ink.overdue : (tight ? _Ink.moved : _Ink.text2);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            const Text(
+              'Четверг, 4 сентября',
+              style: TextStyle(
+                fontFamily: 'Unbounded',
+                fontSize: 19,
+                fontWeight: FontWeight.w700,
+                color: _Ink.text,
+                letterSpacing: -0.4,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              '${_human(plannedMinutes)} из ${_human(capacityMinutes)}',
+              style: TextStyle(
+                color: overloaded ? _Ink.overdue : _Ink.text2,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        // Полоса ёмкости дня: занятое время против разумного предела. Пустой
+        // хвост справа — это и есть «сколько ещё влезет», ответ на вопрос,
+        // который человек задаёт себе каждый раз, когда планирует день.
+        LayoutBuilder(
+          builder: (context, constraints) {
+            return Stack(
+              children: [
+                Container(
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: _Ink.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Container(
+                  height: 4,
+                  width: constraints.maxWidth * (ratio > 1 ? 1 : ratio),
+                  decoration: BoxDecoration(
+                    color: barColor,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+        if (tight) ...[
+          const SizedBox(height: 8),
+          Text(
+            overloaded
+                ? 'День перегружен — что-то стоит перенести'
+                : 'День почти забит, свободно чуть больше часа',
+            style: TextStyle(color: barColor, fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _InkRow extends StatelessWidget {
+  final PreviewTask task;
+
+  const _InkRow({required this.task});
+
+  @override
+  Widget build(BuildContext context) {
+    final bool urgent = task.overdue && !task.done;
+    final bool rotting = task.rotDays >= 5 && !task.done;
+    final bool moved = task.rescheduled >= 3 && !task.done;
+
+    return Container(
+      constraints: const BoxConstraints(minHeight: 46),
+      padding: const EdgeInsets.fromLTRB(2, 9, 2, 9),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: _Ink.border)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Чекбокс без заливки акцентом: выполненная задача гасится оливковым,
+          // а не фирменным цветом — фирменного цвета в оформлении больше нет.
+          Container(
+            width: 17,
+            height: 17,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: task.done ? _Ink.done : Colors.transparent,
+              border: Border.all(
+                color: task.done
+                    ? _Ink.done
+                    : urgent
+                        ? _Ink.overdue
+                        : _Ink.borderStrong,
+                width: 1.4,
+              ),
+            ),
+            child: task.done ? const Icon(LucideIcons.check, size: 10, color: _Ink.bg) : null,
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  task.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 14.5,
+                    height: 1.25,
+                    fontWeight: urgent ? FontWeight.w700 : FontWeight.w500,
+                    color: task.done ? _Ink.text3 : (rotting ? _Ink.text2 : _Ink.text),
+                    decoration: task.done ? TextDecoration.lineThrough : null,
+                    decorationColor: _Ink.text3,
+                  ),
+                ),
+                if (urgent || rotting || moved)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Row(
+                      children: [
+                        if (urgent) _mark('просрочено на 2 дня', _Ink.overdue),
+                        if (moved) _mark('переносили ${task.rescheduled} раз', _Ink.moved),
+                        if (rotting) _mark('лежит без движения ${task.rotDays} дней', _Ink.text3),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (task.durationMinutes > 0 && !task.done) ...[
+            const SizedBox(width: 12),
+            Text(
+              '${task.durationMinutes} мин',
+              style: const TextStyle(color: _Ink.text3, fontSize: 12),
+            ),
+          ],
+          if (task.time != null) ...[
+            const SizedBox(width: 14),
+            SizedBox(
+              width: 42,
+              child: Text(
+                task.time!,
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  color: urgent ? _Ink.overdue : _Ink.text2,
+                  fontSize: 12.5,
+                  fontWeight: urgent ? FontWeight.w700 : FontWeight.w500,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Сигнал состояния — словами, а не значком. Значок надо расшифровывать,
+  /// фраза читается сразу; именно это и есть то, чего нет у конкурентов.
+  Widget _mark(String label, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 16),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(width: 4, height: 4, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+          const SizedBox(width: 6),
           Text(label, style: TextStyle(color: color, fontSize: 11.5, fontWeight: FontWeight.w600)),
         ],
       ),
