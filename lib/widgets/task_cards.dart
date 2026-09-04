@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../core/clarify_date_format.dart';
 import '../core/theme/design_tokens.dart';
-import '../core/priority.dart';
 import '../core/checklist.dart';
 import 'clarify_collapsing_task_row.dart';
 import 'clarify_pressable.dart';
@@ -364,8 +363,6 @@ class TaskCardBuilders {
       scale: _chipScale * 0.8,
       compact: true,
     );
-    final priorityLabel = priorityFlagLabel(task['priority']);
-
     return ClarifyPressable(
       onTap: () => onTap(task),
       child: Container(
@@ -380,10 +377,20 @@ class TaskCardBuilders {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Строка 1: время (если задано) + название. Время — своя Text,
-            // не часть ClarifyStrikeText — временная метка не "перечёркнутый
-            // факт", даже когда сама задача выполнена.
-            Row(
+            // Строка 1: время (если задано и если оно влезает) + название.
+            // Время — своя Text, не часть ClarifyStrikeText: временная метка не
+            // «перечёркнутый факт», даже когда сама задача выполнена.
+            //
+            // Время показывается только в достаточно широкой ячейке
+            // (2026-09-04). Раньше оно печаталось всегда и съедало треть
+            // строки: в узкой ячейке от названия оставалось три-четыре буквы
+            // с многоточием — «Работ…», по такому названию задачу не узнать.
+            // Час и минуты есть в дневном виде и в деталях задачи, а в сетке
+            // месяца важнее понять, ЧТО за задача.
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final showTime = dueTime != null && constraints.maxWidth >= 108;
+                return Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Отметить выполненной прямо из ячейки месяца (фидбек
@@ -405,7 +412,7 @@ class TaskCardBuilders {
                   duration: ClarifyMotion.completion,
                 ),
                 SizedBox(width: 3 * _chipScale),
-                if (dueTime != null) ...[
+                if (showTime) ...[
                   Text(
                     dueTime,
                     style: TextStyle(
@@ -420,8 +427,11 @@ class TaskCardBuilders {
                   child: ClarifyStrikeText(
                     text: task['title'] ?? '',
                     isDone: isDone,
+                    // 9 → 10.5: освободившееся от времени место отдано
+                    // названию. Кегль 9 при и без того мелком масштабе читался
+                    // на пределе, а именно название здесь главное.
                     style: TextStyle(
-                      fontSize: 9 * _chipScale,
+                      fontSize: 10.5 * _chipScale,
                       fontWeight: FontWeight.w600,
                       color: isDone ? textMuted : textColor,
                     ),
@@ -430,6 +440,8 @@ class TaskCardBuilders {
                   ),
                 ),
               ],
+                );
+              },
             ),
             // Строка 2: приоритет + просрочка + гниение + перенос — та же
             // информация и те же анимации (вход/выход, opacity), что и в
@@ -442,7 +454,6 @@ class TaskCardBuilders {
               height: _calendarChipLine2Height * _chipScale,
               child:
                   (_wasPastDue(task) ||
-                      priorityLabel.isNotEmpty ||
                       rotBadge != null ||
                       rescheduleBadge != null)
                   ? Wrap(
@@ -465,26 +476,12 @@ class TaskCardBuilders {
                               ),
                             ),
                           ),
-                        if (priorityLabel.isNotEmpty)
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                LucideIcons.flag,
-                                size: 8 * _chipScale,
-                                color: getPriorityColor(task['priority']),
-                              ),
-                              SizedBox(width: 1 * _chipScale),
-                              Text(
-                                priorityLabel,
-                                style: TextStyle(
-                                  fontSize: 8 * _chipScale,
-                                  fontWeight: FontWeight.bold,
-                                  color: getPriorityColor(task['priority']),
-                                ),
-                              ),
-                            ],
-                          ),
+                        // Подпись приоритета («P1»…«P4») из ячейки месяца
+                        // убрана (2026-09-04): она занимала место рядом с
+                        // названием, а сам приоритет и так виден цветной
+                        // кромкой слева и цветом обводки кружка. Буквенный код
+                        // без легенды всё равно ничего не сообщал тому, кто её
+                        // не помнит.
                         clarifyAnimatedBadgeSlot(rotBadge),
                         clarifyAnimatedBadgeSlot(rescheduleBadge),
                       ],
