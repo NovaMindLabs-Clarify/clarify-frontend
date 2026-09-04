@@ -80,7 +80,9 @@ class ProjectsScreen extends StatelessWidget {
     }
 
     return GridView.builder(
-      padding: EdgeInsets.only(bottom: 24 * s),
+      // Горизонтальные отступы те же, что у сетки календаря: без них карточки
+      // упирались в сайдбар слева и обрезались краем окна справа.
+      padding: EdgeInsets.fromLTRB(24 * s, 0, 24 * s, 24 * s),
       gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: 280 * s,
         mainAxisExtent: 76 * s,
@@ -105,6 +107,9 @@ class ProjectsScreen extends StatelessWidget {
         return Material(
           color: t.surface,
           borderRadius: BorderRadius.circular(ClarifyRadius.md),
+          // Полоса прогресса идёт от края до края карточки — без обрезки она
+          // вылезала бы за скруглённые углы.
+          clipBehavior: Clip.antiAlias,
           child: InkWell(
             borderRadius: BorderRadius.circular(ClarifyRadius.md),
             onTap: () => onOpenProject(tag),
@@ -115,30 +120,51 @@ class ProjectsScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(ClarifyRadius.md),
                 border: Border(left: BorderSide(color: tagColor, width: 3)),
               ),
-              padding: EdgeInsets.symmetric(horizontal: 16 * s, vertical: 14 * s),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Icon(icon, color: tagColor, size: 24 * s),
-                  SizedBox(width: 12 * s),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          tag,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 15 * s, fontWeight: FontWeight.w700, color: t.text),
-                        ),
-                        SizedBox(height: 2 * s),
-                        Text(
-                          '$done/$total ${'задач'.tr(currentLang)}',
-                          style: TextStyle(fontSize: 12.5 * s, color: t.text3),
-                        ),
-                      ],
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16 * s, vertical: 14 * s),
+                      child: Row(
+                        children: [
+                          Icon(icon, color: tagColor, size: 24 * s),
+                          SizedBox(width: 12 * s),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  tag,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 15 * s, fontWeight: FontWeight.w700, color: t.text),
+                                ),
+                                SizedBox(height: 2 * s),
+                                Text(
+                                  '$done/$total ${'задач'.tr(currentLang)}',
+                                  style: TextStyle(fontSize: 12.5 * s, color: t.text3),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
+                  // "47/51 задач" — это число, которое нужно читать; полоса
+                  // даёт то же самое одним взглядом по всей сетке проектов
+                  // сразу, не заставляя сравнивать дроби в уме.
+                  if (total > 0)
+                    SizedBox(
+                      height: 3 * s,
+                      child: LinearProgressIndicator(
+                        value: done / total,
+                        backgroundColor: t.surfaceSunken,
+                        valueColor: AlwaysStoppedAnimation<Color>(tagColor),
+                      ),
+                    ),
                 ],
               ),
             ),

@@ -1843,6 +1843,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                   onOpenMessages: () => setState(() => selectedMenu = 'Сообщения'),
                                   toggleTheme: widget.toggleTheme,
                                   changeLang: widget.changeLang,
+                                  embedded: true,
                                 );
                               },
                               );

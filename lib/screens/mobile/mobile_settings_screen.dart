@@ -40,6 +40,10 @@ class MobileSettingsScreen extends StatefulWidget {
   final VoidCallback toggleTheme;
   final Function(String lang) changeLang;
 
+  /// true — экран встроен во вкладку с собственной шапкой (десктоп), поэтому
+  /// свой заголовок "Настройки" рисовать не нужно.
+  final bool embedded;
+
   const MobileSettingsScreen({
     super.key,
     required this.currentLang,
@@ -52,6 +56,7 @@ class MobileSettingsScreen extends StatefulWidget {
     required this.onOpenMessages,
     required this.toggleTheme,
     required this.changeLang,
+    this.embedded = false,
   });
 
   @override
@@ -156,11 +161,15 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
     final t = context.tokens;
     final email = Supabase.instance.client.auth.currentUser?.email ?? '';
 
-    return ListView(
+    return _constrained(ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
       children: [
-        Text('Настройки'.tr(currentLang), style: TextStyle(fontFamily: 'Golos Text', fontSize: 22, fontWeight: FontWeight.w700, color: t.text)),
-        const SizedBox(height: 16),
+        // На десктопной вкладке заголовок уже есть в шапке — второй такой же
+        // прямо под ним читался как ошибка вёрстки.
+        if (!widget.embedded) ...[
+          Text('Настройки'.tr(currentLang), style: TextStyle(fontFamily: 'Golos Text', fontSize: 22, fontWeight: FontWeight.w700, color: t.text)),
+          const SizedBox(height: 16),
+        ],
 
         Material(
           color: t.surface,
@@ -491,6 +500,26 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
           onPressed: () => showPrivacyPolicyDialog(context: context, isDark: widget.isDark, currentLang: currentLang),
         ),
       ],
+    ));
+  }
+
+  /// Тот же экран, что и на мобильном (по прямому требованию пользователя от
+  /// 2026-08-01 — набор и группировка разделов совпадают), но на широком окне
+  /// он не растягивается на всю ширину: иначе переключатель уезжает от своей
+  /// подписи на полтора метра экрана и строку невозможно прочитать одним
+  /// взглядом. Ограничение по ширине, а не переверстка — содержимое то же.
+  Widget _constrained(Widget child) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth <= 760) return child;
+        // Слева, а не по центру: все остальные разделы начинаются от левого
+        // края области контента, и колонка настроек посреди экрана выпадала бы
+        // из этого ряда. 760 = 720 содержимого + собственные отступы ListView.
+        return Align(
+          alignment: Alignment.topLeft,
+          child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 760), child: child),
+        );
+      },
     );
   }
 }
