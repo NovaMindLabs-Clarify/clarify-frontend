@@ -640,30 +640,31 @@ class _AuthScreenState extends State<AuthScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final String yandexEmail = data["email"];
-        final String yandexId = data["yandex_user_id"].toString();
-        
+
         debugPrint('✅ Бэкенд подтвердил вход! Яндекс Email: $yandexEmail');
 
-        final shadowPassword = "Yndx_${yandexId}_SecretPass123!";
+        // Сессию выдаёт бэкенд одноразовым токеном — клиент пароля не знает.
+        // Раньше здесь пароль ВЫЧИСЛЯЛСЯ по формуле "Yndx_<id>_SecretPass123!":
+        // формула лежала в собранном .exe открытым текстом, а yandex_id и почта
+        // не секрет — то есть в чужой аккаунт можно было войти напрямую через
+        // Supabase, минуя и Яндекс, и бэкенд. Пароля в этой схеме больше нет
+        // ни на одном конце.
+        final String? tokenHash = data["token_hash"] as String?;
+        if (tokenHash == null || tokenHash.isEmpty) {
+          debugPrint('❌ Бэкенд не вернул token_hash');
+          if (mounted) ClarifyToast.show(context, 'Ошибка авторизации. Попробуйте еще раз.'.tr(widget.currentLang), variant: ClarifyToastVariant.danger);
+          return;
+        }
 
         try {
-          debugPrint('🔄 Синхронизируем Яндекса с Supabase...');
-          await Supabase.instance.client.auth.signInWithPassword(
-            email: yandexEmail,
-            password: shadowPassword,
+          debugPrint('🔄 Меняем одноразовый токен на сессию Supabase...');
+          await Supabase.instance.client.auth.verifyOTP(
+            type: OtpType.magiclink,
+            tokenHash: tokenHash,
           );
           debugPrint('✅ Успешный вход в Supabase!');
         } on AuthException catch (e) {
-          if (e.message.contains('Invalid login credentials')) {
-            debugPrint('🆕 Создаем теневой аккаунт в Supabase...');
-            await Supabase.instance.client.auth.signUp(
-              email: yandexEmail,
-              password: shadowPassword,
-            );
-            debugPrint('✅ Аккаунт создан и выполнен вход!');
-          } else {
-            throw Exception(e.message);
-          }
+          throw Exception(e.message);
         }
 
         // _isAuthInProgress/_yandexPhase сбрасываются в finally у _loginWithYandex,
