@@ -79,6 +79,18 @@ class TaskCardBuilders {
   });
 
   double get _s => scale;
+
+  /// Масштаб строки задачи. Раньше строка была единственным местом с
+  /// фиксированными размерами: шапка, сайдбар и всё остальное сжимаются вместе
+  /// с окном через [scale], а строка нет — на окне 1000px заголовок раздела
+  /// становился почти одного кегля с названием задачи, и список выглядел
+  /// непропорционально крупным (живой фидбек 2026-09-04: «блоки огромные, как
+  /// и сам текст»).
+  ///
+  /// Масштабируется мягче остального: у текста задачи есть нижняя граница
+  /// читаемости, ниже которой уменьшать нельзя, поэтому не голый [scale], а
+  /// сжатый диапазон.
+  double get _rowScale => (0.7 + _s * 0.3).clamp(0.88, 1.1);
   ClarifyTokens get _t => isDark ? ClarifyTokens.dark : ClarifyTokens.light;
   Color get textColor => _t.text;
   Color get textMuted => _t.text2;
@@ -737,6 +749,7 @@ class TaskCardBuilders {
   }
 
   Widget _buildListRowBody(Map<String, dynamic> task, {required bool hovered}) {
+    final double rs = _rowScale;
     final bool isDone = task['is_completed'] == true;
     final cStats = checklistStats(task['checklist']);
     final bool hasChecklist = cStats['total']! > 0;
@@ -773,7 +786,7 @@ class TaskCardBuilders {
       child: AnimatedContainer(
         duration: ClarifyMotion.base,
         curve: ClarifyMotion.standard,
-        constraints: const BoxConstraints(minHeight: 46),
+        constraints: BoxConstraints(minHeight: 44 * rs),
         decoration: BoxDecoration(
           // Заливка только у того, что требует внимания, и лёгкая подсветка под
           // курсором. У обычной задачи фона нет вовсе: именно одинаковая
@@ -794,7 +807,7 @@ class TaskCardBuilders {
             ),
           ),
         ),
-        padding: const EdgeInsets.fromLTRB(0, 8, 8, 8),
+        padding: EdgeInsets.fromLTRB(0, 7 * rs, 8 * rs, 7 * rs),
         child: GestureDetector(
           onTap: () => onTap(task),
           behavior: HitTestBehavior.opaque,
@@ -806,7 +819,7 @@ class TaskCardBuilders {
                       // всегда — иначе состояние читалось бы только по
                       // зачёркиванию, а в смешанном списке этого мало.
                       SizedBox(
-                        width: 34,
+                        width: 32 * rs,
                         child: Center(
                           child: ClarifyPressable(
                             onTap: () => onToggle(task),
@@ -816,7 +829,7 @@ class TaskCardBuilders {
                               opacity: isDone || hovered ? 1 : 0,
                               child: Icon(
                                 LucideIcons.check,
-                                size: 17,
+                                size: 16 * rs,
                                 color: isDone ? _t.success : _t.text2,
                               ),
                             ),
@@ -842,7 +855,7 @@ class TaskCardBuilders {
                                     // задавал высоту, из-за которой на экран
                                     // влезало 6 задач вместо 12.
                                     style: TextStyle(
-                                      fontSize: 15,
+                                      fontSize: 15 * rs,
                                       height: 1.25,
                                       color: isDone ? textMuted : textColor,
                                       fontWeight: overdue && !isDone
@@ -855,32 +868,38 @@ class TaskCardBuilders {
                                 ),
                                 if (hasRecurrence)
                                   Padding(
-                                    padding: const EdgeInsets.only(left: 8),
+                                    padding: EdgeInsets.only(left: 8 * rs),
                                     child: Icon(
                                       LucideIcons.repeat,
-                                      size: 16,
+                                      size: 15 * rs,
                                       color: isDone ? textMuted : _t.text3,
                                     ),
                                   ),
-                              ],
-                            ),
-                            // Строка 2: просрочка + дата/время + счётчики
-                            // подзадач/чек-листа + тег. Каждая иконка+текст
-                            // сгруппированы в свой Row (не голые элементы плоского
-                            // Row) — иначе crossAxisAlignment.center центрирует их
-                            // по высоте САМОГО высокого соседа, а не друг относительно
-                            // друга (живой фидбек 2026-08-01: "значок просрочки не
-                            // по середине... на другой высоте относительно даты").
-                            if (task['due_date'] != null ||
-                                task['due_time'] != null ||
-                                hasSubtasks ||
-                                hasChecklist ||
-                                (tag != null && tag.isNotEmpty))
-                              Padding(
-                                padding: const EdgeInsets.only(top: 6),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
+                                // Дата, счётчики и тег — в ОДНОЙ строке с
+                                // заголовком, а не под ним. Вторая строка
+                                // удваивала высоту у каждой задачи, у которой
+                                // есть дата, то есть почти у всех: строка
+                                // занимала 62px вместо 44 и список выглядел
+                                // стопкой крупных блоков.
+                                //
+                                // Каждая иконка с текстом по-прежнему
+                                // сгруппирована в свой Row (не голые элементы
+                                // плоского Row) — иначе crossAxisAlignment
+                                // центрирует их по высоте самого высокого
+                                // соседа, а не друг относительно друга (живой
+                                // фидбек 2026-08-01: «значок просрочки на
+                                // другой высоте относительно даты»).
+                                if (task['due_date'] != null ||
+                                    task['due_time'] != null ||
+                                    hasSubtasks ||
+                                    hasChecklist ||
+                                    (tag != null && tag.isNotEmpty))
+                                  Padding(
+                                    padding: EdgeInsets.only(left: 12 * rs),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment: CrossAxisAlignment.center,
+                                      children: [
                                     if (task['due_date'] != null ||
                                         task['due_time'] != null)
                                       Padding(
@@ -922,7 +941,7 @@ class TaskCardBuilders {
                                                 // 14 → 12.5: дата и время —
                                                 // сопровождение заголовка, а не
                                                 // равный ему по весу элемент.
-                                                fontSize: 12.5,
+                                                fontSize: 12.5 * rs,
                                                 color: overdue
                                                     ? _t.danger
                                                     : textMuted,
@@ -985,20 +1004,25 @@ class TaskCardBuilders {
                                         child: Text(
                                           "#$tag",
                                           style: TextStyle(
-                                            fontSize: 12.5,
+                                            fontSize: 12.5 * rs,
                                             fontWeight: FontWeight.w500,
                                             color: _t.text3,
                                           ),
                                         ),
                                       ),
-                                  ],
-                                ),
-                              ),
-                            // Строка 3: гниение + перенос — отдельно от даты/
-                            // тега/чек-листа (не толпятся в одной строке).
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            // Вторая строка — только сигналы состояния (гниение
+                            // и переносы). Они редки, поэтому строка задачи
+                            // остаётся однострочной у подавляющего большинства
+                            // задач, а вырастает ровно там, где есть что
+                            // сказать.
                             if (line3EverRelevant)
                               Padding(
-                                padding: const EdgeInsets.only(top: 6),
+                                padding: EdgeInsets.only(top: 4 * rs),
                                 child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
