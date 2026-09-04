@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:frontend/core/theme/design_tokens.dart';
 import 'package:frontend/widgets/main_content_area.dart';
 
 String _fmt(DateTime d) =>
@@ -10,6 +11,10 @@ Widget _harness({
   required List<Map<String, dynamic>> tasks,
 }) {
   return MaterialApp(
+    // Токены темы обязательны: виджеты раздела читают их через context.tokens,
+    // и в приложении расширение есть всегда. Без него тест проверял бы
+    // конфигурацию, которой не существует.
+    theme: ThemeData(extensions: const [ClarifyTokens.light]),
     home: Scaffold(
       body: MainContentArea(
         selectedMenu: selectedMenu,

@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../core/clarify_date_format.dart';
+import '../core/config.dart';
 import '../core/priority.dart';
 import '../core/localization.dart';
 import '../core/tags.dart';
 import '../core/theme/design_tokens.dart';
 import 'calendar_day_timeline.dart';
 import 'clarify_cascade_item.dart';
+import 'clarify_day_load_warning.dart' show ClarifyDayCapacity, dayLoadMinutes;
 import 'clarify_glass.dart';
 import 'clarify_list_entrance.dart';
 import 'clarify_press_glow.dart';
@@ -273,6 +275,17 @@ class MainContentArea extends StatelessWidget {
         return Center(child: Text(emptyKey.tr(currentLang), style: TextStyle(color: textMuted, fontSize: 18)));
       }
 
+      // Полоса ёмкости дня — только в «Моём дне»: в «Всех задачах» или в
+      // команде сумма длительностей за все даты сразу не значит ничего.
+      final dayCapacity = selectedMenu == 'Мой день'
+          ? ClarifyDayCapacity(
+              plannedMinutes: dayLoadMinutes(filteredTasks, _formatDate(DateTime.now())),
+              capacityMinutes: AppConfig.dailyLoadWarningMinutes,
+              taskCount: targetTasks.where((t) => t['is_completed'] != true).length,
+              currentLang: currentLang,
+            )
+          : null;
+
       final sortToggle = selectedMenu == 'Входящие'
           ? null
           : Padding(
@@ -366,6 +379,7 @@ class MainContentArea extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (dayCapacity != null) dayCapacity,
               if (sortToggle != null) sortToggle,
               Expanded(
                 child: ListView(

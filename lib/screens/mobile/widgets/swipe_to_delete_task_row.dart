@@ -97,14 +97,54 @@ class _SwipeToDeleteTaskRowState extends State<SwipeToDeleteTaskRow> {
           ? const SizedBox.shrink()
           : Dismissible(
               key: ValueKey('swipe_delete_${widget.task['id']}'),
-              direction: DismissDirection.endToStart,
+              // Свайп в обе стороны (2026-09-04): влево — удалить, вправо —
+              // закрыть задачу. Раньше был только влево, и самое частое
+              // действие оставалось без жеста вовсе.
+              direction: DismissDirection.horizontal,
+              confirmDismiss: (direction) async {
+                if (direction == DismissDirection.startToEnd) {
+                  // Отметка выполненной — НЕ удаление: строку не убираем,
+                  // задача просто меняет состояние и сама уезжает в конец
+                  // списка. Поэтому false: Dismissible возвращает её на место,
+                  // а дальше работает обычная анимация переезда.
+                  widget.onToggle();
+                  return false;
+                }
+                return true;
+              },
               onDismissed: (_) => _startDelete(),
               background: Container(
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.symmetric(horizontal: 20),
+                alignment: Alignment.centerLeft,
+                decoration: BoxDecoration(
+                  color: t.successSoft,
+                  borderRadius: BorderRadius.circular(ClarifyRadius.md),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      widget.task['is_completed'] == true
+                          ? LucideIcons.rotateCcw
+                          : LucideIcons.check,
+                      color: t.success,
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      (widget.task['is_completed'] == true ? 'Вернуть' : 'Выполнено')
+                          .tr(widget.currentLang),
+                      style: TextStyle(color: t.success, fontWeight: FontWeight.w700),
+                    ),
+                  ],
+                ),
+              ),
+              secondaryBackground: Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
                 alignment: Alignment.centerRight,
                 decoration: BoxDecoration(color: t.danger, borderRadius: BorderRadius.circular(ClarifyRadius.md)),
-                child: Icon(LucideIcons.trash2, color: t.onAccent),
+                child: Icon(LucideIcons.trash2, color: Colors.white),
               ),
               child: MobileTaskRow(
                 task: widget.task,

@@ -114,8 +114,10 @@ class MobileTaskRow extends StatelessWidget {
             ),
           );
 
+    // Зазора между строками больше нет: строки разделяет волосяная линия, а
+    // не воздух. Отступ в 8px между карточками был частью «стопки плиток».
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: EdgeInsets.zero,
       child: Material(
         // Прозрачный: заливка теперь красится в AnimatedContainer ниже — у
         // Material.animationDuration нет гарантии анимировать color в этой
@@ -132,18 +134,23 @@ class MobileTaskRow extends StatelessWidget {
             duration: ClarifyMotion.completion,
             curve: ClarifyMotion.standard,
             decoration: BoxDecoration(
+              // Не карточка, а строка (2026-09-04) — тот же язык, что на ПК.
+              // Заливка осталась только там, где несёт смысл: просрочка и
+              // выполненная. У обычной задачи фона нет: одинаковая подложка у
+              // всех строк и превращала список в стопку одинаковых плиток.
               color: isDone
                   ? t.surfaceSunken
-                  : (overdue ? t.dangerSoft : t.surface),
-              borderRadius: BorderRadius.circular(ClarifyRadius.md),
+                  : (overdue ? t.dangerSoft : Colors.transparent),
               // Полоса — канал приоритета ТОЛЬКО (§6.4 REDESIGN_V4_PLAN.md);
-              // просрочка теперь читается через фон строки + иконку часов
-              // у времени ниже, не через эту же полосу.
+              // просрочка читается через фон строки + иконку часов у времени.
               border: Border(
                 left: BorderSide(
-                  color: isDone ? t.border : priorityColor,
+                  color: isDone || priorityColor == t.text3
+                      ? Colors.transparent
+                      : priorityColor,
                   width: 3,
                 ),
+                bottom: BorderSide(color: t.border),
               ),
             ),
             child: Padding(
@@ -304,10 +311,13 @@ class MobileTaskRow extends StatelessWidget {
                               if (tag != null && tag.isNotEmpty)
                                 Text(
                                   '#$tag',
+                                  // Тот же приглушённый вид, что на ПК
+                                  // (2026-09-04): акцентным цветом метка была
+                                  // заметнее самого названия задачи.
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: t.accent,
-                                    fontWeight: FontWeight.w600,
+                                    color: t.text3,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                             ],

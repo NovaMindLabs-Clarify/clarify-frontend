@@ -494,7 +494,16 @@ class TaskCardBuilders {
     );
   }
 
+  /// Строка задачи в колонке «7 дней» и на доске проекта. С 2026-09-04 живёт
+  /// по тем же правилам, что и строка списка: круга-чекбокса нет, вместо него
+  /// зона выполнения, проявляющаяся под курсором.
   Widget buildBoardTaskCardExpanded(Map<String, dynamic> task) {
+    return _HoverRowShell(
+      builder: (hovered) => _buildBoardRowBody(task, hovered: hovered),
+    );
+  }
+
+  Widget _buildBoardRowBody(Map<String, dynamic> task, {required bool hovered}) {
     final bool isDone = task['is_completed'] == true;
     Color priorityColor = getPriorityColor(task['priority']);
     bool hasPriority = task['priority'] != null && task['priority'] != 'none';
@@ -591,15 +600,12 @@ class TaskCardBuilders {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      ClarifyCheckCircle(
-                        size: 18 * _s,
-                        borderColor: stripeColor,
-                        checkedColor: _t.accent,
-                        value: isDone,
-                        onTap: () => onToggle(task),
-                        duration: ClarifyMotion.completion,
+                      _completionZone(
+                        task,
+                        isDone: isDone,
+                        hovered: hovered,
+                        size: 15 * _s,
                       ),
-                      SizedBox(width: 10 * _s),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -607,10 +613,15 @@ class TaskCardBuilders {
                             ClarifyStrikeText(
                               text: displayTitle,
                               isDone: isDone,
+                              // bold → w600 и кегль по общему масштабу строки:
+                              // жирное начертание в узкой колонке спорило с
+                              // заголовком самой колонки (2026-09-04).
                               style: TextStyle(
-                                fontSize: 15 * _s,
+                                fontSize: 14.5 * _rowScale,
                                 color: isDone ? textMuted : textColor,
-                                fontWeight: FontWeight.bold,
+                                fontWeight: overdue && !isDone
+                                    ? FontWeight.w700
+                                    : FontWeight.w600,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -745,7 +756,37 @@ class TaskCardBuilders {
   /// быстрыми действиями на месте, тег кликабелен, аватар ответственного и
   /// счётчики подзадач/чек-листа сохранены.
   Widget buildListTaskCard(Map<String, dynamic> task) {
-    return _ListRowShell(builders: this, task: task);
+    return _HoverRowShell(
+      builder: (hovered) => _buildListRowBody(task, hovered: hovered),
+    );
+  }
+
+  /// Зона выполнения вместо круга-чекбокса — общая для списка и досок, чтобы
+  /// жест «закрыть задачу» был одинаковым во всех разделах.
+  Widget _completionZone(
+    Map<String, dynamic> task, {
+    required bool isDone,
+    required bool hovered,
+    required double size,
+  }) {
+    return SizedBox(
+      width: size * 2,
+      child: Center(
+        child: ClarifyPressable(
+          onTap: () => onToggle(task),
+          child: AnimatedOpacity(
+            duration: ClarifyMotion.base,
+            curve: ClarifyMotion.standard,
+            opacity: isDone || hovered ? 1 : 0,
+            child: Icon(
+              LucideIcons.check,
+              size: size,
+              color: isDone ? _t.success : _t.text2,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildListRowBody(Map<String, dynamic> task, {required bool hovered}) {
@@ -818,23 +859,11 @@ class TaskCardBuilders {
                       // проявляется под курсором. У выполненной задачи видна
                       // всегда — иначе состояние читалось бы только по
                       // зачёркиванию, а в смешанном списке этого мало.
-                      SizedBox(
-                        width: 32 * rs,
-                        child: Center(
-                          child: ClarifyPressable(
-                            onTap: () => onToggle(task),
-                            child: AnimatedOpacity(
-                              duration: ClarifyMotion.base,
-                              curve: ClarifyMotion.standard,
-                              opacity: isDone || hovered ? 1 : 0,
-                              child: Icon(
-                                LucideIcons.check,
-                                size: 16 * rs,
-                                color: isDone ? _t.success : _t.text2,
-                              ),
-                            ),
-                          ),
-                        ),
+                      _completionZone(
+                        task,
+                        isDone: isDone,
+                        hovered: hovered,
+                        size: 16 * rs,
                       ),
                       Expanded(
                         child: Column(
@@ -1117,20 +1146,20 @@ class TaskCardBuilders {
   }
 }
 
-/// Обёртка строки списка: держит состояние наведения. Нужна отдельным
+/// Обёртка строки задачи: держит состояние наведения. Нужна отдельным
 /// виджетом, потому что [TaskCardBuilders] — обычный объект с колбэками, а не
-/// виджет, и своего состояния иметь не может.
-class _ListRowShell extends StatefulWidget {
-  final TaskCardBuilders builders;
-  final Map<String, dynamic> task;
+/// виджет, и своего состояния иметь не может. Одна на все виды строк (список,
+/// доска «7 дней», доска проекта) — чтобы наведение везде вело себя одинаково.
+class _HoverRowShell extends StatefulWidget {
+  final Widget Function(bool hovered) builder;
 
-  const _ListRowShell({required this.builders, required this.task});
+  const _HoverRowShell({required this.builder});
 
   @override
-  State<_ListRowShell> createState() => _ListRowShellState();
+  State<_HoverRowShell> createState() => _HoverRowShellState();
 }
 
-class _ListRowShellState extends State<_ListRowShell> {
+class _HoverRowShellState extends State<_HoverRowShell> {
   bool _hovered = false;
 
   @override
@@ -1138,7 +1167,7 @@ class _ListRowShellState extends State<_ListRowShell> {
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
-      child: widget.builders._buildListRowBody(widget.task, hovered: _hovered),
+      child: widget.builder(_hovered),
     );
   }
 }
