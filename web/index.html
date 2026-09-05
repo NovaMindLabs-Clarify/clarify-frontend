@@ -64,10 +64,10 @@
       margin: 0;
       padding: 0;
       height: 100%;
-      background-color: #F6F6FB;
+      background-color: #F5F5F5;
     }
     @media (prefers-color-scheme: dark) {
-      html, body { background-color: #0A0A10; }
+      html, body { background-color: #111111; }
     }
 
     /* Логотип-заглушка на время загрузки движка Flutter (main.dart.js/wasm) —
@@ -82,20 +82,27 @@
       position: fixed;
       inset: 0;
       display: flex;
+      flex-direction: column;
+      gap: 18px;
       align-items: center;
       justify-content: center;
       font-family: 'Unbounded', sans-serif;
       font-weight: 700;
       font-size: 28px;
       letter-spacing: 0.02em;
-      color: #4F46E5;
+      /* Фирменные цвета: знак и надпись одного цвета с текстом, а не
+         акцентного — акцент принадлежит действиям, а не логотипу. */
+      color: #111111;
       transition: opacity 0.25s ease-out;
     }
     @media (prefers-color-scheme: dark) {
-      #app-loading { color: #818CF8; }
+      #app-loading { color: #F5F5F5; }
     }
+    /* Знак наследует цвет родителя через currentColor — одна разметка на обе
+       темы, без второй картинки и без inversion-фильтра. */
+    #app-loading svg { width: 56px; height: 56px; display: block; }
     @media (prefers-reduced-motion: no-preference) {
-      #app-loading span { animation: app-loading-pulse 1.4s ease-in-out infinite; }
+      #app-loading { animation: app-loading-pulse 1.4s ease-in-out infinite; }
     }
     @keyframes app-loading-pulse {
       0%, 100% { opacity: 1; }
@@ -104,7 +111,16 @@
   </style>
 </head>
 <body>
-  <div id="app-loading"><span>Clarify</span></div>
+  <!-- Знак Clarify контурами: заставка показывается ДО загрузки движка
+       Flutter, поэтому нарисовать его виджетом здесь нельзя. Геометрия — та
+       же, что в brand/clarify/mark-currentcolor.svg и в ClarifyMark. -->
+  <div id="app-loading">
+    <svg viewBox="0 0 64 64" fill="currentColor" aria-hidden="true" focusable="false">
+      <path d="M16 8.5 L23 8.5 A4 4 0 0 1 27 12.5 L27 51.5 A4 4 0 0 1 23 55.5 L16 55.5 A12 12 0 0 1 4 43.5 L4 20.5 A12 12 0 0 1 16 8.5 Z" transform="translate(0 -6)"/>
+      <path d="M41 8.5 L48 8.5 A12 12 0 0 1 60 20.5 L60 43.5 A12 12 0 0 1 48 55.5 L41 55.5 A4 4 0 0 1 37 51.5 L37 12.5 A4 4 0 0 1 41 8.5 Z" transform="translate(0 6)"/>
+    </svg>
+    <span>Clarify</span>
+  </div>
 
   <!--
     You can customize the "flutter_bootstrap.js" script.

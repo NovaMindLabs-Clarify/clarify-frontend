@@ -403,6 +403,7 @@ class _AuthScreenState extends State<AuthScreen> {
     super.initState();
     _mode = widget.initialMode;
     _initDeepLinks();
+    _wakeBackend();
     if (kIsWeb) _tryConsumeYandexRedirectCode();
   }
 
@@ -632,6 +633,26 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
+  /// Будит бэкенд, как только человек открыл экран входа.
+  ///
+  /// Render на бесплатном тарифе усыпляет сервис через 15 минут простоя, и
+  /// холодный старт занимает до минуты. Вход через Яндекс упирался в это лбом:
+  /// человек жал кнопку, уходил на Яндекс, возвращался с кодом — и обмен кода
+  /// на сессию отваливался по таймауту. Выглядело как «Ошибка сети», хотя сеть
+  /// была в порядке, а повторная попытка (сервер уже проснулся) срабатывала.
+  ///
+  /// Круг по Яндексу занимает от десяти секунд до минуты — это бесплатное
+  /// время, за которое сервер успевает подняться. Ответ не нужен: важно само
+  /// обращение, поэтому ошибки молча глотаются.
+  void _wakeBackend() {
+    unawaited(
+      http
+          .get(Uri.parse('${AppConfig.backendBaseUrl}/health'))
+          .timeout(const Duration(seconds: 90))
+          .catchError((_) => http.Response('', 503)),
+    );
+  }
+
   Future<void> _sendCodeToFastAPI(String code) async {
     final backendUrl = Uri.parse('${AppConfig.backendBaseUrl}/auth/yandex');
     
@@ -643,8 +664,11 @@ class _AuthScreenState extends State<AuthScreen> {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'code': code}),
       ).timeout(
-        const Duration(seconds: 30),
-        onTimeout: () => throw Exception('Сервер Render слишком долго не отвечает.'),
+        // Больше, чем холодный старт Render на бесплатном тарифе. Прежние 30
+        // секунд были КОРОЧЕ пробуждения сервера, поэтому вход стабильно падал
+        // после простоя — и падал с сообщением про интернет, которого не было.
+        const Duration(seconds: 90),
+        onTimeout: () => throw TimeoutException('Сервер не ответил вовремя'),
       );
 
       if (response.statusCode == 200) {
@@ -682,6 +706,17 @@ class _AuthScreenState extends State<AuthScreen> {
       } else {
         debugPrint('❌ Ошибка бэкенда: ${response.body}');
         if (mounted) ClarifyToast.show(context, 'Ошибка авторизации. Попробуйте еще раз.'.tr(widget.currentLang), variant: ClarifyToastVariant.danger);
+      }
+    } on TimeoutException catch (e) {
+      // Отдельно от сетевой ошибки: отправлять человека проверять интернет,
+      // когда интернет в порядке, — значит заставить его чинить не то.
+      debugPrint('❌ Таймаут обмена кода: $e');
+      if (mounted) {
+        ClarifyToast.show(
+          context,
+          'Сервер просыпается. Попробуйте войти ещё раз через полминуты.'.tr(widget.currentLang),
+          variant: ClarifyToastVariant.warning,
+        );
       }
     } catch (e) {
       debugPrint('❌ Ошибка сети: $e');
