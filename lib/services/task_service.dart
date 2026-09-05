@@ -109,6 +109,10 @@ class TaskService {
     final data = await Supabase.instance.client
         .from('tasks')
         .select()
+        // Корзина (C6): удалённое не показывается нигде, кроме самой корзины.
+        // Фильтр стоит здесь, в единственной точке загрузки списка, — тогда его
+        // не нужно повторять в каждом разделе и невозможно забыть в новом.
+        .isFilter('deleted_at', null)
         .or('is_completed.is.null,'
             'is_completed.eq.false,'
             'completed_at.is.null,'
@@ -319,16 +323,60 @@ class TaskService {
     }
   }
 
-  // 7. Удаление задачи
+  // 7. Удаление задачи — в корзину, а не насовсем (C6).
+  //
+  // Раньше здесь был честный DELETE: задача исчезала навсегда, а отменить это
+  // можно было только в пределах анимации свайпа на мобильном, то есть пары
+  // секунд. При этом крестик удаления висит в каждой строке списка.
+  //
+  // Подзадачи уезжают вместе с родителем: восстановленная задача без своих
+  // подзадач — это уже другая задача. Каскад делается здесь, а не триггером в
+  // базе: триггер не отличил бы «удалили родителя» от «удалили одну подзадачу».
   Future<void> deleteTask(int taskId) async {
+    final String deletedAt = DateTime.now().toIso8601String();
     try {
-      await Supabase.instance.client.from('tasks').delete().eq('id', taskId);
+      await Supabase.instance.client
+          .from('tasks')
+          .update({'deleted_at': deletedAt})
+          .or('id.eq.$taskId,parent_id.eq.$taskId');
     } on PostgrestException {
       rethrow;
     } catch (e) {
-      _queuePendingOp('delete', {'taskId': taskId});
+      _queuePendingOp('update', {
+        'taskId': taskId,
+        'data': {'deleted_at': deletedAt},
+      });
       rethrow;
     }
+  }
+
+  /// Возвращает задачу из корзины вместе с её подзадачами.
+  Future<void> restoreTask(int taskId) async {
+    await Supabase.instance.client
+        .from('tasks')
+        .update({'deleted_at': null})
+        .or('id.eq.$taskId,parent_id.eq.$taskId');
+  }
+
+  /// Удаляет задачу окончательно, минуя корзину. Подзадачи уходят каскадом по
+  /// внешнему ключу, отдельно их удалять не нужно.
+  Future<void> deleteTaskForever(int taskId) async {
+    await Supabase.instance.client.from('tasks').delete().eq('id', taskId);
+  }
+
+  /// Содержимое корзины — грузится отдельным запросом и только когда открыт
+  /// сам раздел. В общий кэш задач эти строки не попадают: иначе их пришлось
+  /// бы отфильтровывать в каждом списке, а достаточно одного фильтра в
+  /// fetchTasks.
+  Future<List<Map<String, dynamic>>> fetchTrash() async {
+    final data = await Supabase.instance.client
+        .from('tasks')
+        .select()
+        .not('deleted_at', 'is', null)
+        .isFilter('parent_id', null)
+        .order('deleted_at', ascending: false)
+        .timeout(const Duration(seconds: 15));
+    return List<Map<String, dynamic>>.from(data);
   }
 }
 

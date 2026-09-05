@@ -34,6 +34,7 @@ import 'mobile/mobile_planner_shell.dart';
 import 'mobile/mobile_settings_screen.dart';
 import '../widgets/task_cards.dart';
 import '../widgets/statistics_dashboard.dart';
+import '../widgets/trash_screen.dart';
 import '../widgets/ai_chat_panel.dart';
 import '../dialogs/workspace_dialogs.dart';
 import '../dialogs/team_pulse_dialog.dart';
@@ -255,7 +256,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   // подсказку на пустом чате — то же самое воспроизведено в AiChatPanel.
   List<Map<String, String>> chatMessages = [];
   late final bool _showAiOnboardingTip = !AppSettings.aiOnboardingSeen;
-  final List<String> menuItems = ['Мой день', 'Следующие 7 дней', 'Все задачи', 'Календарь', 'Входящие', 'Проекты', 'Друзья', 'Сообщения', 'Статистика'];
+  final List<String> menuItems = ['Мой день', 'Следующие 7 дней', 'Все задачи', 'Календарь', 'Входящие', 'Проекты', 'Друзья', 'Сообщения', 'Статистика', 'Корзина'];
   final List<String> weekdaysRu = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
 
   bool get isDark => widget.isDark;
@@ -1918,6 +1919,21 @@ Map<String, dynamic> _parseSmartInput(String text) {
                               // версией" (2026-08-01): плоское содержимое
                               // AccountSettingsPanel сюда не подходило, набор разделов
                               // и группировка там другие.
+                              // Корзина (C6) — содержимое грузится отдельным
+                              // запросом при открытии раздела, в общий кэш
+                              // задач удалённое не попадает.
+                              buildTrashPanel: () => TrashScreen(
+                                currentLang: widget.currentLang,
+                                scale: _s,
+                                loadTrash: _taskService.fetchTrash,
+                                onRestore: (id) async {
+                                  await _taskService.restoreTask(id);
+                                  await _fetchTasks();
+                                },
+                                onDeleteForever: (id) async {
+                                  await _taskService.deleteTaskForever(id);
+                                },
+                              ),
                               buildSettingsPanel: () {
                                 final user = Supabase.instance.client.auth.currentUser;
                                 final metadata = user?.userMetadata ?? {};

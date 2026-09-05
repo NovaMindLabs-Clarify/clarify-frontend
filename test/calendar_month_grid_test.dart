@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/core/theme/design_tokens.dart';
 import 'package:frontend/widgets/clarify_glass.dart';
@@ -79,6 +79,7 @@ void main() {
                 ClarifyGlass(margin: margin, padding: padding, customColor: customColor, child: child),
             buildStatisticsDashboard: () => const SizedBox.shrink(),
             buildSettingsPanel: () => const SizedBox.shrink(),
+          buildTrashPanel: () => const SizedBox.shrink(),
             currentCalendarDate: today,
             onCalendarDateChanged: (_) {},
             getLocalKanbanStatus: (_) => 'todo',
@@ -174,6 +175,7 @@ void main() {
                 ClarifyGlass(margin: margin, padding: padding, customColor: customColor, child: child),
             buildStatisticsDashboard: () => const SizedBox.shrink(),
             buildSettingsPanel: () => const SizedBox.shrink(),
+          buildTrashPanel: () => const SizedBox.shrink(),
             currentCalendarDate: today,
             onCalendarDateChanged: (_) {},
             getLocalKanbanStatus: (_) => 'todo',

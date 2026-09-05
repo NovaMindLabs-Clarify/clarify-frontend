@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/core/theme/design_tokens.dart';
 import 'package:frontend/widgets/main_content_area.dart';
@@ -32,6 +32,7 @@ Widget _harness({
         buildGlassContainer: ({required child, margin, padding, customColor}) => child,
         buildStatisticsDashboard: () => const SizedBox.shrink(),
         buildSettingsPanel: () => const SizedBox.shrink(),
+          buildTrashPanel: () => const SizedBox.shrink(),
         currentCalendarDate: DateTime.now(),
         onCalendarDateChanged: (_) {},
         getLocalKanbanStatus: (_) => 'todo',
