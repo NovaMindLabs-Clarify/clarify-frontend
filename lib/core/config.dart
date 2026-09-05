@@ -15,6 +15,11 @@ class AppConfig {
 
   static const String telegramSupportUrl = 'https://t.me/ClarifyHelp_bot';
 
+  /// Сайт студии со страницей Clarify. Запасной адрес, если сервер не сказал,
+  /// откуда качать обновление: отправить человека на страницу продукта лучше,
+  /// чем не отправить никуда.
+  static const String siteUrl = 'https://novamindlabs-clarify.github.io';
+
   static const Duration zenModeDuration = Duration(minutes: 45);
 
   static const int burnoutTaskThreshold = 10;

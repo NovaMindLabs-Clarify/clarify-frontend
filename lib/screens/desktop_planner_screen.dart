@@ -7,6 +7,8 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../widgets/clarify_pressable.dart';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:hotkey_manager/hotkey_manager.dart';
@@ -21,6 +23,7 @@ import '../core/priority.dart';
 import '../core/recurrence.dart';
 import '../core/theme/design_tokens.dart';
 import '../services/task_service.dart';
+import '../services/update_service.dart';
 import '../widgets/clarify_button.dart';
 import '../widgets/clarify_glass.dart';
 import '../widgets/clarify_surface.dart';
@@ -147,6 +150,13 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   }
 
   List<Map<String, dynamic>> tasks = [];
+
+  /// Доступное обновление приложения, если оно есть.
+  ///
+  /// Проверяется один раз при запуске: чаще незачем — человек не сидит в
+  /// приложении месяцами без перезапуска, а лишний запрос на каждом экране
+  /// ничего не добавляет.
+  UpdateInfo? _availableUpdate;
 
   /// Первая загрузка с сервера ещё не завершилась (D3).
   ///
@@ -402,7 +412,30 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     _initRealtime(); // <--- ВОТ ЭТА НОВАЯ СТРОЧКА
     
     _initGlobalHotkeys();
+    // На вебе обновляться нечему: PWA получает новую версию сама, через
+    // service worker. Спрашивать сервер о версии установщика там незачем.
+    if (!kIsWeb) unawaited(_checkForUpdate());
     if (_showAiOnboardingTip) AppSettings.aiOnboardingSeen = true;
+  }
+
+  /// Проверка обновлений — тихая. Не смогли проверить, сервер спит (Render на
+  /// бесплатном тарифе засыпает) — молчим: собственные неудачи проверки не
+  /// повод беспокоить человека.
+  Future<void> _checkForUpdate() async {
+    final update = await UpdateService.check();
+    if (!mounted || update == null) return;
+    setState(() => _availableUpdate = update);
+  }
+
+  Future<void> _openUpdateUrl() async {
+    final update = _availableUpdate;
+    if (update == null) return;
+    // Пока — ссылка в браузере. Когда появится обновлятор, он будет качать по
+    // этому же адресу и подменять файлы сам; здесь поменяется одна строка.
+    final target = update.url.isNotEmpty ? update.url : AppConfig.siteUrl;
+    final uri = Uri.tryParse(target);
+    if (uri == null) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   void _loadLocalData() {
@@ -1785,6 +1818,30 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                         ),
                                       ),
                                     ],
+
+                                    // Вышло обновление. Значком в шапке, а не
+                                    // модальным окном: обновление — это
+                                    // предложение, а не событие, ради которого
+                                    // человека надо прерывать. Кроме случая,
+                                    // когда старая версия работать уже не может
+                                    // — тогда значок красный.
+                                    if (_availableUpdate != null)
+                                      Padding(
+                                        padding: EdgeInsets.only(right: 12 * _s),
+                                        child: Tooltip(
+                                          message: _availableUpdate!.required
+                                              ? '${'Требуется обновление до версии'.tr(widget.currentLang)} ${_availableUpdate!.version}'
+                                              : '${'Доступна версия'.tr(widget.currentLang)} ${_availableUpdate!.version}',
+                                          child: ClarifyPressable(
+                                            onTap: _openUpdateUrl,
+                                            child: Icon(
+                                              LucideIcons.download,
+                                              color: _availableUpdate!.required ? _tokens.danger : _tokens.accent,
+                                              size: 24 * _s,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
 
                                     if (_isOffline)
                                       Padding(
