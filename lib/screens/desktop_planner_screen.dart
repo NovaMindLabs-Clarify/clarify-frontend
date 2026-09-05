@@ -13,6 +13,7 @@ import 'package:hotkey_manager/hotkey_manager.dart';
 import 'package:local_notifier/local_notifier.dart';
 
 import '../core/app_settings.dart';
+import '../core/clarify_date_format.dart';
 import '../core/config.dart';
 import '../core/localization.dart';
 import '../core/tags.dart';
@@ -2133,41 +2134,18 @@ Map<String, dynamic> _parseSmartInput(String text) {
     );
   }
 
+  // Выполненная задача не просрочена по определению — этим _isOverdue и
+  // отличается от taskWasPastDue, который отвечает на вопрос «дедлайн уже
+  // прошёл» независимо от отметки (нужно для резервирования места под значок).
   bool _isOverdue(Map<String, dynamic> task) {
-    if (task['is_completed'] == true) return false; 
-    if (task['due_date'] == null) return false;     
-
-    final date = _parseDate(task['due_date']);
-    if (date == null) return false;
-
-    int hour = 23;
-    int minute = 59;
-
-    if (task['due_time'] != null && task['due_time'].toString().contains(':')) {
-      final parts = task['due_time'].split(':');
-      hour = int.tryParse(parts[0]) ?? 23;
-      minute = int.tryParse(parts[1]) ?? 59;
-    }
-
-    final taskDateTime = DateTime(date.year, date.month, date.day, hour, minute);
-    return DateTime.now().isAfter(taskDateTime);
+    if (task['is_completed'] == true) return false;
+    return taskWasPastDue(task);
   }
 
-  /// Момент дедлайна задачи. Без времени — конец дня, как и в [_isOverdue].
-  DateTime? _taskDeadline(Map<String, dynamic> task) {
-    final raw = task['due_date'];
-    if (raw is! String) return null;
-    final date = _parseDate(raw);
-    if (date == null) return null;
-
-    int hour = 23;
-    int minute = 59;
-    final time = task['due_time'];
-    if (time != null && time.toString().contains(':')) {
-      final parts = time.toString().split(':');
-      hour = int.tryParse(parts[0]) ?? 23;
-      minute = int.tryParse(parts[1]) ?? 59;
-    }
-    return DateTime(date.year, date.month, date.day, hour, minute);
-  }
+  /// Момент дедлайна задачи. Без времени — конец дня.
+  ///
+  /// Общая реализация в core/clarify_date_format.dart: она же читает настоящие
+  /// колонки дат (B4) и используется всеми четырьмя местами, где это раньше
+  /// было скопировано.
+  DateTime? _taskDeadline(Map<String, dynamic> task) => taskDeadline(task);
 }

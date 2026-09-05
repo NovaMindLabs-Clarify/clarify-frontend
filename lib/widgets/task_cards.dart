@@ -18,20 +18,10 @@ import 'clarify_task_checkbox.dart';
 // return по is_completed, специально для резервирования места под иконку
 // (тот же приём, что и в mobile_task_row.dart:_wasPastDue — раздельные
 // файлы, см. комментарий в начале того файла про дублирование бейджей).
-bool _wasPastDue(Map<String, dynamic> task) {
-  if (task['due_date'] == null) return false;
-  final date = parseClarifyDate(task['due_date']);
-  if (date == null) return false;
-  int hour = 23;
-  int minute = 59;
-  if (task['due_time'] != null && task['due_time'].toString().contains(':')) {
-    final parts = task['due_time'].toString().split(':');
-    hour = int.tryParse(parts[0]) ?? 23;
-    minute = int.tryParse(parts[1]) ?? 59;
-  }
-  final dueDateTime = DateTime(date.year, date.month, date.day, hour, minute);
-  return DateTime.now().isAfter(dueDateTime);
-}
+// Реализация переехала в core/clarify_date_format.dart:taskWasPastDue —
+// одна на всё приложение и читающая настоящие колонки дат (B4). Здесь
+// остаётся только имя, чтобы не править вызовы по всему файлу.
+bool _wasPastDue(Map<String, dynamic> task) => taskWasPastDue(task);
 
 /// Строит карточки задачи для трёх представлений (список, доска "7 дней",
 /// календарь). Вынесено из DesktopPlannerScreen (P3.1, docs/IMPROVEMENT_PLAN.md) —

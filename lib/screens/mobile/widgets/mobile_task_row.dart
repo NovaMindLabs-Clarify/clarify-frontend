@@ -23,20 +23,10 @@ import '../../../widgets/clarify_task_checkbox.dart';
 // схлопнулось к false к моменту, когда задача отмечена выполненной. Эта
 // функция — та же проверка "дедлайн уже прошёл", но БЕЗ раннего return по
 // is_completed, специально для резервирования места под иконку.
-bool _wasPastDue(Map<String, dynamic> task) {
-  if (task['due_date'] == null) return false;
-  final date = parseClarifyDate(task['due_date']);
-  if (date == null) return false;
-  int hour = 23;
-  int minute = 59;
-  if (task['due_time'] != null && task['due_time'].toString().contains(':')) {
-    final parts = task['due_time'].toString().split(':');
-    hour = int.tryParse(parts[0]) ?? 23;
-    minute = int.tryParse(parts[1]) ?? 59;
-  }
-  final dueDateTime = DateTime(date.year, date.month, date.day, hour, minute);
-  return DateTime.now().isAfter(dueDateTime);
-}
+// Реализация переехала в core/clarify_date_format.dart:taskWasPastDue — одна
+// на всё приложение (раньше эта копия и копия в task_cards.dart жили отдельно
+// и уже начинали расходиться) и читающая настоящие колонки дат (B4).
+bool _wasPastDue(Map<String, dynamic> task) => taskWasPastDue(task);
 
 /// Строка задачи, общая для "Сегодня", "Задачи" и "Команды" на мобильной
 /// версии — левая полоса цвета приоритета вместо отдельного кружка-чекбокса
