@@ -18,7 +18,7 @@ class AppConfig {
   /// Сайт студии со страницей Clarify. Запасной адрес, если сервер не сказал,
   /// откуда качать обновление: отправить человека на страницу продукта лучше,
   /// чем не отправить никуда.
-  static const String siteUrl = 'https://novamindlabs-clarify.github.io';
+  static const String siteUrl = 'https://vantra-labs.github.io';
 
   static const Duration zenModeDuration = Duration(minutes: 45);
 
