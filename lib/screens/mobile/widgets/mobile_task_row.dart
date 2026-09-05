@@ -138,20 +138,29 @@ class MobileTaskRow extends StatelessWidget {
               // Заливка осталась только там, где несёт смысл: просрочка и
               // выполненная. У обычной задачи фона нет: одинаковая подложка у
               // всех строк и превращала список в стопку одинаковых плиток.
-              color: isDone
-                  ? t.surfaceSunken
-                  : (overdue ? t.dangerSoft : Colors.transparent),
-              // Полоса — канал приоритета ТОЛЬКО (§6.4 REDESIGN_V4_PLAN.md);
-              // просрочка читается через фон строки + иконку часов у времени.
-              border: Border(
-                left: BorderSide(
-                  color: isDone || priorityColor == t.text3
-                      ? Colors.transparent
-                      : priorityColor,
-                  width: 3,
-                ),
-                bottom: BorderSide(color: t.border),
-              ),
+              //
+              // color применяется, только когда gradient == null (иначе
+              // градиент побеждает) — а он и null ровно у выполненной задачи.
+              color: isDone ? t.surfaceSunken : null,
+              // Приоритет — мягкой заливкой слева вместо полосы в 3px
+              // (D2, выбор пользователя 05.09.2026). Полоса на тёмной теме
+              // почти не читается, её приходится искать глазами. Значения
+              // 1-в-1 с десктопом (TaskCardBuilders._priorityWash): одна и та
+              // же задача обязана выглядеть одинаково на ПК и на телефоне.
+              gradient: isDone || (priorityColor == t.text3 && !overdue)
+                  ? null
+                  : LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [
+                        (overdue ? t.danger : priorityColor).withValues(
+                          alpha: overdue ? 0.30 : 0.22,
+                        ),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 0.45],
+                    ),
+              border: Border(bottom: BorderSide(color: t.border)),
             ),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
@@ -182,8 +191,12 @@ class MobileTaskRow extends StatelessWidget {
                           text: task['title'] ?? '',
                           isDone: isDone,
                           style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
+                            // Просрочка отличается ещё и кеглем, а не только
+                            // цветом (D2) — как в списке на ПК.
+                            fontSize: overdue && !isDone ? 16.5 : 15,
+                            fontWeight: overdue && !isDone
+                                ? FontWeight.w700
+                                : FontWeight.w600,
                             color: isDone ? t.text3 : t.text,
                           ),
                           maxLines: 1,
@@ -363,6 +376,12 @@ class MobileTaskRow extends StatelessWidget {
                       ],
                     ),
                   ),
+                  // Крестик остаётся видимым, в отличие от ПК: там быстрые
+                  // действия (D2) проявляются по наведению, а на тач-экране
+                  // наведения нет — спрятанная кнопка стала бы недоступной.
+                  // Заменять её на свайп/долгое нажатие — отдельная работа с
+                  // отдельным решением, а не побочный эффект правки внешнего
+                  // вида строки.
                   IconButton(
                     icon: Icon(LucideIcons.x, size: 16, color: t.text3),
                     padding: EdgeInsets.zero,

@@ -1,4 +1,4 @@
-import 'package:flutter/gestures.dart' show PointerDeviceKind;
+﻿import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -10,6 +10,8 @@ TaskCardBuilders _builders({
   void Function(dynamic)? onDelete,
   void Function(Map<String, dynamic>)? onTap,
   void Function(String)? onTagTap,
+  void Function(dynamic, Map<String, dynamic>)? onQuickUpdateTask,
+  bool Function(Map<String, dynamic>)? isOverdue,
 }) {
   return TaskCardBuilders(
     isDark: false,
@@ -18,13 +20,13 @@ TaskCardBuilders _builders({
     workspaceMembers: const {},
     getPriorityColor: (priority) => Colors.grey,
     getSubtaskStats: (parentId) => const {'total': 0, 'done': 0},
-    isOverdue: (task) => false,
+    isOverdue: isOverdue ?? (task) => false,
     onToggle: onToggle ?? (_) {},
     onDelete: onDelete ?? (_) {},
     onTap: onTap ?? (_) {},
     onTagTap: onTagTap ?? (_) {},
     onPriorityTap: (_) {},
-    onQuickUpdateTask: (_, _) {},
+    onQuickUpdateTask: onQuickUpdateTask ?? (_, _) {},
     buildGlassContainer: ({required child, borderRadius, padding, margin, customColor}) => child,
   );
 }
@@ -42,10 +44,11 @@ void main() {
       expect(find.text('Купить молоко'), findsOneWidget);
     });
 
-    // С 2026-09-04 крестик виден и кликабелен только под курсором, поэтому
-    // тест обязан сперва навести мышь — иначе проверял бы поведение, которого
-    // у пользователя нет.
-    testWidgets('нажатие на крестик вызывает onDelete с id задачи', (tester) async {
+    // С 2026-09-04 действия строки видны и кликабельны только под курсором,
+    // поэтому тест обязан сперва навести мышь — иначе проверял бы поведение,
+    // которого у пользователя нет. С 05.09.2026 крестик заменён группой
+    // быстрых действий (D2), удаление — корзина.
+    testWidgets('нажатие на кнопку удаления вызывает onDelete с id задачи', (tester) async {
       dynamic deletedId;
       final task = {'id': 42, 'title': 'Задача', 'is_completed': false};
 
@@ -60,13 +63,13 @@ void main() {
       await mouse.moveTo(tester.getCenter(find.text('Задача')));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(LucideIcons.x));
+      await tester.tap(find.byIcon(LucideIcons.trash2));
       await tester.pumpAndSettle();
 
       expect(deletedId, 42);
     });
 
-    testWidgets('крестик не срабатывает, пока курсор не над строкой', (tester) async {
+    testWidgets('кнопка удаления не срабатывает, пока курсор не над строкой', (tester) async {
       dynamic deletedId;
       final task = {'id': 42, 'title': 'Задача', 'is_completed': false};
 
@@ -75,10 +78,76 @@ void main() {
         home: Scaffold(body: _builders(onDelete: (id) => deletedId = id).buildListTaskCard(task)),
       ));
 
-      await tester.tap(find.byIcon(LucideIcons.x), warnIfMissed: false);
+      await tester.tap(find.byIcon(LucideIcons.trash2), warnIfMissed: false);
       await tester.pumpAndSettle();
 
       expect(deletedId, isNull);
+    });
+
+    // D2: вместо одинокого крестика — группа быстрых действий. Смысл в том,
+    // что перенос на завтра был самой частой правкой и требовал открытия
+    // карточки.
+    testWidgets('«На завтра» переносит срок на завтрашнюю дату', (tester) async {
+      Map<String, dynamic>? updates;
+      final task = {'id': 42, 'title': 'Задача', 'is_completed': false};
+
+      await tester.pumpWidget(MaterialApp(
+        theme: ThemeData(extensions: const [ClarifyTokens.light]),
+        home: Scaffold(
+          body: _builders(onQuickUpdateTask: (_, u) => updates = u).buildListTaskCard(task),
+        ),
+      ));
+
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: Offset.zero);
+      addTearDown(mouse.removePointer);
+      await mouse.moveTo(tester.getCenter(find.text('Задача')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(LucideIcons.arrowRight));
+      await tester.pumpAndSettle();
+
+      final tomorrow = DateTime.now().add(const Duration(days: 1));
+      final expected = '${tomorrow.day.toString().padLeft(2, '0')}.'
+          '${tomorrow.month.toString().padLeft(2, '0')}.${tomorrow.year}';
+      expect(updates?['due_date'], expected);
+    });
+
+    testWidgets('у выполненной задачи переноса срока нет, только удаление', (tester) async {
+      final task = {'id': 42, 'title': 'Готово', 'is_completed': true};
+
+      await tester.pumpWidget(MaterialApp(
+        theme: ThemeData(extensions: const [ClarifyTokens.light]),
+        home: Scaffold(body: _builders().buildListTaskCard(task)),
+      ));
+
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: Offset.zero);
+      addTearDown(mouse.removePointer);
+      await mouse.moveTo(tester.getCenter(find.text('Готово')));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(LucideIcons.trash2), findsOneWidget);
+      expect(find.byIcon(LucideIcons.arrowRight), findsNothing,
+          reason: 'выполненную задачу переносить некуда — у неё нет будущего срока');
+    });
+
+    testWidgets('просроченная задача крупнее обычной', (tester) async {
+      Future<double> titleSize(bool overdue) async {
+        final task = {'id': 1, 'title': 'Задача', 'is_completed': false};
+        await tester.pumpWidget(MaterialApp(
+          theme: ThemeData(extensions: const [ClarifyTokens.light]),
+          home: Scaffold(
+            body: _builders(isOverdue: (_) => overdue).buildListTaskCard(task),
+          ),
+        ));
+        return tester.widget<Text>(find.text('Задача')).style!.fontSize!;
+      }
+
+      final normal = await titleSize(false);
+      final overdue = await titleSize(true);
+      expect(overdue, greaterThan(normal),
+          reason: 'D2: просрочка должна отличаться размером, а не только цветом');
     });
 
     testWidgets('нажатие на зону выполнения вызывает onToggle с самой задачей', (tester) async {

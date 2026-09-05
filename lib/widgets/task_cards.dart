@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../core/clarify_date_format.dart';
+import '../core/localization.dart';
 import '../core/theme/design_tokens.dart';
 import '../core/checklist.dart';
 import 'clarify_collapsing_task_row.dart';
@@ -539,8 +540,6 @@ class TaskCardBuilders {
 
   Widget _buildBoardRowBody(Map<String, dynamic> task, {required bool hovered}) {
     final bool isDone = task['is_completed'] == true;
-    Color priorityColor = getPriorityColor(task['priority']);
-    bool hasPriority = task['priority'] != null && task['priority'] != 'none';
     bool hasRecurrence =
         task['recurrence'] != null && task['recurrence'] != 'none';
     final stats = getSubtaskStats(task['id']);
@@ -551,14 +550,10 @@ class TaskCardBuilders {
     final bool overdue = isOverdue(task);
 
     String displayTitle = task['title'] ?? '';
-    // Полоса слева вместо сплошной стеклянной подложки — тот же язык, что у
-    // MobileTaskRow (REDESIGN_V3_PLAN §5.3): "жирный блок" был из-за границы
-    // со всех сторон + заливки, здесь акцент только слева, карточка легче.
-    // Канал приоритета ТОЛЬКО (§6.4 REDESIGN_V4_PLAN.md) — просрочка больше не
-    // подменяет цвет полосы, у неё свой канал (иконка часов у времени слева).
-    final Color stripeColor = isDone
-        ? glassBorderColor
-        : (hasPriority ? priorityColor : glassBorderColor);
+    // Полоса приоритета в 3px заменена мягкой заливкой (D2, 05.09.2026) —
+    // см. _priorityWash. Отдельная заливка dangerSoft для просрочки убрана
+    // оттуда же: просрочка теперь красит саму заливку, и два фона друг на
+    // друге давали грязный цвет.
 
     return ClarifyCollapsingTaskRow(
       key: ValueKey(task['id']),
@@ -618,10 +613,14 @@ class TaskCardBuilders {
                 child: AnimatedContainer(
                   duration: ClarifyMotion.completion,
                   curve: ClarifyMotion.standard,
+                  foregroundDecoration: _hoverOverlay(hovered),
                   decoration: BoxDecoration(
-                    color: (!isDone && overdue) ? _t.dangerSoft : null,
+                    gradient: _priorityWash(
+                      task,
+                      isDone: isDone,
+                      overdue: overdue,
+                    ),
                     border: Border(
-                      left: BorderSide(color: stripeColor, width: 3 * _s),
                       bottom: BorderSide(color: glassBorderColor),
                     ),
                   ),
@@ -651,7 +650,12 @@ class TaskCardBuilders {
                               // жирное начертание в узкой колонке спорило с
                               // заголовком самой колонки (2026-09-04).
                               style: TextStyle(
-                                fontSize: 14.5 * _rowScale,
+                                // Просрочка отличается ещё и кеглем, а не
+                                // только цветом (D2) — тот же приём, что в
+                                // списке, иначе одна задача читалась бы
+                                // по-разному в двух разделах.
+                                fontSize: (overdue && !isDone ? 16 : 14.5) *
+                                    _rowScale,
                                 color: isDone ? textMuted : textColor,
                                 fontWeight: overdue && !isDone
                                     ? FontWeight.w700
@@ -745,20 +749,17 @@ class TaskCardBuilders {
                           ],
                         ),
                       ),
-                      Builder(
-                        builder: (btnContext) => IconButton(
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          icon: Icon(
-                            LucideIcons.x,
-                            size: 18 * _s,
-                            color: textMuted,
-                          ),
-                          onPressed: () =>
-                              ClarifyCollapsingTaskRow.collapseThenRun(
-                                btnContext,
-                                () => onDelete(task['id']),
-                              ),
+                      // Быстрые действия по наведению вместо постоянно
+                      // висящего крестика (D2) — те же, что в списке.
+                      // IgnorePointer, а не отсутствие виджета: иначе строка
+                      // прыгала бы по ширине при каждом наведении.
+                      IgnorePointer(
+                        ignoring: !hovered,
+                        child: AnimatedOpacity(
+                          duration: ClarifyMotion.base,
+                          curve: ClarifyMotion.standard,
+                          opacity: hovered ? 1 : 0,
+                          child: _rowQuickActions(task, isDone: isDone),
                         ),
                       ),
                     ],
@@ -825,12 +826,129 @@ class TaskCardBuilders {
     );
   }
 
+  /// Быстрые действия строки: отложить на завтра, изменить дату, удалить.
+  ///
+  /// Дата пишется той же строкой ДД.ММ.ГГГГ, что и везде в приложении — это
+  /// формат хранения (см. B4: настоящие колонки дат заполняет триггер в базе,
+  /// приложение по-прежнему пишет строку).
+  String _formatDateForTask(DateTime date) =>
+      '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
+
+  /// Приоритет мягкой заливкой слева вместо полоски в 2–3 пикселя
+  /// (D2, выбор пользователя 05.09.2026). Полоска на тёмной теме почти не
+  /// читается: её приходится искать глазами, а сигнал должен браться
+  /// периферийным зрением. Заливка гаснет к середине строки, чтобы не мешать
+  /// тексту.
+  ///
+  /// Прозрачность подобрана глазами: предложенные аудитом 5–8% на нашем почти
+  /// чёрном фоне не видно вовсе — невидимая заливка хуже полоски, а не лучше.
+  ///
+  /// Общий метод, а не копия в каждой строке: список, доска и мобильная строка
+  /// обязаны выглядеть одинаково, иначе одна и та же задача читается по-разному
+  /// в двух разделах.
+  Gradient? _priorityWash(
+    Map<String, dynamic> task, {
+    required bool isDone,
+    required bool overdue,
+  }) {
+    final bool hasPriority =
+        task['priority'] != null && task['priority'] != 'none';
+    if (isDone || (!hasPriority && !overdue)) return null;
+    return LinearGradient(
+      begin: Alignment.centerLeft,
+      end: Alignment.centerRight,
+      colors: [
+        (overdue ? _t.danger : getPriorityColor(task['priority']))
+            .withValues(alpha: overdue ? 0.30 : 0.22),
+        Colors.transparent,
+      ],
+      stops: const [0.0, 0.45],
+    );
+  }
+
+  /// Подсветка строки под курсором — отдельным слоем поверх заливки приоритета:
+  /// в BoxDecoration градиент и color вместе не живут, градиент побеждает.
+  /// И осветление нейтральное, а не accentSoft: акцентная плашка поверх цветной
+  /// заливки даёт мутно-серое пятно и съедает сам цвет приоритета.
+  BoxDecoration? _hoverOverlay(bool hovered) => hovered
+      ? BoxDecoration(
+          color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.045),
+        )
+      : null;
+
+  Widget _rowQuickActions(Map<String, dynamic> task, {required bool isDone}) {
+    Widget action({
+      required IconData icon,
+      required String tooltip,
+      required VoidCallback onPressed,
+      bool danger = false,
+    }) {
+      return Tooltip(
+        message: tooltip.tr(currentLang),
+        child: IconButton(
+          icon: Icon(icon, color: danger ? _t.text3 : _t.text2, size: 16),
+          hoverColor: danger ? _t.dangerSoft : _t.accentSoft,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+          onPressed: onPressed,
+        ),
+      );
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Выполненную задачу переносить некуда — у неё уже нет будущего срока.
+        if (!isDone) ...[
+          action(
+            icon: LucideIcons.arrowRight,
+            tooltip: 'На завтра',
+            onPressed: () => onQuickUpdateTask(task['id'], {
+              'due_date': _formatDateForTask(
+                DateTime.now().add(const Duration(days: 1)),
+              ),
+            }),
+          ),
+          Builder(
+            builder: (pickerContext) => action(
+              icon: LucideIcons.calendar,
+              tooltip: 'Изменить дату',
+              onPressed: () async {
+                final now = DateTime.now();
+                final picked = await showDatePicker(
+                  context: pickerContext,
+                  initialDate: now,
+                  firstDate: DateTime(now.year - 1),
+                  lastDate: DateTime(now.year + 5),
+                );
+                if (picked == null) return;
+                onQuickUpdateTask(task['id'], {
+                  'due_date': _formatDateForTask(picked),
+                });
+              },
+            ),
+          ),
+        ],
+        Builder(
+          builder: (btnContext) => action(
+            icon: LucideIcons.trash2,
+            tooltip: 'Удалить',
+            danger: true,
+            onPressed: () => ClarifyCollapsingTaskRow.collapseThenRun(
+              btnContext,
+              () => onDelete(task['id']),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildListRowBody(Map<String, dynamic> task, {required bool hovered}) {
     final double rs = _rowScale;
     final bool isDone = task['is_completed'] == true;
     final cStats = checklistStats(task['checklist']);
     final bool hasChecklist = cStats['total']! > 0;
-    bool hasPriority = task['priority'] != null && task['priority'] != 'none';
     bool hasRecurrence =
         task['recurrence'] != null && task['recurrence'] != 'none';
     final stats = getSubtaskStats(task['id']);
@@ -864,25 +982,10 @@ class TaskCardBuilders {
         duration: ClarifyMotion.base,
         curve: ClarifyMotion.standard,
         constraints: BoxConstraints(minHeight: 44 * rs),
+        foregroundDecoration: _hoverOverlay(hovered),
         decoration: BoxDecoration(
-          // Заливка только у того, что требует внимания, и лёгкая подсветка под
-          // курсором. У обычной задачи фона нет вовсе: именно одинаковая
-          // подложка у всех строк и превращала список в стопку одинаковых
-          // плиток.
-          color: !isDone && overdue
-              ? _t.dangerSoft
-              : (hovered ? _t.accentSoft : Colors.transparent),
-          border: Border(
-            bottom: BorderSide(color: _t.border),
-            // Приоритет — по левой кромке всей строки, без отдельного
-            // Positioned поверх карточки: карточки больше нет.
-            left: BorderSide(
-              color: isDone || !hasPriority
-                  ? Colors.transparent
-                  : getPriorityColor(task['priority']),
-              width: overdue && !isDone ? 3 : 2,
-            ),
-          ),
+          gradient: _priorityWash(task, isDone: isDone, overdue: overdue),
+          border: Border(bottom: BorderSide(color: _t.border)),
         ),
         padding: EdgeInsets.fromLTRB(0, 7 * rs, 8 * rs, 7 * rs),
         child: GestureDetector(
@@ -919,8 +1022,15 @@ class TaskCardBuilders {
                                     // 18px перебивал собой всё остальное и
                                     // задавал высоту, из-за которой на экран
                                     // влезало 6 задач вместо 12.
+                                    // Просроченная задача крупнее остальных
+                                    // (D2, выбор пользователя 05.09.2026):
+                                    // она обязана выделяться из списка без
+                                    // чтения. Только просроченная, а не всякая
+                                    // важная: если крупных строк в списке
+                                    // пять, ровный ритм рассыпается и читать
+                                    // становится тяжелее, а не легче.
                                     style: TextStyle(
-                                      fontSize: 15 * rs,
+                                      fontSize: (overdue && !isDone ? 16.5 : 15) * rs,
                                       height: 1.25,
                                       color: isDone ? textMuted : textColor,
                                       fontWeight: overdue && !isDone
@@ -1143,12 +1253,16 @@ class TaskCardBuilders {
                             );
                           },
                         ),
-                      // Крестик удаления — только под курсором. Постоянно
-                      // висящий крестик и добавлял шума в каждую строку, и
-                      // провоцировал случайные удаления (задача удаляется
-                      // безвозвратно, корзины нет).
-                      // IgnorePointer, а не отключение кнопки: невидимая, но
-                      // кликабельная зона — это удаление вслепую по случайному
+                      // Быстрые действия под курсором вместо одного крестика
+                      // (D2, выбор пользователя 05.09.2026): отложить на
+                      // завтра, изменить дату, удалить. Постоянно висящий
+                      // крестик и шумел в каждой строке, и провоцировал
+                      // случайные удаления — а других частых действий рядом не
+                      // было вовсе, хотя «перенести на завтра» человек делает
+                      // чаще, чем удаляет.
+                      //
+                      // IgnorePointer, а не просто прозрачность: невидимая, но
+                      // кликабельная зона — это действие вслепую по случайному
                       // попаданию мышью.
                       IgnorePointer(
                         ignoring: !hovered,
@@ -1156,22 +1270,7 @@ class TaskCardBuilders {
                           duration: ClarifyMotion.base,
                           curve: ClarifyMotion.standard,
                           opacity: hovered ? 1 : 0,
-                          child: Builder(
-                            builder: (btnContext) => IconButton(
-                              icon: Icon(LucideIcons.x, color: _t.text3, size: 17),
-                              hoverColor: _t.dangerSoft,
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(
-                                minWidth: 26,
-                                minHeight: 26,
-                              ),
-                              onPressed: () =>
-                                  ClarifyCollapsingTaskRow.collapseThenRun(
-                                    btnContext,
-                                    () => onDelete(task['id']),
-                                  ),
-                            ),
-                          ),
+                          child: _rowQuickActions(task, isDone: isDone),
                         ),
                       ),
                     ],
