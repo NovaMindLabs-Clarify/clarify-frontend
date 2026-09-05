@@ -54,6 +54,7 @@ class SidebarMenu extends StatefulWidget {
     'Друзья': LucideIcons.userRound,
     'Сообщения': LucideIcons.messageCircle,
     'Статистика': LucideIcons.chartNoAxesColumn,
+    'История': LucideIcons.history,
     'Корзина': LucideIcons.trash2,
   };
 

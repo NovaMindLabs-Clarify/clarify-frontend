@@ -85,6 +85,10 @@ class MainContentArea extends StatelessWidget {
   /// Раздел «Корзина» (C6) — строится родителем, как и настройки со
   /// статистикой: ему доступен TaskService, а этому виджету нет.
   final Widget Function() buildTrashPanel;
+
+  /// Раздел «История» (B3) — выполненные задачи старше окна загрузки. Строится
+  /// родителем по той же причине, что и корзина.
+  final Widget Function() buildArchivePanel;
   final String Function(dynamic taskId) getLocalKanbanStatus;
   final void Function(dynamic taskId, String status) onSetLocalKanbanStatus;
 
@@ -145,6 +149,7 @@ class MainContentArea extends StatelessWidget {
     required this.buildStatisticsDashboard,
     required this.buildSettingsPanel,
     required this.buildTrashPanel,
+    required this.buildArchivePanel,
     required this.getLocalKanbanStatus,
     required this.onSetLocalKanbanStatus,
     required this.currentCalendarDate,
@@ -175,7 +180,7 @@ class MainContentArea extends StatelessWidget {
 
     final List<String> weekdaysRu = _kWeekdaysRu;
 
-    const reservedMenuKeys = {'Мой день', 'Следующие 7 дней', 'Все задачи', 'Календарь', 'Входящие', 'Проекты', 'Друзья', 'Сообщения', 'Статистика', 'Настройки', 'Корзина'};
+    const reservedMenuKeys = {'Мой день', 'Следующие 7 дней', 'Все задачи', 'Календарь', 'Входящие', 'Проекты', 'Друзья', 'Сообщения', 'Статистика', 'Настройки', 'История', 'Корзина'};
     final isTagProject = !reservedMenuKeys.contains(selectedMenu) && !selectedMenu.startsWith('ws_');
 
     if (isTagProject) {
@@ -608,6 +613,9 @@ class MainContentArea extends StatelessWidget {
     }
     else if (selectedMenu == 'Настройки') {
       return buildSettingsPanel();
+    }
+    else if (selectedMenu == 'История') {
+      return buildArchivePanel();
     }
     else if (selectedMenu == 'Корзина') {
       return buildTrashPanel();

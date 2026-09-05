@@ -96,9 +96,9 @@ class TaskService {
     // is_completed сравнивается ещё и с null: колонка nullable, и у задач,
     // созданных до появления значения по умолчанию, там NULL — без этой ветки
     // они бы тоже пропали.
-    final cutoff = DateTime.now()
-        .subtract(const Duration(days: AppConfig.completedTasksWindowDays))
-        .toIso8601String();
+    // Та же граница, что у истории (fetchArchive) — иначе между окном и
+    // историей появилась бы дыра из задач, невидимых нигде, либо перекрытие.
+    final cutoff = archiveCutoff().toIso8601String();
     final data = await Supabase.instance.client
         .from('tasks')
         .select()
@@ -407,5 +407,48 @@ class TaskService {
         .timeout(const Duration(seconds: 15));
     return List<Map<String, dynamic>>.from(data);
   }
+
+  /// Выполненные задачи СТАРШЕ окна загрузки — вторая половина B3.
+  ///
+  /// fetchTasks грузит окно (всё невыполненное + выполненное за
+  /// [AppConfig.completedTasksWindowDays]), и это правильно: тянуть тысячи
+  /// задач при каждом запуске и каждом realtime-событии — то, ради чего окно и
+  /// вводилось. Но задачи за пределами окна становились НЕДОСТУПНЫ вообще:
+  /// они есть в базе, а увидеть их нечем. Это не оптимизация, а потеря данных
+  /// с точки зрения человека.
+  ///
+  /// Поэтому — отдельный запрос, по требованию и страницами. В общий кэш эти
+  /// строки не попадают: иначе окно потеряло бы смысл, а списки пришлось бы
+  /// фильтровать в каждом разделе.
+  ///
+  /// [before] — грузить то, что старше этого момента. Для первой страницы
+  /// передаётся граница окна, для следующих — `completed_at` последней
+  /// показанной задачи. Смещением (offset) листать нельзя: между запросами
+  /// список меняется, и страницы начали бы перекрываться или пропускать
+  /// задачи.
+  Future<List<Map<String, dynamic>>> fetchArchive({
+    required DateTime before,
+    int limit = 50,
+  }) async {
+    final data = await Supabase.instance.client
+        .from('tasks')
+        .select()
+        .isFilter('deleted_at', null)
+        .isFilter('parent_id', null)
+        .eq('is_completed', true)
+        .lt('completed_at', before.toUtc().toIso8601String())
+        .order('completed_at', ascending: false)
+        .limit(limit)
+        .timeout(const Duration(seconds: 15));
+    return List<Map<String, dynamic>>.from(data);
+  }
+
+  /// Граница окна загрузки — с неё начинается история.
+  ///
+  /// Одно место на всё приложение: разъехавшись, окно и история либо оставили
+  /// бы дыру между собой (задачи, невидимые нигде), либо показывали бы одни и
+  /// те же задачи дважды.
+  static DateTime archiveCutoff() => DateTime.now()
+      .subtract(const Duration(days: AppConfig.completedTasksWindowDays));
 }
 

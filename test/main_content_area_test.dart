@@ -33,6 +33,7 @@ Widget _harness({
         buildStatisticsDashboard: () => const SizedBox.shrink(),
         buildSettingsPanel: () => const SizedBox.shrink(),
           buildTrashPanel: () => const SizedBox.shrink(),
+          buildArchivePanel: () => const SizedBox.shrink(),
         currentCalendarDate: DateTime.now(),
         onCalendarDateChanged: (_) {},
         getLocalKanbanStatus: (_) => 'todo',

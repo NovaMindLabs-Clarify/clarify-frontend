@@ -38,6 +38,7 @@ import 'mobile/mobile_planner_shell.dart';
 import 'mobile/mobile_settings_screen.dart';
 import '../widgets/task_cards.dart';
 import '../widgets/statistics_dashboard.dart';
+import '../widgets/archive_screen.dart';
 import '../widgets/trash_screen.dart';
 import '../widgets/ai_chat_panel.dart';
 import '../dialogs/workspace_dialogs.dart';
@@ -281,7 +282,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   // подсказку на пустом чате — то же самое воспроизведено в AiChatPanel.
   List<Map<String, String>> chatMessages = [];
   late final bool _showAiOnboardingTip = !AppSettings.aiOnboardingSeen;
-  final List<String> menuItems = ['Мой день', 'Следующие 7 дней', 'Все задачи', 'Календарь', 'Входящие', 'Проекты', 'Друзья', 'Сообщения', 'Статистика', 'Корзина'];
+  final List<String> menuItems = ['Мой день', 'Следующие 7 дней', 'Все задачи', 'Календарь', 'Входящие', 'Проекты', 'Друзья', 'Сообщения', 'Статистика', 'История', 'Корзина'];
   final List<String> weekdaysRu = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
 
   bool get isDark => widget.isDark;
@@ -326,6 +327,18 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     if (!mounted || total == null) return;
     setState(() => _totalTasksInBase = total);
   }
+
+  /// История (B3) — выполненные задачи старше окна загрузки.
+  ///
+  /// Отдельный экран и отдельный запрос: держать их в общем кэше значило бы
+  /// вернуть ровно то, ради чего окно и вводилось.
+  Widget _buildArchivePanelWidget() => ArchiveScreen(
+        currentLang: widget.currentLang,
+        scale: _s,
+        windowDays: AppConfig.completedTasksWindowDays,
+        cutoff: TaskService.archiveCutoff,
+        loadPage: (before) => _taskService.fetchArchive(before: before),
+      );
 
   /// Корзина (C6) — один и тот же экран для ПК и телефона. Раньше он
   /// собирался прямо в разметке десктопа, из-за чего на мобильной версии его
@@ -2077,6 +2090,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
                               // запросом при открытии раздела, в общий кэш
                               // задач удалённое не попадает.
                               buildTrashPanel: _buildTrashPanelWidget,
+                              buildArchivePanel: _buildArchivePanelWidget,
                               buildSettingsPanel: () {
                                 final user = Supabase.instance.client.auth.currentUser;
                                 final metadata = user?.userMetadata ?? {};
