@@ -5,6 +5,7 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   app_links
   bitsdojo_window_windows
+  flutter_secure_storage_windows
   hotkey_manager_windows
   local_notifier
   record_windows
