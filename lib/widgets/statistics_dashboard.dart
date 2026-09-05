@@ -1,11 +1,11 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../core/clarify_date_format.dart';
 import '../core/config.dart';
 import '../core/localization.dart';
 import '../core/tags.dart';
 import '../core/theme/design_tokens.dart';
-import 'clarify_day_load_warning.dart' show dayLoadMinutes;
 
 enum _ActivityPeriod { week, month, year }
 
@@ -29,6 +29,13 @@ class StatisticsDashboard extends StatefulWidget {
     Color? customColor,
   }) buildGlassContainer;
 
+  /// Сколько задач в базе ВСЕГО — спрошено у сервера (B3).
+  ///
+  /// null означает «неизвестно»: связи нет либо запрос не прошёл. Тогда панель
+  /// показывает, сколько задач загружено, и честно так и подписывает — вместо
+  /// того чтобы выдавать окно за всю базу.
+  final int? totalInBase;
+
   const StatisticsDashboard({
     super.key,
     required this.tasks,
@@ -40,6 +47,7 @@ class StatisticsDashboard extends StatefulWidget {
     required this.parseDate,
     required this.getPriorityColor,
     required this.buildGlassContainer,
+    this.totalInBase,
   });
 
   @override
@@ -54,6 +62,36 @@ class _StatisticsDashboardState extends State<StatisticsDashboard> {
   final _scrollController = ScrollController(keepScrollOffset: false);
   _ActivityPeriod _period = _ActivityPeriod.week;
 
+  /// Посчитанные числа и то, для чего они посчитаны.
+  ///
+  /// Пересчитываем, только когда пришёл ДРУГОЙ список задач (TaskCache всегда
+  /// отдаёт новый список — сравнения по ссылке достаточно) или сменился
+  /// календарный день: от «сегодня» зависят просрочка, серия и график
+  /// активности, и панель, открытая через полночь, иначе врала бы.
+  _DashboardStats? _stats;
+  List<Map<String, dynamic>>? _statsSource;
+  DateTime? _statsDay;
+
+  _DashboardStats _statsFor(DateTime now) {
+    final day = DateTime(now.year, now.month, now.day);
+    final cached = _stats;
+    if (cached != null &&
+        identical(_statsSource, widget.tasks) &&
+        _statsDay == day) {
+      return cached;
+    }
+    final fresh = _DashboardStats.compute(
+      tasks: widget.tasks,
+      now: now,
+      isOverdue: widget.isOverdue,
+      priorityOrder: _priorityOrder,
+    );
+    _stats = fresh;
+    _statsSource = widget.tasks;
+    _statsDay = day;
+    return fresh;
+  }
+
   static const _priorityOrder = ['red', 'orange', 'blue', 'gray'];
   static const _priorityLabelKeys = {'red': 'Срочный', 'orange': 'Важный', 'blue': 'Обычный', 'gray': 'Низкий'};
   static const _monthShortKeys = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
@@ -65,96 +103,38 @@ class _StatisticsDashboardState extends State<StatisticsDashboard> {
     super.dispose();
   }
 
-  // Момент фактического выполнения — новый completed_at, если есть; для
-  // задач, отмеченных до появления этой колонки, приближаем по due_date,
-  // чтобы старая история не пропадала из графика активности разом.
-  DateTime? _effectiveCompletionDate(Map<String, dynamic> task) {
-    final raw = task['completed_at'];
-    if (raw != null) {
-      final dt = DateTime.tryParse(raw.toString());
-      if (dt != null) return dt;
-    }
-    if (task['due_date'] != null) return widget.parseDate(task['due_date'].toString());
-    return null;
-  }
-
-  List<int> _activityBuckets(DateTime now) {
-    final bucketCount = switch (_period) { _ActivityPeriod.week => 7, _ActivityPeriod.month => 30, _ActivityPeriod.year => 12 };
-    final buckets = List.filled(bucketCount, 0);
-    for (final task in widget.tasks) {
-      if (task['is_completed'] != true) continue;
-      final date = _effectiveCompletionDate(task);
-      if (date == null) continue;
-      if (_period == _ActivityPeriod.year) {
-        final monthDiff = (now.year - date.year) * 12 + (now.month - date.month);
-        if (monthDiff >= 0 && monthDiff < 12) buckets[11 - monthDiff]++;
-      } else {
-        final diff = DateTime(now.year, now.month, now.day).difference(DateTime(date.year, date.month, date.day)).inDays;
-        if (diff >= 0 && diff < bucketCount) buckets[bucketCount - 1 - diff]++;
-      }
-    }
-    return buckets;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final tasks = widget.tasks;
     final workspaces = widget.workspaces;
     final currentLang = widget.currentLang;
     final textColor = widget.textColor;
     final textMuted = widget.textMuted;
-    final isOverdue = widget.isOverdue;
-    final parseDate = widget.parseDate;
     final getPriorityColor = widget.getPriorityColor;
     final buildGlassContainer = widget.buildGlassContainer;
     final t = context.tokens;
     final now = DateTime.now();
 
-    int doneCount = 0;
-    int pendingCount = 0;
-    int overdueCount = 0;
-    int noDateCount = 0;
+    // Все счётчики считаются ОДНИМ проходом и кэшируются (см. _DashboardStats).
+    // Раньше build() проходил по списку задач шестнадцать раз: девять циклов
+    // подряд плюс семь вызовов dayLoadMinutes на «перегруженные дни», и всё это
+    // заново при каждой перерисовке — включая перерисовку от любого события
+    // realtime. Именно это в аудите (B3) названо «приложение начнёт думать на
+    // пустом месте».
+    final s = _statsFor(now);
 
-    for (var task in tasks) {
-      if (task['is_completed'] == true) {
-        doneCount++;
-      } else if (task['due_date'] == null || task['due_date'].toString().isEmpty) {
-        noDateCount++;
-      } else {
-        if (isOverdue(task)) {
-          overdueCount++;
-        } else {
-          pendingCount++;
-        }
-      }
-    }
+    final doneCount = s.done;
+    final pendingCount = s.pending;
+    final overdueCount = s.overdue;
+    final noDateCount = s.noDate;
+    final rotCount = s.rot;
+    final rescheduleCount = s.reschedule;
+    final overloadedDaysCount = s.overloadedDays;
 
-    // "Здоровье недели" — сводка по трём уже отслеживаемым по отдельным
-    // задачам сигналам (значки гниения/переноса на карточках, предупреждение
-    // о загрузке дня при планировании), сведённая в одно место: раньше их
-    // можно было заметить только по одной задаче за раз, листая список, а не
-    // как общую картину недели. Условия здесь намеренно зеркалят
-    // buildRotBadge/buildRescheduleBadge (clarify_task_checkbox.dart) —
-    // цифра в дайджесте не должна расходиться с тем, что показывает бейдж на
-    // самой задаче.
-    int rotCount = 0;
-    int rescheduleCount = 0;
-    for (final task in tasks) {
-      if (task['is_completed'] == true) continue;
-      if (task['due_date'] == null || isOverdue(task)) {
-        final createdAt = DateTime.tryParse(task['created_at']?.toString() ?? '');
-        if (createdAt != null && now.difference(createdAt).inDays >= AppConfig.taskRotDays) rotCount++;
-      }
-      final rescheduled = task['reschedule_count'] as int?;
-      if (rescheduled != null && rescheduled >= AppConfig.rescheduleWarningCount) rescheduleCount++;
-    }
-    String fmtDate(DateTime d) => "${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}";
-    final todayDateOnly = DateTime(now.year, now.month, now.day);
-    final overloadedDaysCount = List.generate(7, (i) => todayDateOnly.add(Duration(days: i)))
-        .where((d) => dayLoadMinutes(tasks, fmtDate(d)) >= AppConfig.dailyLoadWarningMinutes)
-        .length;
-
-    final activityBuckets = _activityBuckets(now);
+    final activityBuckets = switch (_period) {
+      _ActivityPeriod.week => s.weekBuckets,
+      _ActivityPeriod.month => s.monthBuckets,
+      _ActivityPeriod.year => s.yearBuckets,
+    };
     final activityTotal = activityBuckets.fold<int>(0, (a, b) => a + b);
     final activityLabelKey = switch (_period) {
       _ActivityPeriod.week => 'Выполнено за 7 дней',
@@ -162,90 +142,22 @@ class _StatisticsDashboardState extends State<StatisticsDashboard> {
       _ActivityPeriod.year => 'Выполнено за 12 месяцев',
     };
 
-    // % выполнено в срок — считаем только по задачам, у которых есть и
-    // due_date, и completed_at (старые завершения без completed_at честно
-    // исключаем, а не подставляем произвольный момент).
-    int onTimeDone = 0;
-    int consideredForOnTime = 0;
-    for (final task in tasks) {
-      if (task['is_completed'] != true || task['due_date'] == null) continue;
-      final completedAt = task['completed_at'] != null ? DateTime.tryParse(task['completed_at'].toString()) : null;
-      if (completedAt == null) continue;
-      final dueDate = parseDate(task['due_date'].toString());
-      if (dueDate == null) continue;
-      int hour = 23;
-      int minute = 59;
-      if (task['due_time'] != null && task['due_time'].toString().contains(':')) {
-        final parts = task['due_time'].toString().split(':');
-        hour = int.tryParse(parts[0]) ?? 23;
-        minute = int.tryParse(parts[1]) ?? 59;
-      }
-      final dueDateTime = DateTime(dueDate.year, dueDate.month, dueDate.day, hour, minute);
-      consideredForOnTime++;
-      if (!completedAt.isAfter(dueDateTime)) onTimeDone++;
-    }
-    final int? onTimeRatePercent = consideredForOnTime == 0 ? null : ((onTimeDone / consideredForOnTime) * 100).round();
+    final onTimeRatePercent = s.onTimePercent;
+    final streak = s.streak;
 
-    // Серия дней подряд — по датам completed_at, допускаем, что сегодняшний
-    // день ещё не закрыт (streak не обнуляется до полуночи, если вчера
-    // что-то было выполнено, а сегодня пока ничего).
-    final completedDays = <DateTime>{};
-    for (final task in tasks) {
-      if (task['is_completed'] != true || task['completed_at'] == null) continue;
-      final dt = DateTime.tryParse(task['completed_at'].toString());
-      if (dt == null) continue;
-      completedDays.add(DateTime(dt.year, dt.month, dt.day));
-    }
-    int streak = 0;
-    DateTime streakCursor = DateTime(now.year, now.month, now.day);
-    if (!completedDays.contains(streakCursor)) streakCursor = streakCursor.subtract(const Duration(days: 1));
-    while (completedDays.contains(streakCursor)) {
-      streak++;
-      streakCursor = streakCursor.subtract(const Duration(days: 1));
-    }
-
-    // Разбивка по проектам — тег может быть у задачи не один, считаем задачу
-    // во всех её тегах сразу (как и ProjectsScreen).
-    final Map<String, int> projectTotal = {};
-    final Map<String, int> projectDone = {};
-    for (final task in tasks) {
-      for (final tag in parseTagsString(task['tags'])) {
-        projectTotal[tag] = (projectTotal[tag] ?? 0) + 1;
-        if (task['is_completed'] == true) projectDone[tag] = (projectDone[tag] ?? 0) + 1;
-      }
-    }
+    final projectTotal = s.projectTotal;
+    final projectDone = s.projectDone;
     final sortedProjectTags = projectTotal.keys.toList()..sort((a, b) => projectTotal[b]!.compareTo(projectTotal[a]!));
 
-    // Разбивка по приоритетам.
-    final Map<String, int> priorityCount = {for (final p in _priorityOrder) p: 0};
-    for (final task in tasks) {
-      final p = task['priority']?.toString();
-      if (p != null && priorityCount.containsKey(p)) priorityCount[p] = priorityCount[p]! + 1;
-    }
+    final priorityCount = s.priorityCount;
     final maxPriorityCount = priorityCount.values.isEmpty ? 0 : priorityCount.values.reduce((a, b) => a > b ? a : b);
     final totalPrioritized = priorityCount.values.fold<int>(0, (a, b) => a + b);
 
-    // Разбивка по командам.
-    final Map<int, int> teamTotal = {};
-    final Map<int, int> teamDone = {};
-    for (final task in tasks) {
-      final rawWsId = task['workspace_id'];
-      if (rawWsId == null) continue;
-      final wsId = rawWsId is int ? rawWsId : int.tryParse(rawWsId.toString());
-      if (wsId == null) continue;
-      teamTotal[wsId] = (teamTotal[wsId] ?? 0) + 1;
-      if (task['is_completed'] == true) teamDone[wsId] = (teamDone[wsId] ?? 0) + 1;
-    }
+    final teamTotal = s.teamTotal;
+    final teamDone = s.teamDone;
     final sortedWorkspaces = [...workspaces]..sort((a, b) => (teamTotal[b['id']] ?? 0).compareTo(teamTotal[a['id']] ?? 0));
 
-    // Тепловая карта по дням недели (1=Пн..7=Вс → индекс 0..6).
-    final weekdayCounts = List.filled(7, 0);
-    for (final task in tasks) {
-      if (task['is_completed'] != true || task['completed_at'] == null) continue;
-      final dt = DateTime.tryParse(task['completed_at'].toString());
-      if (dt == null) continue;
-      weekdayCounts[dt.weekday - 1]++;
-    }
+    final weekdayCounts = s.weekdayCounts;
     final maxWeekdayCount = weekdayCounts.reduce((a, b) => a > b ? a : b);
     final totalWeekdayCount = weekdayCounts.fold<int>(0, (a, b) => a + b);
 
@@ -407,7 +319,13 @@ class _StatisticsDashboardState extends State<StatisticsDashboard> {
             children: [
               buildKpiCard(activityLabelKey, "$activityTotal"),
               const SizedBox(width: 16),
-              buildKpiCard("Всего задач в базе", "${tasks.length}"),
+              // Число от сервера, если оно есть: клиент грузит окно и о
+              // задачах за его пределами не знает. Нет связи — показываем
+              // загруженное и меняем подпись, а не молчим.
+              buildKpiCard(
+                widget.totalInBase == null ? "Задач загружено" : "Всего задач в базе",
+                "${widget.totalInBase ?? s.total}",
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -674,6 +592,224 @@ class _StatisticsDashboardState extends State<StatisticsDashboard> {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// Все числа панели, посчитанные одним проходом по списку задач.
+///
+/// Раньше каждое из них считалось своим циклом прямо в build(): девять циклов
+/// плюс семь вызовов dayLoadMinutes ради «перегруженных дней» — шестнадцать
+/// полных проходов, и заново при каждой перерисовке. На телефоне это заметно.
+///
+/// Считать те же правила в SQL (как предлагает B3 аудита) я сознательно не
+/// стал: условия здесь намеренно зеркалят buildRotBadge/buildRescheduleBadge,
+/// чтобы цифра в сводке не расходилась со значком на самой задаче, и третья
+/// копия тех же правил на другом языке рассинхронизировалась бы молча — ровно
+/// так, как 05.09.2026 разъехались четыре копии «дедлайна задачи». Выигрыш в
+/// скорости даёт кэширование, а не перенос.
+class _DashboardStats {
+  final int total;
+  final int done;
+  final int pending;
+  final int overdue;
+  final int noDate;
+  final int rot;
+  final int reschedule;
+  final int overloadedDays;
+  final List<int> weekBuckets;
+  final List<int> monthBuckets;
+  final List<int> yearBuckets;
+  final int? onTimePercent;
+  final int streak;
+  final Map<String, int> projectTotal;
+  final Map<String, int> projectDone;
+  final Map<String, int> priorityCount;
+  final Map<int, int> teamTotal;
+  final Map<int, int> teamDone;
+  final List<int> weekdayCounts;
+
+  const _DashboardStats({
+    required this.total,
+    required this.done,
+    required this.pending,
+    required this.overdue,
+    required this.noDate,
+    required this.rot,
+    required this.reschedule,
+    required this.overloadedDays,
+    required this.weekBuckets,
+    required this.monthBuckets,
+    required this.yearBuckets,
+    required this.onTimePercent,
+    required this.streak,
+    required this.projectTotal,
+    required this.projectDone,
+    required this.priorityCount,
+    required this.teamTotal,
+    required this.teamDone,
+    required this.weekdayCounts,
+  });
+
+  static _DashboardStats compute({
+    required List<Map<String, dynamic>> tasks,
+    required DateTime now,
+    required bool Function(Map<String, dynamic>) isOverdue,
+    required List<String> priorityOrder,
+  }) {
+    int done = 0, pending = 0, overdue = 0, noDate = 0;
+    int rot = 0, reschedule = 0;
+    int onTimeDone = 0, consideredForOnTime = 0;
+
+    final weekBuckets = List.filled(7, 0);
+    final monthBuckets = List.filled(30, 0);
+    final yearBuckets = List.filled(12, 0);
+    final weekdayCounts = List.filled(7, 0);
+
+    final projectTotal = <String, int>{};
+    final projectDone = <String, int>{};
+    final priorityCount = <String, int>{for (final p in priorityOrder) p: 0};
+    final teamTotal = <int, int>{};
+    final teamDone = <int, int>{};
+    final completedDays = <DateTime>{};
+    // Нагрузка по датам копится здесь же, вместо семи отдельных проходов
+    // dayLoadMinutes по одному на каждый из ближайших дней.
+    final loadByDate = <String, int>{};
+
+    final today = DateTime(now.year, now.month, now.day);
+
+    for (final task in tasks) {
+      final isDone = task['is_completed'] == true;
+      final rawDue = task['due_date'];
+      final hasDue = rawDue != null && rawDue.toString().isNotEmpty;
+
+      // --- статус ---
+      if (isDone) {
+        done++;
+      } else if (!hasDue) {
+        noDate++;
+      } else if (isOverdue(task)) {
+        overdue++;
+      } else {
+        pending++;
+      }
+
+      // --- гниение и переносы (зеркалят значки на карточке) ---
+      if (!isDone) {
+        if (!hasDue || isOverdue(task)) {
+          final createdAt = DateTime.tryParse(task['created_at']?.toString() ?? '');
+          if (createdAt != null && now.difference(createdAt).inDays >= AppConfig.taskRotDays) rot++;
+        }
+        final rescheduled = task['reschedule_count'] as int?;
+        if (rescheduled != null && rescheduled >= AppConfig.rescheduleWarningCount) reschedule++;
+
+        // --- нагрузка дня (то же условие, что в dayLoadMinutes) ---
+        if (hasDue && task['parent_id'] == null) {
+          final minutes = task['duration_minutes'];
+          if (minutes is int) {
+            loadByDate[rawDue.toString()] = (loadByDate[rawDue.toString()] ?? 0) + minutes;
+          }
+        }
+      }
+
+      // --- разбивка по тегам ---
+      for (final tag in parseTagsString(task['tags'])) {
+        projectTotal[tag] = (projectTotal[tag] ?? 0) + 1;
+        if (isDone) projectDone[tag] = (projectDone[tag] ?? 0) + 1;
+      }
+
+      // --- разбивка по приоритетам ---
+      final p = task['priority']?.toString();
+      if (p != null && priorityCount.containsKey(p)) priorityCount[p] = priorityCount[p]! + 1;
+
+      // --- разбивка по командам ---
+      final rawWsId = task['workspace_id'];
+      if (rawWsId != null) {
+        final wsId = rawWsId is int ? rawWsId : int.tryParse(rawWsId.toString());
+        if (wsId != null) {
+          teamTotal[wsId] = (teamTotal[wsId] ?? 0) + 1;
+          if (isDone) teamDone[wsId] = (teamDone[wsId] ?? 0) + 1;
+        }
+      }
+
+      if (!isDone) continue;
+
+      // --- всё дальнейшее только про выполненные ---
+      final completedAt = task['completed_at'] != null
+          ? DateTime.tryParse(task['completed_at'].toString())
+          : null;
+
+      if (completedAt != null) {
+        completedDays.add(DateTime(completedAt.year, completedAt.month, completedAt.day));
+        weekdayCounts[completedAt.weekday - 1]++;
+      }
+
+      // % в срок — только там, где известны и дедлайн, и момент выполнения.
+      // Старые завершения без completed_at честно исключаются, а не
+      // подставляются произвольным моментом.
+      if (completedAt != null) {
+        final deadline = taskDeadline(task);
+        if (deadline != null) {
+          consideredForOnTime++;
+          if (!completedAt.isAfter(deadline)) onTimeDone++;
+        }
+      }
+
+      // Момент фактического выполнения: completed_at, а для задач, отмеченных
+      // до появления этой колонки, приближаем по дедлайну — иначе старая
+      // история пропала бы из графика активности разом.
+      final effective = completedAt ?? taskDueDate(task);
+      if (effective == null) continue;
+
+      final monthDiff = (now.year - effective.year) * 12 + (now.month - effective.month);
+      if (monthDiff >= 0 && monthDiff < 12) yearBuckets[11 - monthDiff]++;
+
+      final dayDiff = today
+          .difference(DateTime(effective.year, effective.month, effective.day))
+          .inDays;
+      if (dayDiff >= 0 && dayDiff < 7) weekBuckets[6 - dayDiff]++;
+      if (dayDiff >= 0 && dayDiff < 30) monthBuckets[29 - dayDiff]++;
+    }
+
+    // Серия дней подряд: сегодняшний день может быть ещё не закрыт, поэтому
+    // отсутствие отметок за сегодня серию не обнуляет.
+    int streak = 0;
+    var cursor = today;
+    if (!completedDays.contains(cursor)) cursor = cursor.subtract(const Duration(days: 1));
+    while (completedDays.contains(cursor)) {
+      streak++;
+      cursor = cursor.subtract(const Duration(days: 1));
+    }
+
+    int overloaded = 0;
+    for (var i = 0; i < 7; i++) {
+      final d = today.add(Duration(days: i));
+      final key = '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
+      if ((loadByDate[key] ?? 0) >= AppConfig.dailyLoadWarningMinutes) overloaded++;
+    }
+
+    return _DashboardStats(
+      total: tasks.length,
+      done: done,
+      pending: pending,
+      overdue: overdue,
+      noDate: noDate,
+      rot: rot,
+      reschedule: reschedule,
+      overloadedDays: overloaded,
+      weekBuckets: weekBuckets,
+      monthBuckets: monthBuckets,
+      yearBuckets: yearBuckets,
+      onTimePercent: consideredForOnTime == 0
+          ? null
+          : ((onTimeDone / consideredForOnTime) * 100).round(),
+      streak: streak,
+      projectTotal: projectTotal,
+      projectDone: projectDone,
+      priorityCount: priorityCount,
+      teamTotal: teamTotal,
+      teamDone: teamDone,
+      weekdayCounts: weekdayCounts,
     );
   }
 }

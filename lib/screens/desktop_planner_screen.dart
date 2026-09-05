@@ -147,6 +147,11 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   }
 
   List<Map<String, dynamic>> tasks = [];
+
+  /// Сколько задач в базе всего — спрашивается у сервера (B3). null, пока не
+  /// спросили или пока нет связи; панель статистики в этом случае честно
+  /// подписывает число как «загружено», а не как «в базе».
+  int? _totalTasksInBase;
   Map<String, dynamic>? _taskToDuplicate;
   bool _isDuplicating = false;
 
@@ -281,6 +286,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
 
   Widget _buildStatisticsDashboardWidget() => StatisticsDashboard(
         tasks: tasks,
+        totalInBase: _totalTasksInBase,
         workspaces: workspaces,
         currentLang: widget.currentLang,
         textColor: textColor,
@@ -290,6 +296,17 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
         getPriorityColor: _getPriorityColor,
         buildGlassContainer: _buildGlassContainer,
       );
+
+  /// Общее число задач в базе для панели статистики (B3).
+  ///
+  /// Не удалось — оставляем null, а не ноль: панель должна отличать «в базе
+  /// столько-то» от «сервер не ответил» и во втором случае честно подписывать
+  /// цифру как «загружено».
+  Future<void> _refreshTotalTaskCount() async {
+    final total = await _taskService.fetchTotalTaskCount();
+    if (!mounted || total == null) return;
+    setState(() => _totalTasksInBase = total);
+  }
 
   /// Корзина (C6) — один и тот же экран для ПК и телефона. Раньше он
   /// собирался прямо в разметке десктопа, из-за чего на мобильной версии его
@@ -758,6 +775,9 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
         });
         _checkMissedDeadlinesOnStartup();
         _checkDailyReviewTrigger();
+        // Отдельным запросом и НЕ блокируя список: это одно число для панели
+        // статистики, и ждать его ради отрисовки задач незачем.
+        unawaited(_refreshTotalTaskCount());
       }
     } catch (e) {
       logError("!!! РЕАЛЬНАЯ ОШИБКА БАЗЫ ДАННЫХ: $e");
@@ -1962,6 +1982,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
                               onSetLocalKanbanStatus: _setLocalKanbanStatus,
                               buildStatisticsDashboard: () => StatisticsDashboard(
                                 tasks: tasks,
+                                totalInBase: _totalTasksInBase,
                                 workspaces: workspaces,
                                 currentLang: widget.currentLang,
                                 textColor: textColor,
