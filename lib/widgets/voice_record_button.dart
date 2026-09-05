@@ -149,6 +149,9 @@ class _VoiceRecordButtonState extends State<VoiceRecordButton> {
                 tween: Tween(begin: 0.3, end: 1),
                 duration: reduceMotion
                     ? Duration.zero
+                    // Собственный ритм пульсации во время записи: он
+                    // должен быть заметно медленнее любого UI-перехода,
+                    // поэтому своё число, а не токен.
                     : const Duration(milliseconds: 700),
                 curve: Curves.easeInOut,
                 builder: (context, value, child) => Opacity(

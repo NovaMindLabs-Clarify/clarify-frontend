@@ -415,7 +415,7 @@ class _DirectChatPaneState extends State<_DirectChatPane> {
     if (index == -1) return;
     final ctx = _messageKeys[id]?.currentContext;
     if (ctx != null) {
-      Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 300), alignment: 0.5, curve: Curves.easeOut);
+      Scrollable.ensureVisible(ctx, duration: ClarifyMotion.slow, alignment: 0.5, curve: Curves.easeOut);
       return;
     }
     if (_scrollController.hasClients && _messages!.length > 1) {
@@ -423,7 +423,7 @@ class _DirectChatPaneState extends State<_DirectChatPane> {
       _scrollController.jumpTo(estimate.clamp(0, _scrollController.position.maxScrollExtent));
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final retryCtx = _messageKeys[id]?.currentContext;
-        if (retryCtx != null) Scrollable.ensureVisible(retryCtx, duration: const Duration(milliseconds: 200), alignment: 0.5, curve: Curves.easeOut);
+        if (retryCtx != null) Scrollable.ensureVisible(retryCtx, duration: ClarifyMotion.base, alignment: 0.5, curve: Curves.easeOut);
       });
     }
   }
@@ -631,7 +631,7 @@ class _TeamChatPaneState extends State<_TeamChatPane> {
     if (index == -1) return;
     final ctx = _messageKeys[id]?.currentContext;
     if (ctx != null) {
-      Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 300), alignment: 0.5, curve: Curves.easeOut);
+      Scrollable.ensureVisible(ctx, duration: ClarifyMotion.slow, alignment: 0.5, curve: Curves.easeOut);
       return;
     }
     if (_scrollController.hasClients && _messages!.length > 1) {
@@ -639,7 +639,7 @@ class _TeamChatPaneState extends State<_TeamChatPane> {
       _scrollController.jumpTo(estimate.clamp(0, _scrollController.position.maxScrollExtent));
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final retryCtx = _messageKeys[id]?.currentContext;
-        if (retryCtx != null) Scrollable.ensureVisible(retryCtx, duration: const Duration(milliseconds: 200), alignment: 0.5, curve: Curves.easeOut);
+        if (retryCtx != null) Scrollable.ensureVisible(retryCtx, duration: ClarifyMotion.base, alignment: 0.5, curve: Curves.easeOut);
       });
     }
   }

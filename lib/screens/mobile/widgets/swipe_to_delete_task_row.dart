@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../../core/app_settings.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../core/localization.dart';
 import '../../../core/theme/design_tokens.dart';
@@ -147,6 +148,7 @@ class _SwipeToDeleteTaskRowState extends State<SwipeToDeleteTaskRow> {
                 child: Icon(LucideIcons.trash2, color: Colors.white),
               ),
               child: MobileTaskRow(
+                              compact: AppSettings.compactDensity.value,
                 task: widget.task,
                 priorityColor: widget.priorityColor,
                 subtaskStats: widget.subtaskStats,

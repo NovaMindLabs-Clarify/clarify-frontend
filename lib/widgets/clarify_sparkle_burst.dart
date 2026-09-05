@@ -17,7 +17,7 @@ class ClarifySparkleBurst extends StatefulWidget {
 }
 
 class _ClarifySparkleBurstState extends State<ClarifySparkleBurst> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
+  late final AnimationController _controller = AnimationController(vsync: this, duration: ClarifyMotion.completion);
   final _random = Random();
   late final List<_Sparkle> _sparkles = List.generate(10, (_) => _Sparkle(_random));
 

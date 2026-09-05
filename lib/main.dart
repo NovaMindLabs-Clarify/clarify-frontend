@@ -129,8 +129,23 @@ class SmartPlannerApp extends StatefulWidget {
   State<SmartPlannerApp> createState() => _SmartPlannerAppState();
 }
 
-class _SmartPlannerAppState extends State<SmartPlannerApp> with TrayListener {
-  bool isDark = false;
+class _SmartPlannerAppState extends State<SmartPlannerApp>
+    with TrayListener, WidgetsBindingObserver {
+  /// Режим темы живёт в AppSettings.themeMode (D3) — там же, где акцент и
+  /// «меньше анимаций», и по той же причине: экран настроек не имеет доступа
+  /// к этому состоянию.
+  ThemeMode get themeMode => AppSettings.themeMode.value;
+
+  /// Тёмная ли тема ФАКТИЧЕСКИ — с учётом системной, когда выбрана она.
+  /// Прокидывается вниз как есть: экранам не нужно знать про режим, им нужен
+  /// ответ на вопрос «сейчас темно?».
+  bool get isDark => switch (themeMode) {
+        ThemeMode.dark => true,
+        ThemeMode.light => false,
+        ThemeMode.system =>
+          WidgetsBinding.instance.platformDispatcher.platformBrightness ==
+              Brightness.dark,
+      };
   String currentLang = 'ru'; 
   
   StreamSubscription<AuthState>? _authSubscription;
@@ -149,7 +164,7 @@ class _SmartPlannerAppState extends State<SmartPlannerApp> with TrayListener {
     }
 
     _hasSeenOnboarding = Hive.box('settings').get('has_seen_onboarding', defaultValue: false) as bool;
-    isDark = Hive.box('settings').get('is_dark_theme', defaultValue: false) as bool;
+    WidgetsBinding.instance.addObserver(this);
     StatusBarStyle.apply(isDark);
     _hasAcceptedPrivacyPolicy = Hive.box('settings').get('privacy_policy_accepted_version') == kPrivacyPolicyVersion;
 
@@ -178,6 +193,7 @@ class _SmartPlannerAppState extends State<SmartPlannerApp> with TrayListener {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     if (!kIsWeb) {
       trayManager.removeListener(this);
     }
@@ -228,9 +244,20 @@ class _SmartPlannerAppState extends State<SmartPlannerApp> with TrayListener {
     }
   }
 
+  /// Кнопка «солнце/луна» в шапке: переключает на противоположную ТЕКУЩЕЙ,
+  /// то есть уводит из системного режима в явный. Это и ожидается — её жмут
+  /// именно тогда, когда хочется не как в системе, а как надо сейчас.
   void toggleTheme() {
-    setState(() => isDark = !isDark);
-    Hive.box('settings').put('is_dark_theme', isDark);
+    AppSettings.setThemeMode(isDark ? ThemeMode.light : ThemeMode.dark);
+    StatusBarStyle.apply(isDark);
+  }
+
+  /// Система сменила тему, пока приложение открыто. Без этого «как в системе»
+  /// работало бы только до первого запуска.
+  @override
+  void didChangePlatformBrightness() {
+    if (themeMode != ThemeMode.system) return;
+    setState(() {});
     StatusBarStyle.apply(isDark);
   }
 
@@ -246,8 +273,12 @@ class _SmartPlannerAppState extends State<SmartPlannerApp> with TrayListener {
   Widget build(BuildContext context) {
     // Акцент — настраиваемый пресет (AppSettings.accentPresetIndex), поэтому
     // тема пересобирается через ValueListenableBuilder, а не читается из
-    // const ClarifyTokens.light/dark напрямую.
-    return ValueListenableBuilder<int>(
+    // const ClarifyTokens.light/dark напрямую. Режим темы (светлая/тёмная/как
+    // в системе) — вторым нотифаером по той же причине: его меняет экран
+    // настроек, у которого нет доступа к этому состоянию.
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: AppSettings.themeMode,
+      builder: (context, mode, _) => ValueListenableBuilder<int>(
       valueListenable: AppSettings.accentPresetIndex,
       builder: (context, accentIndex, _) {
         final lightTokens = accentIndex == 0
@@ -273,7 +304,15 @@ class _SmartPlannerAppState extends State<SmartPlannerApp> with TrayListener {
                     textScaler: const TextScaler.linear(1.0),
                     disableAnimations: mq.disableAnimations || reducedMotion,
                   ),
-                  child: LastTapTrackerScope(child: child!),
+                  // Плотность (D3) читается прямо в строках задач, поэтому
+                  // подписка нужна здесь: без неё переключатель в настройках
+                  // менял бы значение, а список перерисовывался бы только
+                  // после следующего чужого setState.
+                  child: ValueListenableBuilder<bool>(
+                    valueListenable: AppSettings.compactDensity,
+                    builder: (context, _, _) =>
+                        LastTapTrackerScope(child: child!),
+                  ),
                 );
               },
             );
@@ -281,7 +320,7 @@ class _SmartPlannerAppState extends State<SmartPlannerApp> with TrayListener {
           // ===========================================
 
           scrollBehavior: NoScrollbarBehavior(),
-          themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
+          themeMode: mode,
           theme: ThemeData(
             brightness: Brightness.light,
             scaffoldBackgroundColor: Colors.transparent,
@@ -321,6 +360,7 @@ class _SmartPlannerAppState extends State<SmartPlannerApp> with TrayListener {
                   : SetupProfileScreen(isDark: isDark, toggleTheme: toggleTheme, currentLang: currentLang, changeLang: changeLang)),
         );
       },
+      ),
     );
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:frontend/core/theme/design_tokens.dart';
+import 'package:frontend/widgets/clarify_collapsing_task_row.dart';
 import 'package:frontend/widgets/task_cards.dart';
 
 TaskCardBuilders _builders({
@@ -12,10 +13,12 @@ TaskCardBuilders _builders({
   void Function(String)? onTagTap,
   void Function(dynamic, Map<String, dynamic>)? onQuickUpdateTask,
   bool Function(Map<String, dynamic>)? isOverdue,
+  bool compact = false,
 }) {
   return TaskCardBuilders(
     isDark: false,
     scale: 1.0,
+    compact: compact,
     currentLang: 'ru',
     workspaceMembers: const {},
     getPriorityColor: (priority) => Colors.grey,
@@ -164,6 +167,42 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(toggled, task);
+    });
+
+    // D3: плотность — настройка, а не решение за пользователя. Тест держит
+    // два инварианта: плотная строка действительно ниже, и она остаётся
+    // нажимаемой (44px — минимум для пальца, ниже опускаться нельзя даже
+    // ради обзорности).
+    testWidgets('плотный режим уменьшает высоту строки', (tester) async {
+      Future<double> rowHeight(bool compact) async {
+        final task = {'id': 1, 'title': 'Задача', 'is_completed': false};
+        await tester.pumpWidget(MaterialApp(
+          theme: ThemeData(extensions: const [ClarifyTokens.light]),
+          home: Scaffold(
+            // Column с mainAxisSize.min — иначе строка растягивается на всю
+            // высоту экрана и меряется высота экрана, а не строки.
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: 900,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [_builders(compact: compact).buildListTaskCard(task)],
+                ),
+              ),
+            ),
+          ),
+        ));
+        // Отступ строки анимируется (AnimatedContainer), поэтому без
+        // pumpAndSettle меряется первый кадр — то есть ещё старая высота.
+        await tester.pumpAndSettle();
+        return tester.getSize(find.byType(ClarifyCollapsingTaskRow)).height;
+      }
+
+      final normal = await rowHeight(false);
+      final compact = await rowHeight(true);
+      expect(compact, lessThan(normal),
+          reason: 'иначе переключатель плотности ничего не меняет');
     });
 
     // Живой фидбек 05.09.2026: «всё идёт волной». Дата стояла на своём месте

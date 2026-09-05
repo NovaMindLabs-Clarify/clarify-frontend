@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../core/app_settings.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/localization.dart';
 import '../../core/theme/design_tokens.dart';
@@ -135,6 +136,7 @@ class _MobileSearchScreenState extends State<MobileSearchScreen> {
                           itemBuilder: (context, index) {
                             final task = results[index];
                             return MobileTaskRow(
+                              compact: AppSettings.compactDensity.value,
                               key: ValueKey(task['id'].toString()),
                               task: task,
                               priorityColor: widget.getPriorityColor(task['priority']),

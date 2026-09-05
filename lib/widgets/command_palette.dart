@@ -226,7 +226,7 @@ class _CommandPaletteState extends State<_CommandPalette> {
       if (ctx != null) {
         Scrollable.ensureVisible(
           ctx,
-          duration: const Duration(milliseconds: 120),
+          duration: ClarifyMotion.fast,
           alignment: 0.5,
         );
       }
@@ -243,6 +243,8 @@ class _CommandPaletteState extends State<_CommandPalette> {
       setState(() => _debouncedQuery = '');
       return;
     }
+    // Дебаунс ввода, а не анимация: токены движения сюда не подходят,
+    // хотя число совпадает с ClarifyMotion.fast случайно.
     _debounce = Timer(const Duration(milliseconds: 120), () {
       if (!mounted) return;
       setState(() => _debouncedQuery = value);

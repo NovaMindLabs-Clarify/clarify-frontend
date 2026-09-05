@@ -74,7 +74,7 @@ class _ClarifyPriorityLeverState extends State<ClarifyPriorityLever> {
                   ),
                 ),
                 AnimatedPositioned(
-                  duration: const Duration(milliseconds: 180),
+                  duration: ClarifyMotion.base,
                   curve: Curves.easeOut,
                   left: thumbLeft,
                   top: 0,

@@ -148,6 +148,15 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
 
   List<Map<String, dynamic>> tasks = [];
 
+  /// Первая загрузка с сервера ещё не завершилась (D3).
+  ///
+  /// Нужно, чтобы отличить «задач нет» от «задачи ещё едут». Раньше при
+  /// холодном старте с пустым кэшем экран уверенно показывал пустое состояние
+  /// («Задач пока нет» с иллюстрацией) и через мгновение сменялся списком —
+  /// то есть первое, что видел новый человек, было утверждение, которое тут же
+  /// опровергалось.
+  bool _initialLoadPending = true;
+
   /// Сколько задач в базе всего — спрашивается у сервера (B3). null, пока не
   /// спросили или пока нет связи; панель статистики в этом случае честно
   /// подписывает число как «загружено», а не как «в базе».
@@ -768,6 +777,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
           // точность, спорить с ней незачем).
           _applyPinnedCompletions(fetchedTasks);
           tasks = fetchedTasks;
+          _initialLoadPending = false;
           _isOffline = false;
           _pendingOpsCount = _taskService.pendingOpsCount;
           _applyFilters();
@@ -783,6 +793,9 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
       logError("!!! РЕАЛЬНАЯ ОШИБКА БАЗЫ ДАННЫХ: $e");
       if (mounted) {
         setState(() {
+          // Скелетон снимаем и здесь: «нет сети» — это тоже ответ, и висеть
+          // силуэтами до бесконечности хуже, чем показать то, что есть в кэше.
+          _initialLoadPending = false;
           _isOffline = true;
           _pendingOpsCount = _taskService.pendingOpsCount;
         });
@@ -1099,6 +1112,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
         _pinnedCompletions.containsKey(taskId);
     if (unsettled && attempt < 16) {
       _reorderReleaseTimers[taskId] = Timer(
+        // Пауза перед повторной проверкой, а не анимация.
         const Duration(milliseconds: 120),
         () => _releaseFrozenRank(taskId, attempt: attempt + 1),
       );
@@ -1901,6 +1915,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
                               final taskCardBuilders = TaskCardBuilders(
                                 isDark: widget.isDark,
                                 scale: _s,
+                                compact: AppSettings.compactDensity.value,
                                 currentLang: widget.currentLang,
                                 workspaceMembers: workspaceMembers,
                                 getPriorityColor: _getPriorityColor,
@@ -1955,6 +1970,9 @@ Map<String, dynamic> _parseSmartInput(String text) {
                               // Быстрое добавление строкой (C1). Разбор уже
                               // сделан локально в ClarifyQuickAdd — здесь
                               // только сохранение.
+                              // Силуэты вместо «Задач пока нет», пока идёт
+                              // первая загрузка и показывать ещё нечего.
+                              loading: _initialLoadPending && tasks.isEmpty,
                               onQuickCreate: (parsed) async {
                                 await _createTaskManually({
                                   "title": parsed.title,

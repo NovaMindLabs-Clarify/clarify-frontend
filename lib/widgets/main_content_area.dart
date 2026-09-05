@@ -11,6 +11,7 @@ import 'calendar_day_timeline.dart';
 import 'clarify_cascade_item.dart';
 import 'clarify_day_load_warning.dart' show ClarifyDayCapacity, dayLoadMinutes;
 import 'clarify_illustrations.dart';
+import 'clarify_task_skeleton.dart';
 import 'clarify_glass.dart';
 import 'clarify_list_entrance.dart';
 import 'clarify_press_glow.dart';
@@ -104,6 +105,11 @@ class MainContentArea extends StatelessWidget {
   final bool sortByPriority;
   final VoidCallback onToggleSortByPriority;
 
+  /// Первая загрузка с сервера ещё идёт (D3) — вместо пустого состояния
+  /// показываем силуэты строк. «Задач нет» и «задачи ещё едут» выглядели
+  /// одинаково, и новому человеку первым делом сообщалось, что у него пусто.
+  final bool loading;
+
   /// Создание задачи из разобранной строки быстрого ввода (C1).
   /// null — строка не показывается (например, на экранах без списка задач).
   final Future<void> Function(QuickParseResult parsed)? onQuickCreate;
@@ -151,6 +157,7 @@ class MainContentArea extends StatelessWidget {
     required this.sortByPriority,
     required this.onToggleSortByPriority,
     this.onQuickCreate,
+    this.loading = false,
     this.frozenCompletedRanks = const {},
     this.pendingChatPartnerId,
     this.pendingChatPartnerName,
@@ -294,6 +301,17 @@ class MainContentArea extends StatelessWidget {
               defaultTag: isTagProject ? selectedMenu : null,
               onSubmit: onQuickCreate!,
             );
+
+      // Силуэты вместо пустого состояния, пока данные ещё не пришли.
+      if (targetTasks.isEmpty && loading) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ?quickAdd,
+            Expanded(child: ClarifyTaskSkeleton(scale: scale)),
+          ],
+        );
+      }
 
       if (targetTasks.isEmpty) {
         final String emptyKey;

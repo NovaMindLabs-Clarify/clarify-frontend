@@ -30,6 +30,13 @@ bool _wasPastDue(Map<String, dynamic> task) => taskWasPastDue(task);
 class TaskCardBuilders {
   final bool isDark;
   final double scale;
+
+  /// Плотная строка вместо обычной (D3, AppSettings.compactDensity).
+  ///
+  /// Параметром, а не чтением глобальной настройки внутри: карточка обязана
+  /// строиться без Hive, иначе её нельзя проверить виджет-тестом — на этом
+  /// первая же попытка и попалась.
+  final bool compact;
   final String currentLang;
   final Map<int, List<Map<String, dynamic>>> workspaceMembers;
   final Color Function(String? priority) getPriorityColor;
@@ -54,6 +61,7 @@ class TaskCardBuilders {
   const TaskCardBuilders({
     required this.isDark,
     required this.scale,
+    this.compact = false,
     required this.currentLang,
     required this.workspaceMembers,
     required this.getPriorityColor,
@@ -80,7 +88,17 @@ class TaskCardBuilders {
   /// Масштабируется мягче остального: у текста задачи есть нижняя граница
   /// читаемости, ниже которой уменьшать нельзя, поэтому не голый [scale], а
   /// сжатый диапазон.
-  double get _rowScale => (0.7 + _s * 0.3).clamp(0.88, 1.1);
+  double get _rowScale {
+    final base = (0.7 + _s * 0.3).clamp(0.88, 1.1);
+    // Плотный режим (D3) — не отдельная вёрстка, а тот же масштаб строки чуть
+    // ниже: так плотность влияет разом на кегль, отступы и высоту, и не может
+    // разъехаться с ними по частям.
+    return compact ? base * 0.92 : base;
+  }
+
+  /// Вертикальный отступ строки списка. В плотном режиме — вдвое меньше: это
+  /// он даёт основной выигрыш по числу задач на экране, кегль лишь помогает.
+  double get _rowVerticalPadding => compact ? 3.5 : 7;
 
   /// Масштаб строки-превью в ячейке месяца. Там всё и так мелкое (кегль 9 при
   /// единичном масштабе), а [_s] на окне 1100px опускается до 0.57 — текст
@@ -276,6 +294,9 @@ class TaskCardBuilders {
   Widget buildCalendarTaskCard(Map<String, dynamic> task) {
     return LongPressDraggable<Map<String, dynamic>>(
       data: task,
+      // НЕ анимация и НЕ кандидат в ClarifyMotion: это порог ввода —
+      // сколько держать палец до начала перетаскивания. Подмена его
+      // токеном движения меняет ощущение жеста, а не скорость картинки.
       delay: const Duration(milliseconds: 200),
       feedback: Material(
         color: Colors.transparent,
@@ -503,6 +524,9 @@ class TaskCardBuilders {
   Widget buildCalendarTaskChip(Map<String, dynamic> task) {
     return LongPressDraggable<Map<String, dynamic>>(
       data: task,
+      // НЕ анимация и НЕ кандидат в ClarifyMotion: это порог ввода —
+      // сколько держать палец до начала перетаскивания. Подмена его
+      // токеном движения меняет ощущение жеста, а не скорость картинки.
       delay: const Duration(milliseconds: 200),
       feedback: Material(
         color: Colors.transparent,
@@ -1003,13 +1027,13 @@ class TaskCardBuilders {
       child: AnimatedContainer(
         duration: ClarifyMotion.base,
         curve: ClarifyMotion.standard,
-        constraints: BoxConstraints(minHeight: 44 * rs),
+        constraints: BoxConstraints(minHeight: (compact ? 34 : 44) * rs),
         foregroundDecoration: _hoverOverlay(hovered),
         decoration: BoxDecoration(
           gradient: _priorityWash(task, isDone: isDone, overdue: overdue),
           border: Border(bottom: BorderSide(color: _t.border)),
         ),
-        padding: EdgeInsets.fromLTRB(0, 7 * rs, 8 * rs, 7 * rs),
+        padding: EdgeInsets.fromLTRB(0, _rowVerticalPadding * rs, 8 * rs, _rowVerticalPadding * rs),
         child: GestureDetector(
           onTap: () => onTap(task),
           behavior: HitTestBehavior.opaque,

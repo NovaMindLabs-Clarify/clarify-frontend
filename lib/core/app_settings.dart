@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
@@ -67,5 +68,47 @@ class AppSettings {
   static void setReducedMotionOverride(bool value) {
     reducedMotionOverride.value = value;
     _box.put('reduced_motion_override', value);
+  }
+
+  /// Режим темы: следовать системе или держать свою (D3).
+  ///
+  /// Нотифаером по той же причине, что акцент и «меньше анимаций»: экран
+  /// настроек не имеет доступа к состоянию главного виджета, а тянуть
+  /// setThemeMode параметром через пять виджетов ради одной настройки хуже,
+  /// чем подписка, которая здесь уже заведена.
+  static final ValueNotifier<ThemeMode> themeMode = ValueNotifier<ThemeMode>(
+    _readThemeMode(),
+  );
+
+  static ThemeMode _readThemeMode() {
+    final raw = Hive.box('settings').get('theme_mode');
+    if (raw == 'light') return ThemeMode.light;
+    if (raw == 'dark') return ThemeMode.dark;
+    if (raw == 'system') return ThemeMode.system;
+    // Ключа нет — настройку ещё не трогали в новой версии. Если тему когда-то
+    // выбирали руками, уважаем этот выбор: молча переключить человека на
+    // системную значит поменять ему внешний вид без спроса. «Как в системе»
+    // по умолчанию получают только те, кто не выбирал ничего.
+    final legacy = Hive.box('settings').get('is_dark_theme');
+    if (legacy is bool) return legacy ? ThemeMode.dark : ThemeMode.light;
+    return ThemeMode.system;
+  }
+
+  static void setThemeMode(ThemeMode value) {
+    themeMode.value = value;
+    _box.put('theme_mode', value.name);
+  }
+
+  /// Плотная строка задачи вместо обычной (D3).
+  ///
+  /// Обзорность против читаемости — вкус, а не истина: одному нужно видеть
+  /// больше задач разом, другому — чтобы глаза не уставали. Переключатель
+  /// снимает спор вместо того, чтобы выбирать за человека.
+  static final ValueNotifier<bool> compactDensity = ValueNotifier<bool>(
+    Hive.box('settings').get('compact_density', defaultValue: false) as bool,
+  );
+  static void setCompactDensity(bool value) {
+    compactDensity.value = value;
+    _box.put('compact_density', value);
   }
 }

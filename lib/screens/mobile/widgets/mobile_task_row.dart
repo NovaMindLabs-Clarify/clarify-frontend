@@ -44,6 +44,10 @@ class MobileTaskRow extends StatelessWidget {
   final void Function(Map<String, dynamic> updates) onQuickUpdateTask;
   final bool showDate;
 
+  /// Плотная строка (D3). Параметром, а не чтением глобальной настройки:
+  /// строка обязана строиться без Hive, иначе её не проверить тестом.
+  final bool compact;
+
   const MobileTaskRow({
     super.key,
     required this.task,
@@ -56,6 +60,7 @@ class MobileTaskRow extends StatelessWidget {
     required this.onTap,
     required this.onQuickUpdateTask,
     this.showDate = false,
+    this.compact = false,
   });
 
   @override
@@ -153,7 +158,13 @@ class MobileTaskRow extends StatelessWidget {
               border: Border(bottom: BorderSide(color: t.border)),
             ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              // Плотный режим (D3) — та же настройка, что на ПК: одна и та
+              // же задача не должна занимать разное место в зависимости от
+              // того, с какого устройства на неё смотрят.
+              padding: EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: compact ? 6 : 10,
+              ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

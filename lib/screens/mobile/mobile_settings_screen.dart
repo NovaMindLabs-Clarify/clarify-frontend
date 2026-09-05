@@ -16,6 +16,7 @@ import '../../services/push_registration.dart';
 import '../../widgets/clarify_button.dart';
 import '../../widgets/clarify_priority_lever.dart';
 import '../../widgets/clarify_settings_card.dart';
+import '../../widgets/clarify_pressable.dart';
 import '../../widgets/clarify_toast.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -328,10 +329,94 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
 
         const SizedBox(height: 20),
         _SectionLabel(text: 'Оформление'.tr(currentLang)),
-        ClarifySettingsCard(
-          icon: widget.isDark ? LucideIcons.moon : LucideIcons.sun,
-          title: 'Тёмная тема'.tr(currentLang),
-          trailing: Switch(value: widget.isDark, activeThumbColor: t.accent, onChanged: (_) => widget.toggleTheme()),
+        // Три состояния вместо тумблера (D3): раньше выбор был только
+        // «светлая/тёмная», и приложение не умело следовать системе — на
+        // телефоне, где тема переключается по расписанию, это выглядело как
+        // единственное приложение, которое ночью остаётся белым.
+        ValueListenableBuilder<ThemeMode>(
+          valueListenable: AppSettings.themeMode,
+          builder: (context, mode, _) => ClarifySettingsCard(
+            icon: switch (mode) {
+              ThemeMode.system => LucideIcons.smartphone,
+              ThemeMode.dark => LucideIcons.moon,
+              ThemeMode.light => LucideIcons.sun,
+            },
+            title: 'Тема'.tr(currentLang),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final option in const [
+                  (ThemeMode.system, 'Система'),
+                  (ThemeMode.light, 'Светлая'),
+                  (ThemeMode.dark, 'Тёмная'),
+                ])
+                  Padding(
+                    padding: const EdgeInsets.only(left: 6),
+                    child: ClarifyPressable(
+                      onTap: () => AppSettings.setThemeMode(option.$1),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: mode == option.$1 ? t.accent : Colors.transparent,
+                          borderRadius: BorderRadius.circular(ClarifyRadius.pill),
+                          border: Border.all(
+                            color: mode == option.$1 ? t.accent : t.border,
+                          ),
+                        ),
+                        child: Text(
+                          option.$2.tr(currentLang),
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: mode == option.$1 ? t.onAccent : t.text2,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        // Обзорность против читаемости — вкус, а не истина (D3). Раньше
+        // выбирали за человека; теперь выбирает он.
+        const SizedBox(height: 8),
+        ValueListenableBuilder<bool>(
+          valueListenable: AppSettings.compactDensity,
+          builder: (context, compact, _) => ClarifySettingsCard(
+            icon: LucideIcons.rows3,
+            title: 'Плотность'.tr(currentLang),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final option in const [(false, 'Обычно'), (true, 'Плотно')])
+                  Padding(
+                    padding: const EdgeInsets.only(left: 6),
+                    child: ClarifyPressable(
+                      onTap: () => AppSettings.setCompactDensity(option.$1),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: compact == option.$1 ? t.accent : Colors.transparent,
+                          borderRadius: BorderRadius.circular(ClarifyRadius.pill),
+                          border: Border.all(
+                            color: compact == option.$1 ? t.accent : t.border,
+                          ),
+                        ),
+                        child: Text(
+                          option.$2.tr(currentLang),
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: compact == option.$1 ? t.onAccent : t.text2,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
         const SizedBox(height: 8),
         ClarifySettingsCard(
