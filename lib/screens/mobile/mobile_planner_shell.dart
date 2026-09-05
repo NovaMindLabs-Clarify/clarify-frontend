@@ -5,8 +5,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/localization.dart';
 import '../../core/quick_parse.dart';
 import '../../core/theme/design_tokens.dart';
-import '../../widgets/clarify_day_load_warning.dart';
-import '../../widgets/clarify_glass.dart';
 import '../../widgets/clarify_pressable.dart';
 import '../../widgets/friends_screen.dart';
 import '../../widgets/conversations_screen.dart';
@@ -115,27 +113,52 @@ class _MobilePlannerShellState extends State<MobilePlannerShell> {
 
   int get _inboxCount => widget.tasks.where((t) => (t['due_date'] == null || t['due_date'] == '') && t['parent_id'] == null).length;
 
-  // Для точек-индикаторов в мини-календаре (MobileMiniCalendar) — без этого
-  // календарь был чистым датапикером, никак не показывающим, где вообще есть
-  // задачи. Считаем один раз здесь и прокидываем в оба экрана, использующих
-  // календарь, а не дублируем этот проход по tasks в каждом из них.
-  Set<String> get _datesWithTasks => widget.tasks
-      .where((t) => t['due_date'] != null && t['due_date'] != '' && t['parent_id'] == null)
-      .map((t) => t['due_date'] as String)
-      .toSet();
+  // Даты с задачами (точки в мини-календаре) и суммарная длительность по
+  // каждой дате (насколько день тяжёлый) — ОДНИМ проходом и с кэшем.
+  //
+  // Было: два геттера, причём второй для каждой даты заново пробегал весь
+  // список задач через dayLoadMinutes. Сто задач на полусотне дат — пять тысяч
+  // проходов вместо ста, и всё это заново при КАЖДОЙ перерисовке оболочки,
+  // включая вызванную приходом задачи по realtime. На телефоне это заметно.
+  //
+  // Порог «тяжёлого» дня остаётся общим с предупреждением в диалоге создания
+  // задачи (AppConfig.dailyLoadWarningMinutes), чтобы сигнал не расходился по
+  // смыслу; условия суммирования те же, что в dayLoadMinutes.
+  List<Map<String, dynamic>>? _calendarSource;
+  Set<String> _datesWithTasksCache = const {};
+  Map<String, int> _dateLoadMinutesCache = const {};
 
-  // Суммарная известная длительность (duration_minutes) по каждой дате —
-  // раньше узнать, что день перегружен, можно было только открыв диалог
-  // создания задачи (см. ClarifyDayLoadWarning); точки в мини-календаре были
-  // одинаковыми независимо от того, легкий день или под завязку. Дата
-  // считается тяжёлой при том же пороге, что и предупреждение в диалоге
-  // (AppConfig.dailyLoadWarningMinutes), чтобы сигнал не расходился по смыслу.
-  Map<String, int> get _dateLoadMinutes {
-    final result = <String, int>{};
-    for (final date in _datesWithTasks) {
-      result[date] = dayLoadMinutes(widget.tasks, date);
+  void _ensureCalendarIndex() {
+    // Сравнение по ссылке: TaskCache всегда отдаёт новый список, поэтому
+    // «тот же список» надёжно означает «ничего не менялось».
+    if (identical(_calendarSource, widget.tasks)) return;
+
+    final dates = <String>{};
+    final load = <String, int>{};
+    for (final task in widget.tasks) {
+      if (task['parent_id'] != null) continue;
+      final raw = task['due_date'];
+      if (raw == null || raw == '') continue;
+      final date = raw as String;
+      dates.add(date);
+      if (task['is_completed'] == true) continue;
+      final minutes = task['duration_minutes'];
+      if (minutes is int) load[date] = (load[date] ?? 0) + minutes;
     }
-    return result;
+
+    _calendarSource = widget.tasks;
+    _datesWithTasksCache = dates;
+    _dateLoadMinutesCache = load;
+  }
+
+  Set<String> get _datesWithTasks {
+    _ensureCalendarIndex();
+    return _datesWithTasksCache;
+  }
+
+  Map<String, int> get _dateLoadMinutes {
+    _ensureCalendarIndex();
+    return _dateLoadMinutesCache;
   }
 
   /// Быстрое добавление строкой (C1) — та же раскладка полей, что на ПК
@@ -396,7 +419,6 @@ class _FriendsPage extends StatelessWidget {
       body: FriendsScreen(
         currentLang: currentLang,
         showHeader: false,
-        buildGlassContainer: ({required child, margin, padding, customColor}) => ClarifyGlass(margin: margin, padding: padding, customColor: customColor, child: child),
         // Единственное действие на строке друга — кнопка "написать", без
         // промежуточного перехода в профиль (убран по прямому запросу).
         onOpenConversation: (partnerId, name) => Navigator.of(context).push(MaterialPageRoute(
@@ -441,7 +463,6 @@ class _MessagesPage extends StatelessWidget {
           children: [
             ConversationsListScreen(
               currentLang: currentLang,
-              buildGlassContainer: ({required child, margin, padding, customColor}) => ClarifyGlass(margin: margin, padding: padding, customColor: customColor, child: child),
             ),
             WorkspaceConversationsListScreen(currentLang: currentLang),
           ],

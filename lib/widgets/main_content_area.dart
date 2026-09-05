@@ -591,7 +591,6 @@ class MainContentArea extends StatelessWidget {
       return FriendsScreen(
         currentLang: currentLang,
         scale: scale,
-        buildGlassContainer: buildGlassContainer,
         onOpenConversation: (partnerId, name) => onOpenDirectChat?.call(partnerId, name),
       );
     }

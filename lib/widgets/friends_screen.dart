@@ -6,6 +6,7 @@ import '../core/theme/design_tokens.dart';
 import 'clarify_button.dart';
 import 'clarify_text_field.dart';
 import 'clarify_toast.dart';
+import 'clarify_list_card.dart';
 
 /// «Друзья» — три вкладки Друзья/Заявки/Найти (SOCIAL_PLAN.md §3/4.2). Общий
 /// виджет для десктопа (внутри MainContentArea) и мобильного (отдельная
@@ -15,7 +16,6 @@ import 'clarify_toast.dart';
 class FriendsScreen extends StatefulWidget {
   final String currentLang;
   final double scale;
-  final Widget Function({required Widget child, EdgeInsetsGeometry? margin, EdgeInsetsGeometry? padding, Color? customColor}) buildGlassContainer;
   // Переход в профиль друга по тапу на строку убран по прямому запросу —
   // единственное действие на строке теперь кнопка "написать" ниже, без
   // промежуточного экрана профиля.
@@ -25,7 +25,7 @@ class FriendsScreen extends StatefulWidget {
   // MobilePlannerShell — без этого флага заголовок дублировался бы дважды.
   final bool showHeader;
 
-  const FriendsScreen({super.key, required this.currentLang, this.scale = 1.0, required this.buildGlassContainer, this.onOpenConversation, this.showHeader = true});
+  const FriendsScreen({super.key, required this.currentLang, this.scale = 1.0, this.onOpenConversation, this.showHeader = true});
 
   @override
   State<FriendsScreen> createState() => _FriendsScreenState();
@@ -152,7 +152,6 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
         return _PersonRow(
           name: displayName,
           avatarUrl: f['avatar_url'] as String?,
-          buildGlassContainer: widget.buildGlassContainer,
           trailing: widget.onOpenConversation == null
               ? null
               : IconButton(
@@ -178,7 +177,6 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
         return _PersonRow(
           name: (r['full_name'] as String?) ?? 'Без имени',
           avatarUrl: r['avatar_url'] as String?,
-          buildGlassContainer: widget.buildGlassContainer,
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -228,14 +226,15 @@ class _PersonRow extends StatelessWidget {
   final String name;
   final String? avatarUrl;
   final Widget? trailing;
-  final Widget Function({required Widget child, EdgeInsetsGeometry? margin, EdgeInsetsGeometry? padding, Color? customColor}) buildGlassContainer;
 
-  const _PersonRow({required this.name, this.avatarUrl, this.trailing, required this.buildGlassContainer});
+  const _PersonRow({required this.name, this.avatarUrl, this.trailing});
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    return buildGlassContainer(
+    // Без стекла: строк в списке много, и каждое размытие стоит отдельного
+    // прохода на каждом кадре прокрутки (см. ClarifyListCard).
+    return ClarifyListCard(
       margin: const EdgeInsets.only(bottom: 10),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),

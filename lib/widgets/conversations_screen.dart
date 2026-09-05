@@ -5,6 +5,7 @@ import '../core/theme/design_tokens.dart';
 import 'chat_message_widgets.dart';
 import 'clarify_bottom_sheet.dart';
 import 'clarify_toast.dart';
+import 'clarify_list_card.dart';
 
 /// Личные сообщения — список диалогов + чат (SOCIAL_PLAN.md §2.3/4.3). Реалтайм
 /// через тот же принцип, что уже работает для задач (TaskService.initRealtime) —
@@ -12,7 +13,6 @@ import 'clarify_toast.dart';
 class ConversationsListScreen extends StatefulWidget {
   final String currentLang;
   final double scale;
-  final Widget Function({required Widget child, EdgeInsetsGeometry? margin, EdgeInsetsGeometry? padding, Color? customColor}) buildGlassContainer;
   final String? initialPartnerId;
   final String? initialPartnerName;
 
@@ -20,7 +20,6 @@ class ConversationsListScreen extends StatefulWidget {
     super.key,
     required this.currentLang,
     this.scale = 1.0,
-    required this.buildGlassContainer,
     this.initialPartnerId,
     this.initialPartnerName,
   });
@@ -85,7 +84,9 @@ class _ConversationsListScreenState extends State<ConversationsListScreen> {
         final name = (c['full_name'] as String?)?.trim();
         final displayName = (name == null || name.isEmpty) ? 'Без имени'.tr(widget.currentLang) : name;
 
-        return widget.buildGlassContainer(
+        // Без стекла: см. ClarifyListCard — размытие на каждой строке
+        // перерисовывается на каждом кадре прокрутки.
+        return ClarifyListCard(
           margin: const EdgeInsets.only(bottom: 10),
           child: ListTile(
             onTap: () => _openConversation(c['partner_id'] as String, displayName),
