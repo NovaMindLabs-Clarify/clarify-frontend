@@ -106,6 +106,11 @@ void showManualAddDialog({
   int selectedRecurrenceInterval = isFromDuplicate
       ? ((sourceTaskForDuplicate['recurrence_interval'] as int?) ?? 2)
       : 2;
+  // Повтор от даты выполнения, а не от плановой (C3). По умолчанию выключен —
+  // «каждый понедельник» должно оставаться каждым понедельником.
+  bool recurrenceFromCompletion = isFromDuplicate
+      ? sourceTaskForDuplicate['recurrence_from_completion'] == true
+      : false;
   String? selectedAssigneeId;
   DateTime? selectedDate = preselectedDate ?? DateTime.now();
   TimeOfDay? selectedTime;
@@ -490,6 +495,29 @@ void showManualAddDialog({
                         ],
                       ),
                     ],
+                    // Отсчёт следующего повтора: от плана или от факта (C3).
+                    // Показывается только когда повтор вообще включён — иначе
+                    // это переключатель ни к чему.
+                    if (selectedRecurrence != 'none') ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const SizedBox(width: 26),
+                          Expanded(
+                            child: Text(
+                              "Считать от даты выполнения".tr(currentLang),
+                              style: TextStyle(color: textMuted, fontSize: 13.5),
+                            ),
+                          ),
+                          Switch(
+                            value: recurrenceFromCompletion,
+                            onChanged: (val) => setStateDialog(
+                              () => recurrenceFromCompletion = val,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -751,6 +779,9 @@ void showManualAddDialog({
                           "recurrence_interval": selectedRecurrence == 'custom'
                               ? selectedRecurrenceInterval
                               : null,
+                          "recurrence_from_completion":
+                              selectedRecurrence != 'none' &&
+                              recurrenceFromCompletion,
                           "is_completed": false,
                           "parent_id": null,
                           "workspace_id": currentWorkspaceId,

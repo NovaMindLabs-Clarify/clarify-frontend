@@ -86,6 +86,56 @@ void main() {
     });
   });
 
+  group('recurrenceAnchor', () {
+    test('по умолчанию считаем от плановой даты', () {
+      expect(
+        recurrenceAnchor(
+          dueDate: DateTime(2026, 9, 1),
+          fromCompletion: false,
+          completedAt: DateTime(2026, 9, 20, 14, 30),
+        ),
+        DateTime(2026, 9, 1),
+        reason: '«каждый понедельник» остаётся каждым понедельником, даже если отметили в среду',
+      );
+    });
+
+    test('с включённым флагом считаем от дня фактической отметки', () {
+      expect(
+        recurrenceAnchor(
+          dueDate: DateTime(2026, 9, 1),
+          fromCompletion: true,
+          completedAt: DateTime(2026, 9, 20, 14, 30),
+        ),
+        DateTime(2026, 9, 20),
+        reason: 'время внутри дня отбрасывается — даты задач хранятся с точностью до дня',
+      );
+    });
+
+    test('без времени отметки возвращаемся к плановой дате', () {
+      expect(
+        recurrenceAnchor(dueDate: DateTime(2026, 9, 1), fromCompletion: true),
+        DateTime(2026, 9, 1),
+        reason: 'честнее плановая дата, чем молча подставленное «сейчас»',
+      );
+    });
+
+    test('полив раз в 3 дня с опозданием не назначается на вчера', () {
+      // Ровно сценарий из аудита: полили с недельным опозданием.
+      final anchor = recurrenceAnchor(
+        dueDate: DateTime(2026, 9, 1),
+        fromCompletion: true,
+        completedAt: DateTime(2026, 9, 8, 19, 0),
+      );
+      final next = nextRecurrenceDate(from: anchor, recurrence: 'custom', interval: 3);
+      expect(next, DateTime(2026, 9, 11));
+
+      // Для сравнения: прежнее поведение дало бы дату в прошлом.
+      final oldWay = nextRecurrenceDate(from: DateTime(2026, 9, 1), recurrence: 'custom', interval: 3);
+      expect(oldWay, DateTime(2026, 9, 4));
+      expect(oldWay!.isBefore(DateTime(2026, 9, 8)), isTrue);
+    });
+  });
+
   group('recurringInstanceExists', () {
     test('находит уже созданный экземпляр серии на ту же дату', () {
       final current = task(id: 1, dueDate: '04.09.2026');

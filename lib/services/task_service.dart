@@ -215,6 +215,7 @@ class TaskService {
       'tags': taskData['tags'],
       'recurrence': taskData['recurrence'],
       'recurrence_interval': taskData['recurrence_interval'],
+      'recurrence_from_completion': taskData['recurrence_from_completion'] ?? false,
       'is_completed': taskData['is_completed'] ?? false,
       'parent_id': taskData['parent_id'],
       'folder': taskData['folder'],

@@ -977,8 +977,15 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
       return;
     }
 
+    // Точка отсчёта: плановая дата или момент фактической отметки — см. C3.
+    final DateTime anchor = recurrenceAnchor(
+      dueDate: oldDate,
+      fromCompletion: task['recurrence_from_completion'] == true,
+      completedAt: DateTime.tryParse(task['completed_at']?.toString() ?? ''),
+    );
+
     final DateTime? newDate = nextRecurrenceDate(
-      from: oldDate,
+      from: anchor,
       recurrence: task['recurrence'] as String?,
       interval: task['recurrence_interval'] as int?,
     );
@@ -989,7 +996,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     // (снял галочку, поставил обратно) и от гонки двух устройств.
     if (recurringInstanceExists(tasks: tasks, task: task, dateStr: newDateStr)) return;
 
-    int? newTaskId = await _createTaskManually({"title": task['title'], "due_date": newDateStr, "due_time": task['due_time'], "note": task['note'], "priority": task['priority'], "tags": task['tags'], "recurrence": task['recurrence'], "recurrence_interval": task['recurrence_interval'], "parent_id": task['parent_id'], "is_completed": false});
+    int? newTaskId = await _createTaskManually({"title": task['title'], "due_date": newDateStr, "due_time": task['due_time'], "note": task['note'], "priority": task['priority'], "tags": task['tags'], "recurrence": task['recurrence'], "recurrence_interval": task['recurrence_interval'], "recurrence_from_completion": task['recurrence_from_completion'] == true, "parent_id": task['parent_id'], "is_completed": false});
     // Подзадачи клонируются только вместе с РЕАЛЬНО созданным родителем: если
     // создание не прошло (offline/ошибка), клоны подзадач осиротели бы.
     if (newTaskId != null && task['parent_id'] == null) { final subtasks = tasks.where((t) => t['parent_id'] == task['id']).toList(); for (var sub in subtasks) { await _createTaskManually({"title": sub['title'], "parent_id": newTaskId, "is_completed": false}); } }

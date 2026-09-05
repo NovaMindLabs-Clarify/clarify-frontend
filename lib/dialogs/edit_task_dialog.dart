@@ -60,6 +60,8 @@ void showEditTaskDialog({
   String selectedPriority = task['priority'] ?? 'none';
   String selectedRecurrence = task['recurrence'] ?? 'none';
   int selectedRecurrenceInterval = (task['recurrence_interval'] as int?) ?? 2;
+  // Повтор от даты выполнения, а не от плановой (C3).
+  bool recurrenceFromCompletion = task['recurrence_from_completion'] == true;
   String? selectedAssigneeId = task['assigned_to'];
   DateTime? selectedDate = task['due_date'] != null
       ? parseDate(task['due_date'])
@@ -404,6 +406,27 @@ void showEditTaskDialog({
                         ],
                       ),
                     ],
+                    // Отсчёт следующего повтора: от плана или от факта (C3).
+                    if (selectedRecurrence != 'none') ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const SizedBox(width: 26),
+                          Expanded(
+                            child: Text(
+                              "Считать от даты выполнения".tr(currentLang),
+                              style: TextStyle(color: textMuted, fontSize: 13.5),
+                            ),
+                          ),
+                          Switch(
+                            value: recurrenceFromCompletion,
+                            onChanged: (val) => setStateDialog(
+                              () => recurrenceFromCompletion = val,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -730,6 +753,9 @@ void showEditTaskDialog({
                         "recurrence_interval": selectedRecurrence == 'custom'
                             ? selectedRecurrenceInterval
                             : null,
+                        "recurrence_from_completion":
+                            selectedRecurrence != 'none' &&
+                            recurrenceFromCompletion,
                         "is_completed": task['is_completed'] ?? false,
                         "parent_id": task['parent_id'],
                         "assigned_to": selectedAssigneeId,
