@@ -662,6 +662,55 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
   }
   Map<String, int> _getSubtaskStats(dynamic parentId) { final subtasks = tasks.where((t) => t['parent_id'] == parentId).toList(); if (subtasks.isEmpty) return {'total': 0, 'done': 0}; return {'total': subtasks.length, 'done': subtasks.where((t) => t['is_completed'] == true).length}; }
 
+  /// Закрепление оптимистичной отметки поверх пришедших с сервера строк.
+  ///
+  /// Пока сервер не подтвердил наш собственный toggle, локальное значение
+  /// сильнее любого приходящего снимка: снимок мог быть сделан ДО того, как наш
+  /// UPDATE закоммитился. Именно это когда-то давало «мигание» чекбокса
+  /// (отметился / откатился / отметился снова).
+  ///
+  /// Вынесено из _fetchTasks отдельно, потому что теперь тот же разбор нужен и
+  /// для точечного применения realtime-события (B2): если применить событие в
+  /// обход этой логики, мигание вернётся ровно в том же виде.
+  void _applyPinnedCompletions(Iterable<Map<String, dynamic>> rows) {
+    for (final row in rows) {
+      final pinned = _pinnedCompletions[row['id']];
+      if (pinned == null) continue;
+      if (pinned.agreesWith(row) || pinned.isExpired) {
+        _pinnedCompletions.remove(row['id']);
+        continue;
+      }
+      row['is_completed'] = pinned.isCompleted;
+      row['completed_at'] = pinned.completedAt;
+    }
+  }
+
+  /// Точечное применение realtime-события вместо перечитывания всей таблицы
+  /// (вторая половина B2).
+  ///
+  /// Раньше любое событие вызывало полный select() всех задач: отметил одну
+  /// задачу — выкачали весь список, чтобы узнать про одну изменившуюся строку.
+  ///
+  /// Если событие применить не удалось (пришло без id, неизвестный тип) —
+  /// честно откатываемся на полный фетч: «применить неправильно» здесь хуже,
+  /// чем «перечитать лишний раз».
+  void _applyRealtimeTaskEvent(PostgresChangePayload payload) {
+    if (!_taskService.applyRealtimeChange(payload)) {
+      _fetchTasks();
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      final updated = _taskService.getCachedTasks();
+      _applyPinnedCompletions(updated);
+      tasks = updated;
+      _isOffline = false;
+      _pendingOpsCount = _taskService.pendingOpsCount;
+      _applyFilters();
+      _rebuildAllAlarms();
+    });
+  }
+
   Future<void> _fetchTasks() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
@@ -683,16 +732,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
           // UPDATE (см. _PinnedCompletion). Подтвердил — закрепление снимаем и
           // дальше живём по серверу, включая его completed_at (у него своя
           // точность, спорить с ней незачем).
-          for (final fetched in fetchedTasks) {
-            final pinned = _pinnedCompletions[fetched['id']];
-            if (pinned == null) continue;
-            if (pinned.agreesWith(fetched) || pinned.isExpired) {
-              _pinnedCompletions.remove(fetched['id']);
-              continue;
-            }
-            fetched['is_completed'] = pinned.isCompleted;
-            fetched['completed_at'] = pinned.completedAt;
-          }
+          _applyPinnedCompletions(fetchedTasks);
           tasks = fetchedTasks;
           _isOffline = false;
           _pendingOpsCount = _taskService.pendingOpsCount;
@@ -784,7 +824,7 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
     // подписка на свои задачи фильтруется по user_id, а владелец командной
     // задачи — тот, кто её создал.
     _taskService.initRealtime(
-      onTasksChanged: () => _fetchTasks(),
+      onTaskEvent: _applyRealtimeTaskEvent,
       onZenChanged: () => _fetchZenStatuses(),
       workspaceIds: workspaces
           .map((w) => w['id'])

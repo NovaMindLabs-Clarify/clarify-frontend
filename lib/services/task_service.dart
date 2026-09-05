@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../core/config.dart';
@@ -147,7 +147,7 @@ class TaskService {
   List<int>? _subscribedWorkspaceIds;
 
   void initRealtime({
-    required Function onTasksChanged,
+    required void Function(PostgresChangePayload payload) onTaskEvent,
     required Function onZenChanged,
     List<int> workspaceIds = const [],
   }) {
@@ -174,7 +174,7 @@ class TaskService {
         column: 'user_id',
         value: user.id,
       ),
-      callback: (payload) => onTasksChanged(),
+      callback: onTaskEvent,
     );
 
     if (sorted.isNotEmpty) {
@@ -187,7 +187,7 @@ class TaskService {
           column: 'workspace_id',
           value: sorted,
         ),
-        callback: (payload) => onTasksChanged(),
+        callback: onTaskEvent,
       );
     }
 
@@ -362,6 +362,56 @@ class TaskService {
   /// внешнему ключу, отдельно их удалять не нужно.
   Future<void> deleteTaskForever(int taskId) async {
     await Supabase.instance.client.from('tasks').delete().eq('id', taskId);
+  }
+
+  /// Применяет одно realtime-событие к кэшу вместо перечитывания всей таблицы
+  /// (вторая половина B2).
+  ///
+  /// Раньше на КАЖДОЕ событие шёл полный select() всех задач пользователя.
+  /// Отметил задачу — сервер прислал событие — приложение выкачало весь список
+  /// заново, чтобы узнать про одну изменившуюся строку. При двух устройствах
+  /// или командной задаче это превращается в постоянный поток лишних запросов.
+  ///
+  /// Возвращает false, если событие применить нельзя и нужен полный фетч:
+  /// пришло не то, чего мы ждём (нет id, нет полезной нагрузки), либо тип
+  /// события неизвестен. Полный фетч остаётся честным запасным путём —
+  /// «применить неправильно» здесь хуже, чем «перечитать лишний раз».
+  bool applyRealtimeChange(PostgresChangePayload payload) {
+    final Map<String, dynamic> record = payload.eventType == PostgresChangeEvent.delete
+        ? payload.oldRecord
+        : payload.newRecord;
+
+    final dynamic rawId = record['id'];
+    final int? id = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
+    if (id == null) return false;
+
+    switch (payload.eventType) {
+      case PostgresChangeEvent.delete:
+        _inMemoryTasks.removeWhere((t) => t['id'] == id);
+
+      case PostgresChangeEvent.insert:
+      case PostgresChangeEvent.update:
+        final row = Map<String, dynamic>.from(record);
+        // Задача уехала в корзину (C6) — для списка это то же самое, что
+        // удаление: событие приходит как UPDATE, но показывать её больше
+        // нельзя.
+        if (row['deleted_at'] != null) {
+          _inMemoryTasks.removeWhere((t) => t['id'] == id);
+          break;
+        }
+        final index = _inMemoryTasks.indexWhere((t) => t['id'] == id);
+        if (index == -1) {
+          _inMemoryTasks.add(row);
+        } else {
+          _inMemoryTasks[index] = row;
+        }
+
+      default:
+        return false;
+    }
+
+    _tasksBox.put('all_tasks', json.encode(_inMemoryTasks));
+    return true;
   }
 
   /// Содержимое корзины — грузится отдельным запросом и только когда открыт
