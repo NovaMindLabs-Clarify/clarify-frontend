@@ -876,6 +876,38 @@ class TaskCardBuilders {
         )
       : null;
 
+  /// Ширины колонок правой части строки, в логических пикселях при масштабе 1.
+  ///
+  /// Раньше дата, счётчики и тег просто прижимались к правому краю одним Row.
+  /// Из-за этого дата стояла на своём месте только у задач с одинаковым
+  /// набором значков: появился тег — вся дата уехала влево, появился счётчик —
+  /// уехала ещё раз. По списку шла «волна», и глазу не за что было зацепиться
+  /// (живой фидбек 05.09.2026). Теперь под каждую сущность зарезервирована
+  /// колонка: она занимает своё место всегда, пустая или нет.
+  static const double _colRecurrence = 22;
+  static const double _colDate = 132;
+  static const double _colBadge = 44;
+
+  /// Тега хватит на 15 знаков — договорённость с владельцем: без верхнего
+  /// предела колонку под тег не зарезервировать, а длинные теги всё равно
+  /// нечитаемы в строке. Обрезается многоточием по ширине колонки, а не по
+  /// счёту символов: 15 узких букв и 15 широких занимают разное место.
+  static const double _colTag = 112;
+
+  /// Одна колонка правой части. [child] == null — колонка пустая, но место
+  /// держит: в этом весь смысл.
+  Widget _metaColumn({
+    required double width,
+    required double scale,
+    Widget? child,
+    Alignment align = Alignment.centerLeft,
+  }) {
+    return SizedBox(
+      width: width * scale,
+      child: child == null ? null : Align(alignment: align, child: child),
+    );
+  }
+
   Widget _rowQuickActions(Map<String, dynamic> task, {required bool isDone}) {
     Widget action({
       required IconData icon,
@@ -1041,15 +1073,18 @@ class TaskCardBuilders {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                if (hasRecurrence)
-                                  Padding(
-                                    padding: EdgeInsets.only(left: 8 * rs),
-                                    child: Icon(
-                                      LucideIcons.repeat,
-                                      size: 15 * rs,
-                                      color: isDone ? textMuted : _t.text3,
-                                    ),
-                                  ),
+                                SizedBox(width: 8 * rs),
+                                _metaColumn(
+                                  width: _colRecurrence,
+                                  scale: rs,
+                                  child: hasRecurrence
+                                      ? Icon(
+                                          LucideIcons.repeat,
+                                          size: 15 * rs,
+                                          color: isDone ? textMuted : _t.text3,
+                                        )
+                                      : null,
+                                ),
                                 // Дата, счётчики и тег — в ОДНОЙ строке с
                                 // заголовком, а не под ним. Вторая строка
                                 // удваивала высоту у каждой задачи, у которой
@@ -1057,88 +1092,92 @@ class TaskCardBuilders {
                                 // занимала 62px вместо 44 и список выглядел
                                 // стопкой крупных блоков.
                                 //
-                                // Каждая иконка с текстом по-прежнему
-                                // сгруппирована в свой Row (не голые элементы
-                                // плоского Row) — иначе crossAxisAlignment
-                                // центрирует их по высоте самого высокого
-                                // соседа, а не друг относительно друга (живой
-                                // фидбек 2026-08-01: «значок просрочки на
-                                // другой высоте относительно даты»).
-                                if (task['due_date'] != null ||
-                                    task['due_time'] != null ||
-                                    hasSubtasks ||
-                                    hasChecklist ||
-                                    (tag != null && tag.isNotEmpty))
-                                  Padding(
-                                    padding: EdgeInsets.only(left: 12 * rs),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      crossAxisAlignment: CrossAxisAlignment.center,
-                                      children: [
-                                    if (task['due_date'] != null ||
-                                        task['due_time'] != null)
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          right: 12,
-                                        ),
-                                        child: Row(
+                                // Каждая сущность — в своей колонке постоянной
+                                // ширины (см. _colDate и соседей). Колонка
+                                // держит место, даже когда пуста: иначе дата
+                                // уезжает влево от появления тега у соседней
+                                // задачи, и по списку идёт «волна».
+                                SizedBox(width: 12 * rs),
+                                _metaColumn(
+                                  width: _colDate,
+                                  scale: rs,
+                                  child:
+                                      (task['due_date'] != null ||
+                                          task['due_time'] != null)
+                                      ? Row(
                                           mainAxisSize: MainAxisSize.min,
                                           crossAxisAlignment:
                                               CrossAxisAlignment.center,
                                           children: [
-                                            if (_wasPastDue(task))
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                  right: 4,
+                                            // Слот под значок просрочки занят
+                                            // всегда, даже когда значка нет:
+                                            // иначе просроченные даты стояли бы
+                                            // на 20px правее обычных — та же
+                                            // «волна», только внутри колонки.
+                                            SizedBox(
+                                              width: 20 * rs,
+                                              height: 16 * rs,
+                                              child: _wasPastDue(task)
+                                                  ? AnimatedOpacity(
+                                                      opacity: isDone ? 0 : 1,
+                                                      duration: ClarifyMotion
+                                                          .completion,
+                                                      curve: ClarifyMotion
+                                                          .standard,
+                                                      child: Icon(
+                                                        LucideIcons.clockAlert,
+                                                        size: 16 * rs,
+                                                        color: _t.danger,
+                                                      ),
+                                                    )
+                                                  : null,
+                                            ),
+                                            // Flexible, а не голый Text: в Row с
+                                            // mainAxisSize.min текст требует
+                                            // натуральную ширину и вылезает за
+                                            // колонку вместо того, чтобы
+                                            // обрезаться. Ширина колонки
+                                            // подобрана под настоящий шрифт, но
+                                            // закладываться на неё жёстко
+                                            // нельзя: другой шрифт или локаль
+                                            // сразу дадут переполнение.
+                                            Flexible(
+                                              child: AnimatedDefaultTextStyle(
+                                                duration:
+                                                    ClarifyMotion.completion,
+                                                curve: ClarifyMotion.standard,
+                                                style: TextStyle(
+                                                  // 14 → 12.5: дата и время —
+                                                  // сопровождение заголовка, а
+                                                  // не равный ему по весу
+                                                  // элемент.
+                                                  fontSize: 12.5 * rs,
+                                                  color: overdue
+                                                      ? _t.danger
+                                                      : textMuted,
+                                                  fontWeight: overdue
+                                                      ? FontWeight.w700
+                                                      : FontWeight.w500,
                                                 ),
-                                                child: SizedBox(
-                                                  width: 16,
-                                                  height: 16,
-                                                  child: AnimatedOpacity(
-                                                    opacity: isDone ? 0 : 1,
-                                                    duration: ClarifyMotion
-                                                        .completion,
-                                                    curve:
-                                                        ClarifyMotion.standard,
-                                                    child: Icon(
-                                                      LucideIcons.clockAlert,
-                                                      size: 16,
-                                                      color: _t.danger,
-                                                    ),
-                                                  ),
+                                                child: Text(
+                                                  "${task['due_date'] != null ? '${task['due_date']} ' : ''}${task['due_time'] ?? ''}",
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                 ),
-                                              ),
-                                            AnimatedDefaultTextStyle(
-                                              duration:
-                                                  ClarifyMotion.completion,
-                                              curve: ClarifyMotion.standard,
-                                              style: TextStyle(
-                                                // 14 → 12.5: дата и время —
-                                                // сопровождение заголовка, а не
-                                                // равный ему по весу элемент.
-                                                fontSize: 12.5 * rs,
-                                                color: overdue
-                                                    ? _t.danger
-                                                    : textMuted,
-                                                fontWeight: overdue
-                                                    ? FontWeight.w700
-                                                    : FontWeight.w500,
-                                              ),
-                                              child: Text(
-                                                "${task['due_date'] != null ? '${task['due_date']} ' : ''}${task['due_time'] ?? ''}",
                                               ),
                                             ),
                                           ],
-                                        ),
-                                      ),
-                                    // Схлопывается, когда сама задача выполнена —
-                                    // счётчик не нужен после закрытия всей задачи.
-                                    if (hasSubtasks)
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          right: 12,
-                                        ),
-                                        child: AnimatedSize(
+                                        )
+                                      : null,
+                                ),
+                                // Схлопывается, когда сама задача выполнена —
+                                // счётчик не нужен после закрытия всей задачи.
+                                _metaColumn(
+                                  width: _colBadge,
+                                  scale: rs,
+                                  child: hasSubtasks
+                                      ? AnimatedSize(
                                           duration: ClarifyMotion.completion,
                                           curve: ClarifyMotion.standard,
                                           child: isDone
@@ -1148,14 +1187,14 @@ class TaskCardBuilders {
                                                   total: stats['total']!,
                                                   tokens: _t,
                                                 ),
-                                        ),
-                                      ),
-                                    if (hasChecklist)
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          right: 12,
-                                        ),
-                                        child: AnimatedSize(
+                                        )
+                                      : null,
+                                ),
+                                _metaColumn(
+                                  width: _colBadge,
+                                  scale: rs,
+                                  child: hasChecklist
+                                      ? AnimatedSize(
                                           duration: ClarifyMotion.completion,
                                           curve: ClarifyMotion.standard,
                                           child: isDone
@@ -1166,28 +1205,34 @@ class TaskCardBuilders {
                                                   tokens: _t,
                                                   icon: LucideIcons.listTodo,
                                                 ),
-                                        ),
-                                      ),
-                                    if (tag != null && tag.isNotEmpty)
-                                      GestureDetector(
-                                        onTap: () => onTagTap(tag),
-                                        // Было "[$tag]" жирным акцентным цветом.
-                                        // После перехода на контрастный акцент
-                                        // (2026-09-04) метка стала ярче самого
-                                        // заголовка задачи — решётка, обычный
-                                        // вес, приглушённый цвет.
-                                        child: Text(
-                                          "#$tag",
-                                          style: TextStyle(
-                                            fontSize: 12.5 * rs,
-                                            fontWeight: FontWeight.w500,
-                                            color: _t.text3,
+                                        )
+                                      : null,
+                                ),
+                                _metaColumn(
+                                  width: _colTag,
+                                  scale: rs,
+                                  child: (tag != null && tag.isNotEmpty)
+                                      ? GestureDetector(
+                                          onTap: () => onTagTap(tag),
+                                          // Было "[$tag]" жирным акцентным
+                                          // цветом. После перехода на
+                                          // контрастный акцент (2026-09-04)
+                                          // метка стала ярче самого заголовка
+                                          // задачи — решётка, обычный вес,
+                                          // приглушённый цвет.
+                                          child: Text(
+                                            "#$tag",
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: 12.5 * rs,
+                                              fontWeight: FontWeight.w500,
+                                              color: _t.text3,
+                                            ),
                                           ),
-                                        ),
-                                      ),
-                                      ],
-                                    ),
-                                  ),
+                                        )
+                                      : null,
+                                ),
                               ],
                             ),
                             // Вторая строка — только сигналы состояния (гниение

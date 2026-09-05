@@ -165,6 +165,89 @@ void main() {
 
       expect(toggled, task);
     });
+
+    // Живой фидбек 05.09.2026: «всё идёт волной». Дата стояла на своём месте
+    // только у задач с одинаковым набором значков — появился у соседа тег, и
+    // дата уехала влево. Теперь под каждую сущность зарезервирована колонка,
+    // и проверяется именно это: дата на одном и том же месте независимо от
+    // того, что идёт справа от неё.
+    group('колонки правой части не плавают', () {
+      Future<double> dateLeftEdge(
+        WidgetTester tester,
+        Map<String, dynamic> extra,
+      ) async {
+        final task = {
+          'id': 1,
+          'title': 'Задача',
+          'is_completed': false,
+          'due_date': '02.08.2026',
+          'due_time': '16:00',
+          ...extra,
+        };
+        await tester.pumpWidget(MaterialApp(
+          theme: ThemeData(extensions: const [ClarifyTokens.light]),
+          home: Scaffold(
+            body: SizedBox(width: 900, child: _builders().buildListTaskCard(task)),
+          ),
+        ));
+        return tester.getTopLeft(find.text('02.08.2026 16:00')).dx;
+      }
+
+      testWidgets('тег не сдвигает дату', (tester) async {
+        final without = await dateLeftEdge(tester, {});
+        final with_ = await dateLeftEdge(tester, {'tags': 'работа'});
+        expect(with_, without,
+            reason: 'колонка под тег занята всегда, дата не должна двигаться');
+      });
+
+      testWidgets('чек-лист не сдвигает дату', (tester) async {
+        final without = await dateLeftEdge(tester, {});
+        final with_ = await dateLeftEdge(tester, {'checklist': '[{"text":"пункт","done":false}]'});
+        expect(with_, without);
+      });
+
+      testWidgets('значок повтора не сдвигает дату', (tester) async {
+        final without = await dateLeftEdge(tester, {});
+        final with_ = await dateLeftEdge(tester, {'recurrence': 'daily'});
+        expect(with_, without);
+      });
+
+      testWidgets('значок просрочки не сдвигает дату', (tester) async {
+        // Просрочка добавляет иконку часов СЛЕВА от даты — без отдельного
+        // слота под неё дата у просроченных задач стояла бы правее.
+        final task = {
+          'id': 1,
+          'title': 'Задача',
+          'is_completed': false,
+          'due_date': '02.08.2026',
+          'due_time': '16:00',
+        };
+        Future<double> edge(bool overdue) async {
+          await tester.pumpWidget(MaterialApp(
+            theme: ThemeData(extensions: const [ClarifyTokens.light]),
+            home: Scaffold(
+              body: SizedBox(
+                width: 900,
+                child: _builders(isOverdue: (_) => overdue).buildListTaskCard(task),
+              ),
+            ),
+          ));
+          return tester.getTopLeft(find.text('02.08.2026 16:00')).dx;
+        }
+
+        expect(await edge(true), await edge(false));
+      });
+
+      testWidgets('длинный тег обрезается, а не растягивает колонку', (tester) async {
+        final long = await dateLeftEdge(
+          tester,
+          {'tags': 'оченьдлинныйтегкоторыйникуданевлезет'},
+        );
+        final short = await dateLeftEdge(tester, {'tags': 'дом'});
+        expect(long, short,
+            reason: 'колонка под тег фиксированной ширины: длина тега на неё не влияет');
+      });
+    });
   });
 
   group('TaskCardBuilders.buildCalendarTaskChip', () {

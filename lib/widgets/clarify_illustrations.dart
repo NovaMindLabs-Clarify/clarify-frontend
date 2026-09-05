@@ -19,6 +19,7 @@ enum ClarifyIllustrationType {
   inboxEmpty,
   folderGlow,
   trophyShine,
+  trashEmpty,
 }
 
 class ClarifyIllustration extends StatelessWidget {
@@ -37,6 +38,10 @@ class ClarifyIllustration extends StatelessWidget {
     ClarifyIllustrationType.inboxEmpty: LucideIcons.inbox,
     ClarifyIllustrationType.folderGlow: LucideIcons.folderKanban,
     ClarifyIllustrationType.trophyShine: LucideIcons.award,
+    // Своя иллюстрация, а не inboxEmbty: пустая корзина показывала тот же
+    // лоток, что и «Входящие», и два разных раздела выглядели одинаково
+    // (живой фидбек 05.09.2026).
+    ClarifyIllustrationType.trashEmpty: LucideIcons.trash2,
   };
 
   @override

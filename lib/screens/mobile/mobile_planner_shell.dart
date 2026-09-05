@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:animations/animations.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/localization.dart';
+import '../../core/quick_parse.dart';
 import '../../core/theme/design_tokens.dart';
 import '../../widgets/clarify_day_load_warning.dart';
 import '../../widgets/clarify_glass.dart';
@@ -52,6 +53,10 @@ class MobilePlannerShell extends StatefulWidget {
   final VoidCallback onAddWorkspace;
   final VoidCallback onOpenAccountSettings;
   final Widget Function() buildStatisticsDashboard;
+
+  /// Корзина (C6) — тот же виджет, что на ПК: он собирается в
+  /// DesktopPlannerScreen, где живёт TaskService, и сюда приходит готовым.
+  final Widget Function() buildTrashPanel;
   final bool isDark;
   final VoidCallback toggleTheme;
   final Function(String lang) changeLang;
@@ -84,6 +89,7 @@ class MobilePlannerShell extends StatefulWidget {
     required this.onAddWorkspace,
     required this.onOpenAccountSettings,
     required this.buildStatisticsDashboard,
+    required this.buildTrashPanel,
     required this.isDark,
     required this.toggleTheme,
     required this.changeLang,
@@ -132,6 +138,23 @@ class _MobilePlannerShellState extends State<MobilePlannerShell> {
     return result;
   }
 
+  /// Быстрое добавление строкой (C1) — та же раскладка полей, что на ПК
+  /// (desktop_planner_screen.dart, onQuickCreate). Разбор строки живёт в
+  /// core/quick_parse.dart и общий для обеих версий, так что расходиться им
+  /// негде: отличалось только то, что на телефоне этого ввода не было вовсе.
+  Future<void> _quickCreate(QuickParseResult parsed) async {
+    await widget.createTaskManually({
+      "title": parsed.title,
+      "due_date": parsed.date == null ? null : widget.formatDate(parsed.date!),
+      "due_time": parsed.time,
+      "priority": parsed.priority ?? 'none',
+      "tags": parsed.tag,
+      "recurrence": null,
+      "is_completed": false,
+      "parent_id": null,
+    });
+  }
+
   Widget _buildTab(MobileTab tab) {
     switch (tab) {
       case MobileTab.today:
@@ -170,6 +193,7 @@ class _MobilePlannerShellState extends State<MobilePlannerShell> {
           onDelete: widget.onDeleteTask,
           onTap: widget.onTaskTap,
           onQuickUpdateTask: widget.onQuickUpdateTask,
+          onQuickCreate: _quickCreate,
         );
       case MobileTab.teams:
         return MobileTeamsScreen(
@@ -205,6 +229,12 @@ class _MobilePlannerShellState extends State<MobilePlannerShell> {
           )),
           onOpenMessages: () => Navigator.of(context).push(MaterialPageRoute(
             builder: (_) => _MessagesPage(currentLang: widget.currentLang),
+          )),
+          onOpenTrash: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => _TrashPage(
+              currentLang: widget.currentLang,
+              builder: widget.buildTrashPanel,
+            ),
           )),
           toggleTheme: widget.toggleTheme,
           changeLang: widget.changeLang,
@@ -417,6 +447,29 @@ class _MessagesPage extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Корзина отдельной страницей, а не вкладкой: в нижней навигации четыре
+/// места, и все заняты основными назначениями. Виджет тот же, что на ПК.
+class _TrashPage extends StatelessWidget {
+  final String currentLang;
+  final Widget Function() builder;
+  const _TrashPage({required this.currentLang, required this.builder});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.tokens;
+    return Scaffold(
+      backgroundColor: t.bg,
+      appBar: AppBar(
+        backgroundColor: t.bg,
+        elevation: 0,
+        foregroundColor: t.text,
+        title: Text('Корзина'.tr(currentLang), style: TextStyle(fontFamily: 'Golos Text', fontWeight: FontWeight.w700)),
+      ),
+      body: builder(),
     );
   }
 }

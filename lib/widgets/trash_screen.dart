@@ -50,6 +50,7 @@ class _TrashScreenState extends State<TrashScreen> {
   }
 
   Future<void> _load() async {
+    if (mounted) setState(() => _error = null);
     try {
       final items = await widget.loadTrash();
       if (!mounted) return;
@@ -59,8 +60,26 @@ class _TrashScreenState extends State<TrashScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.toString());
+      // Пользователю — человеческая фраза, а не e.toString(). Живьём это
+      // выглядело как «Не удалось загрузить корзину: TimeoutException after
+      // 0:00:15.000000: Future not completed» — текст, из которого нельзя
+      // понять ни что случилось, ни что делать (05.09.2026).
+      setState(() => _error = _humanError(e));
     }
+  }
+
+  /// Отличаем «нет связи» от «что-то сломалось»: в первом случае помогает
+  /// повторить, во втором — нет, и обещать обратное нечестно.
+  String _humanError(Object e) {
+    final text = e.toString().toLowerCase();
+    final offline =
+        text.contains('timeout') ||
+        text.contains('socket') ||
+        text.contains('failed host lookup') ||
+        text.contains('connection');
+    return offline
+        ? 'Нет связи с сервером. Проверьте интернет и повторите.'
+        : 'Не удалось загрузить корзину.';
   }
 
   Future<void> _act(int taskId, Future<void> Function(int) action, String doneMessage) async {
@@ -115,10 +134,34 @@ class _TrashScreenState extends State<TrashScreen> {
     final s = widget.scale;
 
     if (_error != null) {
+      // С кнопкой, а не одной строкой текста: раньше из этого состояния не
+      // было выхода вообще — оставалось переключаться на другой раздел и
+      // возвращаться, чтобы экран построился заново.
       return Center(
-        child: Text(
-          '${'Не удалось загрузить корзину: '.tr(widget.currentLang)}$_error',
-          style: TextStyle(color: t.text3, fontSize: 13 * s),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClarifyIllustration(type: ClarifyIllustrationType.trashEmpty, size: 84),
+            const SizedBox(height: 18),
+            Text(
+              _error!.tr(widget.currentLang),
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14 * s, color: t.text2),
+            ),
+            const SizedBox(height: 14),
+            ClarifyButton(
+              label: 'Повторить'.tr(widget.currentLang),
+              icon: LucideIcons.refreshCw,
+              scale: s,
+              onPressed: () {
+                setState(() {
+                  _error = null;
+                  _items = null;
+                });
+                _load();
+              },
+            ),
+          ],
         ),
       );
     }
@@ -132,7 +175,7 @@ class _TrashScreenState extends State<TrashScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ClarifyIllustration(type: ClarifyIllustrationType.inboxEmpty, size: 84),
+            ClarifyIllustration(type: ClarifyIllustrationType.trashEmpty, size: 84),
             const SizedBox(height: 18),
             Text(
               'Корзина пуста'.tr(widget.currentLang),

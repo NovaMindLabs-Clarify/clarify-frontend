@@ -37,6 +37,12 @@ class MobileSettingsScreen extends StatefulWidget {
   final VoidCallback onOpenStatistics;
   final VoidCallback onOpenFriends;
   final VoidCallback onOpenMessages;
+
+  /// Корзина (C6). На ПК это отдельный пункт сайдбара, здесь — пункт в
+  /// «Обзоре»: в нижнюю навигацию из четырёх мест её не поставить, а без неё
+  /// удаление с телефона выглядело безвозвратным, хотя таковым не было.
+  final VoidCallback onOpenTrash;
+
   final VoidCallback toggleTheme;
   final Function(String lang) changeLang;
 
@@ -54,6 +60,7 @@ class MobileSettingsScreen extends StatefulWidget {
     required this.onOpenStatistics,
     required this.onOpenFriends,
     required this.onOpenMessages,
+    required this.onOpenTrash,
     required this.toggleTheme,
     required this.changeLang,
     this.embedded = false,
@@ -235,6 +242,13 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
           icon: LucideIcons.chartBar,
           title: 'Статистика'.tr(currentLang),
           onTap: widget.onOpenStatistics,
+          trailing: Icon(LucideIcons.chevronRight, size: 18, color: t.text3),
+        ),
+        const SizedBox(height: 12),
+        ClarifySettingsCard(
+          icon: LucideIcons.trash2,
+          title: 'Корзина'.tr(currentLang),
+          onTap: widget.onOpenTrash,
           trailing: Icon(LucideIcons.chevronRight, size: 18, color: t.text3),
         ),
 

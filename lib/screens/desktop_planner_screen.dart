@@ -290,6 +290,22 @@ class _DesktopPlannerScreenState extends State<DesktopPlannerScreen> {
         buildGlassContainer: _buildGlassContainer,
       );
 
+  /// Корзина (C6) — один и тот же экран для ПК и телефона. Раньше он
+  /// собирался прямо в разметке десктопа, из-за чего на мобильной версии его
+  /// просто не было: удалить с телефона можно было, а восстановить нет.
+  Widget _buildTrashPanelWidget() => TrashScreen(
+        currentLang: widget.currentLang,
+        scale: _s,
+        loadTrash: _taskService.fetchTrash,
+        onRestore: (id) async {
+          await _taskService.restoreTask(id);
+          await _fetchTasks();
+        },
+        onDeleteForever: (id) async {
+          await _taskService.deleteTaskForever(id);
+        },
+      );
+
   Widget _buildGlassContainer({required Widget child, BorderRadius? borderRadius, EdgeInsetsGeometry? padding, EdgeInsetsGeometry? margin, Color? customColor}) {
     return ClarifyGlass(borderRadius: borderRadius, padding: padding, margin: margin, customColor: customColor, child: child);
   }
@@ -1524,6 +1540,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
         ),
         onOpenAccountSettings: _showAccountSettingsDialog,
         buildStatisticsDashboard: _buildStatisticsDashboardWidget,
+        buildTrashPanel: _buildTrashPanelWidget,
         isDark: isDark,
         toggleTheme: widget.toggleTheme,
         changeLang: widget.changeLang,
@@ -1962,18 +1979,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
                               // Корзина (C6) — содержимое грузится отдельным
                               // запросом при открытии раздела, в общий кэш
                               // задач удалённое не попадает.
-                              buildTrashPanel: () => TrashScreen(
-                                currentLang: widget.currentLang,
-                                scale: _s,
-                                loadTrash: _taskService.fetchTrash,
-                                onRestore: (id) async {
-                                  await _taskService.restoreTask(id);
-                                  await _fetchTasks();
-                                },
-                                onDeleteForever: (id) async {
-                                  await _taskService.deleteTaskForever(id);
-                                },
-                              ),
+                              buildTrashPanel: _buildTrashPanelWidget,
                               buildSettingsPanel: () {
                                 final user = Supabase.instance.client.auth.currentUser;
                                 final metadata = user?.userMetadata ?? {};
@@ -1988,6 +1994,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                   onOpenStatistics: () => setState(() => selectedMenu = 'Статистика'),
                                   onOpenFriends: () => setState(() => selectedMenu = 'Друзья'),
                                   onOpenMessages: () => setState(() => selectedMenu = 'Сообщения'),
+                                  onOpenTrash: () => setState(() => selectedMenu = 'Корзина'),
                                   toggleTheme: widget.toggleTheme,
                                   changeLang: widget.changeLang,
                                   embedded: true,

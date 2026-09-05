@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../core/localization.dart';
 import '../../core/theme/design_tokens.dart';
+import '../../core/quick_parse.dart';
 import '../../widgets/clarify_cascade_item.dart';
 import '../../widgets/clarify_illustrations.dart';
+import '../../widgets/clarify_quick_add.dart';
 import 'mobile_search_screen.dart';
 import 'widgets/mobile_mini_calendar.dart';
 import 'widgets/swipe_to_delete_task_row.dart';
@@ -25,6 +27,12 @@ class MobileTasksScreen extends StatefulWidget {
   final void Function(Map<String, dynamic> task) onTap;
   final void Function(dynamic taskId, Map<String, dynamic> updates)
   onQuickUpdateTask;
+  /// Быстрое добавление строкой (C1). На телефоне его не было вовсе: задачу
+  /// можно было завести только через форму с полями, хотя на ПК хватало одной
+  /// строки. «Не должно быть отличий в базовых вещах» — то же правило, по
+  /// которому сюда раньше добавляли выбор команды.
+  final Future<void> Function(QuickParseResult parsed) onQuickCreate;
+
   final DateTime? initialDate;
   final Set<String> datesWithTasks;
   final Map<String, int> dateLoadMinutes;
@@ -40,6 +48,7 @@ class MobileTasksScreen extends StatefulWidget {
     required this.onDelete,
     required this.onTap,
     required this.onQuickUpdateTask,
+    required this.onQuickCreate,
     required this.datesWithTasks,
     required this.dateLoadMinutes,
     this.initialDate,
@@ -174,6 +183,20 @@ class _MobileTasksScreenState extends State<MobileTasksScreen> {
           ),
         ),
         const SizedBox(height: 12),
+        // Над списком, как на ПК: набрал строку — задача появилась, без
+        // открытия формы. Дата раздела подставляется, если в строке её нет,
+        // иначе «купить хлеб» во вкладке «Сегодня» уезжал бы во «Входящие».
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: ClarifyQuickAdd(
+            currentLang: widget.currentLang,
+            scale: 1.0,
+            defaultDate: _calendarDate ??
+                (_filter == _TaskFilter.today ? DateTime.now() : null),
+            onSubmit: widget.onQuickCreate,
+          ),
+        ),
+        const SizedBox(height: 4),
         Expanded(
           child: tasks.isEmpty
               ? Center(
