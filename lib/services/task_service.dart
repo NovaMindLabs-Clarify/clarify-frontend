@@ -3,15 +3,15 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../core/config.dart';
 import '../core/log.dart';
+import 'task_cache.dart';
 
 class TaskService {
   final Box _tasksBox = Hive.box('tasks_cache');
+  late final TaskCache _cache = TaskCache(_tasksBox);
   final Box _pendingOpsBox = Hive.box('pending_ops');
   RealtimeChannel? _realtimeChannel;
 
   // --- ЗАМЕНИТЬ НАЧАЛО КЛАССА И ФУНКЦИИ ДО updateTask ВКЛЮЧИТЕЛЬНО ---
-  // Локальный оперативный кэш в памяти для мгновенного доступа
-  List<Map<String, dynamic>> _inMemoryTasks = [];
 
   // Операции (create/update/delete), которые не удалось отправить на сервер
   // из-за сети — переживают перезапуск приложения (хранятся в Hive) и
@@ -68,14 +68,7 @@ class TaskService {
   // --- ЗАМЕНИ ЭТУ ФУНКЦИЮ ---
   // 1. Получение локального кэша (теперь с генерацией новой ссылки!)
   List<Map<String, dynamic>> getCachedTasks() {
-    if (_inMemoryTasks.isEmpty) {
-      final cachedTasks = _tasksBox.get('all_tasks');
-      if (cachedTasks != null) {
-        _inMemoryTasks = List<Map<String, dynamic>>.from(json.decode(cachedTasks));
-      }
-    }
-    // КРИТИЧЕСКИЙ ФИКС: Возвращаем КОПИЮ списка, чтобы Flutter понял, что данные изменились
-    return List<Map<String, dynamic>>.from(_inMemoryTasks);
+    return _cache.loadFromDiskIfEmpty();
   }
   // --- КОНЕЦ ЗАМЕНЫ ---
 
@@ -121,9 +114,8 @@ class TaskService {
         .order('id')
         .timeout(const Duration(seconds: 15));
 
-    _inMemoryTasks = List<Map<String, dynamic>>.from(data);
-    await _tasksBox.put('all_tasks', json.encode(data));
-    return _inMemoryTasks;
+    _cache.replaceAll(List<Map<String, dynamic>>.from(data));
+    return _cache.tasks;
   }
 
   // 3. Подписка на сокеты (Realtime)
@@ -252,11 +244,8 @@ class TaskService {
       'user_id': user.id,
     };
 
-    // Мгновенно пушим в кэш оперативной памяти (синхронно!)
-    _inMemoryTasks.add(optimisticTask);
-    
-    // Асинхронно сохраняем в Hive на диск (не блокируя выполнение)
-    _tasksBox.put('all_tasks', json.encode(_inMemoryTasks));
+    // Мгновенно показываем задачу и сохраняем на диск — см. TaskCache.
+    _cache.addOptimistic(optimisticTask);
 
     // Фоновая отправка на сервер Supabase
     try {
@@ -268,12 +257,8 @@ class TaskService {
 
       final realId = response['id'] as int;
       
-      // Заменяем временную задачу на официальную серверную в нашем кэше памяти
-      final idx = _inMemoryTasks.indexWhere((t) => t['id'] == tempId);
-      if (idx != -1) {
-        _inMemoryTasks[idx] = Map<String, dynamic>.from(response);
-        await _tasksBox.put('all_tasks', json.encode(_inMemoryTasks));
-      }
+      // Заменяем временную задачу на официальную серверную.
+      _cache.confirmOptimistic(tempId, Map<String, dynamic>.from(response));
 
       return realId;
     } on PostgrestException {
@@ -286,7 +271,7 @@ class TaskService {
       // висеть в памяти и в Hive: пользователь видел созданную задачу, закрывал
       // приложение, открывал — задачи нет, без единого объяснения. Честная
       // ошибка сразу подрывает доверие куда меньше, чем задача-призрак.
-      _removeOptimisticTask(tempId);
+      _cache.removeOptimistic(tempId);
       rethrow;
     } catch (e) {
       logError("Фоновое сохранение на сервер не удалось: $e");
@@ -298,14 +283,6 @@ class TaskService {
     }
   }
 
-  /// Убирает оптимистично добавленную задачу из памяти и с диска.
-  ///
-  /// Только для случая, когда сервер ОТКАЗАЛ: при сетевой ошибке запись,
-  /// наоборот, должна остаться — она отправится из очереди отложенных операций.
-  void _removeOptimisticTask(int tempId) {
-    _inMemoryTasks.removeWhere((t) => t['id'] == tempId);
-    _tasksBox.put('all_tasks', json.encode(_inMemoryTasks));
-  }
   // --- КОНЕЦ ИЗМЕНЕНИЙ В СЕРВИСЕ ---
   // --- КОНЕЦ ЗАМЕНЫ ---
 
@@ -373,45 +350,19 @@ class TaskService {
   /// или командной задаче это превращается в постоянный поток лишних запросов.
   ///
   /// Возвращает false, если событие применить нельзя и нужен полный фетч:
-  /// пришло не то, чего мы ждём (нет id, нет полезной нагрузки), либо тип
-  /// события неизвестен. Полный фетч остаётся честным запасным путём —
-  /// «применить неправильно» здесь хуже, чем «перечитать лишний раз».
+  /// пришло не то, чего мы ждём (нет id), либо тип события неизвестен. Полный
+  /// фетч остаётся честным запасным путём — «применить неправильно» здесь хуже,
+  /// чем «перечитать лишний раз».
+  ///
+  /// Сама логика — в TaskCache: она про список в памяти, а не про сеть, и
+  /// только поэтому её удалось покрыть тестами (сервис завязан на живой клиент
+  /// Supabase, подменить который в тестах нечем).
   bool applyRealtimeChange(PostgresChangePayload payload) {
-    final Map<String, dynamic> record = payload.eventType == PostgresChangeEvent.delete
-        ? payload.oldRecord
-        : payload.newRecord;
-
-    final dynamic rawId = record['id'];
-    final int? id = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
-    if (id == null) return false;
-
-    switch (payload.eventType) {
-      case PostgresChangeEvent.delete:
-        _inMemoryTasks.removeWhere((t) => t['id'] == id);
-
-      case PostgresChangeEvent.insert:
-      case PostgresChangeEvent.update:
-        final row = Map<String, dynamic>.from(record);
-        // Задача уехала в корзину (C6) — для списка это то же самое, что
-        // удаление: событие приходит как UPDATE, но показывать её больше
-        // нельзя.
-        if (row['deleted_at'] != null) {
-          _inMemoryTasks.removeWhere((t) => t['id'] == id);
-          break;
-        }
-        final index = _inMemoryTasks.indexWhere((t) => t['id'] == id);
-        if (index == -1) {
-          _inMemoryTasks.add(row);
-        } else {
-          _inMemoryTasks[index] = row;
-        }
-
-      default:
-        return false;
-    }
-
-    _tasksBox.put('all_tasks', json.encode(_inMemoryTasks));
-    return true;
+    final bool isDelete = payload.eventType == PostgresChangeEvent.delete;
+    return _cache.applyChange(
+      eventType: isDelete ? 'DELETE' : (payload.eventType == PostgresChangeEvent.insert ? 'INSERT' : 'UPDATE'),
+      record: isDelete ? payload.oldRecord : payload.newRecord,
+    );
   }
 
   /// Содержимое корзины — грузится отдельным запросом и только когда открыт
