@@ -10,6 +10,7 @@ import '../core/theme/design_tokens.dart';
 import 'calendar_day_timeline.dart';
 import 'clarify_cascade_item.dart';
 import 'clarify_day_load_warning.dart' show ClarifyDayCapacity, dayLoadMinutes;
+import 'about_screen.dart';
 import 'clarify_illustrations.dart';
 import 'clarify_task_skeleton.dart';
 import 'clarify_glass.dart';
@@ -180,7 +181,7 @@ class MainContentArea extends StatelessWidget {
 
     final List<String> weekdaysRu = _kWeekdaysRu;
 
-    const reservedMenuKeys = {'Мой день', 'Следующие 7 дней', 'Все задачи', 'Календарь', 'Входящие', 'Проекты', 'Друзья', 'Сообщения', 'Статистика', 'Настройки', 'История', 'Корзина'};
+    const reservedMenuKeys = {'Мой день', 'Следующие 7 дней', 'Все задачи', 'Календарь', 'Входящие', 'Проекты', 'Друзья', 'Сообщения', 'Статистика', 'Настройки', 'История', 'Корзина', 'О приложении'};
     final isTagProject = !reservedMenuKeys.contains(selectedMenu) && !selectedMenu.startsWith('ws_');
 
     if (isTagProject) {
@@ -613,6 +614,9 @@ class MainContentArea extends StatelessWidget {
     }
     else if (selectedMenu == 'Настройки') {
       return buildSettingsPanel();
+    }
+    else if (selectedMenu == 'О приложении') {
+      return AboutScreen(currentLang: currentLang, scale: scale);
     }
     else if (selectedMenu == 'История') {
       return buildArchivePanel();

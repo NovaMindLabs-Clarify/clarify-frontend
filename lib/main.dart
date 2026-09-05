@@ -34,6 +34,7 @@ import 'services/status_bar_style.dart';
 // Вставь это где-то среди других импортов
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'core/log.dart';
+import 'widgets/clarify_mark.dart';
 
 // ------------------------------------------------
 // 1. ПРИНИМАЕМ АРГУМЕНТЫ КОМАНДНОЙ СТРОКИ ДЛЯ SILENT BOOT
@@ -697,7 +698,16 @@ class _AuthScreenState extends State<AuthScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text("Clarify", style: TextStyle(fontFamily: 'Unbounded', fontSize: 26, fontWeight: FontWeight.w700, color: textColor, letterSpacing: -0.01)),
+            // Знак берёт цвет текста, а не акцент — так требует фирменный
+            // гайд: акцент принадлежит действиям, а не логотипу.
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ClarifyMark(size: 26, color: textColor, decorative: true),
+                const SizedBox(width: 10),
+                Text("Clarify", style: TextStyle(fontFamily: 'Unbounded', fontSize: 26, fontWeight: FontWeight.w700, color: textColor, letterSpacing: -0.01)),
+              ],
+            ),
             IconButton(icon: Icon(isDark ? LucideIcons.sun : LucideIcons.moon, color: textMuted), onPressed: widget.toggleTheme),
           ],
         ),
@@ -1035,6 +1045,8 @@ class _SetupProfileScreenState extends State<SetupProfileScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text("Добро пожаловать в".tr(widget.currentLang), style: TextStyle(fontSize: 16, color: textMuted, fontWeight: FontWeight.bold)),
+                    ClarifyMark(size: 44, color: textColor, decorative: true),
+                    const SizedBox(height: 14),
                     Text("Clarify", style: TextStyle(fontFamily: 'Unbounded', fontSize: 30, fontWeight: FontWeight.w700, color: textColor, letterSpacing: -0.01)),
                     const SizedBox(height: 32),
 

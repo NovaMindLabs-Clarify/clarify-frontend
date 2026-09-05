@@ -44,6 +44,10 @@ class MobileSettingsScreen extends StatefulWidget {
   /// удаление с телефона выглядело безвозвратным, хотя таковым не было.
   final VoidCallback onOpenTrash;
 
+  /// «О приложении» — версия сборки и единственное во всём интерфейсе
+  /// упоминание бренда студии (BRAND.md §4).
+  final VoidCallback onOpenAbout;
+
   final VoidCallback toggleTheme;
   final Function(String lang) changeLang;
 
@@ -62,6 +66,7 @@ class MobileSettingsScreen extends StatefulWidget {
     required this.onOpenFriends,
     required this.onOpenMessages,
     required this.onOpenTrash,
+    required this.onOpenAbout,
     required this.toggleTheme,
     required this.changeLang,
     this.embedded = false,
@@ -576,6 +581,16 @@ class _MobileSettingsScreenState extends State<MobileSettingsScreen> {
 
         const SizedBox(height: 20),
         _SectionLabel(text: 'Поддержка'.tr(currentLang)),
+        // «О приложении» — единственное место во всём интерфейсе, где по
+        // фирменному гайду показывается бренд студии. Заодно здесь же видна
+        // версия сборки: до этого узнать её из приложения было нельзя вообще.
+        ClarifySettingsCard(
+          icon: LucideIcons.info,
+          title: 'О приложении'.tr(currentLang),
+          onTap: widget.onOpenAbout,
+          trailing: Icon(LucideIcons.chevronRight, size: 18, color: t.text3),
+        ),
+        const SizedBox(height: 12),
         ClarifyButton(
           label: 'Поддержка'.tr(currentLang),
           icon: LucideIcons.send,

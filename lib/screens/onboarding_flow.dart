@@ -5,6 +5,7 @@ import '../core/theme/design_tokens.dart';
 import '../widgets/clarify_button.dart';
 import '../widgets/clarify_illustrations.dart';
 import '../main.dart';
+import '../widgets/clarify_mark.dart';
 
 /// Онбординг перед авторизацией — сплэш → карусель → welcome с «Войти»/
 /// «Создать аккаунт» (REDESIGN_V3_PLAN.md §3.8/5.8). Показывается один раз,
@@ -91,7 +92,14 @@ class _OnboardingFlowState extends State<OnboardingFlow> with SingleTickerProvid
       key: const ValueKey('splash'),
       child: FadeTransition(
         opacity: _splashController,
-        child: Text('Clarify', style: TextStyle(fontFamily: 'Unbounded', fontSize: 36, fontWeight: FontWeight.w700, color: t.text)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClarifyMark(size: 56, color: t.text, decorative: true),
+            const SizedBox(height: 16),
+            Text('Clarify', style: TextStyle(fontFamily: 'Unbounded', fontSize: 36, fontWeight: FontWeight.w700, color: t.text)),
+          ],
+        ),
       ),
     );
   }

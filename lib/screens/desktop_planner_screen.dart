@@ -2106,6 +2106,7 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                   onOpenFriends: () => setState(() => selectedMenu = 'Друзья'),
                                   onOpenMessages: () => setState(() => selectedMenu = 'Сообщения'),
                                   onOpenTrash: () => setState(() => selectedMenu = 'Корзина'),
+                                  onOpenAbout: () => setState(() => selectedMenu = 'О приложении'),
                                   toggleTheme: widget.toggleTheme,
                                   changeLang: widget.changeLang,
                                   embedded: true,

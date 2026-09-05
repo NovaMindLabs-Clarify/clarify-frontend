@@ -15,6 +15,7 @@ import 'mobile_tasks_screen.dart';
 import 'mobile_teams_screen.dart';
 import 'mobile_settings_screen.dart';
 import 'mobile_ai_screen.dart';
+import '../../widgets/about_screen.dart';
 
 enum MobileTab { today, tasks, teams, settings }
 
@@ -257,6 +258,19 @@ class _MobilePlannerShellState extends State<MobilePlannerShell> {
             builder: (_) => _TrashPage(
               currentLang: widget.currentLang,
               builder: widget.buildTrashPanel,
+            ),
+          )),
+          onOpenAbout: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => Scaffold(
+              backgroundColor: context.tokens.bg,
+              appBar: AppBar(
+                backgroundColor: context.tokens.bg,
+                elevation: 0,
+                foregroundColor: context.tokens.text,
+                title: Text('О приложении'.tr(widget.currentLang),
+                    style: const TextStyle(fontFamily: 'Golos Text', fontWeight: FontWeight.w700)),
+              ),
+              body: AboutScreen(currentLang: widget.currentLang),
             ),
           )),
           toggleTheme: widget.toggleTheme,
