@@ -47,10 +47,19 @@ class _AboutScreenState extends State<AboutScreen> {
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
+  /// Масштаб по ТЕКУЩЕЙ ширине, а не по десктопному окну.
+  ///
+  /// Экран общий для ПК и телефона, а `scale` приходит из
+  /// DesktopPlannerScreen, где считается как ширина/1920 и на телефоне упирается
+  /// в нижнюю границу 0.4 — весь текст становился в два с половиной раза
+  /// мельче задуманного. Та же ошибка была в корзине и поймана живым фидбеком
+  /// 06.09.2026.
+  double _scaleFor(double width) => width < 700 ? 1.0 : widget.scale;
+
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    final s = widget.scale;
+    final s = _scaleFor(MediaQuery.sizeOf(context).width);
 
     return Center(
       child: SingleChildScrollView(

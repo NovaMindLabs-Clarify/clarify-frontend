@@ -128,10 +128,22 @@ class _TrashScreenState extends State<TrashScreen> {
     }
   }
 
+  /// Масштаб, пригодный для ТЕКУЩЕЙ ширины, а не для десктопного окна.
+  ///
+  /// Экран один и тот же для ПК и телефона, а `scale` приходил из
+  /// DesktopPlannerScreen, где он считается как ширина/1920 и на телефоне
+  /// упирается в нижнюю границу 0.4. Весь текст умножался на 0.4 — заголовок
+  /// задачи в 15px превращался в 6px, а кнопки на такой множитель не
+  /// сжимаются и выглядели рядом огромными (живой фидбек 06.09.2026).
+  ///
+  /// Мобильные экраны в проекте рисуются в натуральную величину и множителя не
+  /// знают — здесь так же.
+  double _scaleFor(double width) => width < 700 ? 1.0 : widget.scale;
+
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
-    final s = widget.scale;
+    final s = _scaleFor(MediaQuery.sizeOf(context).width);
 
     if (_error != null) {
       // С кнопкой, а не одной строкой текста: раньше из этого состояния не
@@ -204,50 +216,79 @@ class _TrashScreenState extends State<TrashScreen> {
             border: Border(bottom: BorderSide(color: t.border)),
           ),
           padding: EdgeInsets.symmetric(vertical: 10 * s),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // На телефоне две подписанные кнопки рядом с заголовком не
+              // помещаются: заголовок сжимался в узкую полоску, а кнопки
+              // занимали почти всю строку. Узко — значит действия уходят под
+              // задачу, где им хватает места.
+              final narrow = constraints.maxWidth < 480;
+
+              final title = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    (task['title'] ?? '').toString(),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 15 * s, color: t.text2),
+                  ),
+                  SizedBox(height: 2 * s),
+                  Text(
+                    _remainingLabel(task['deleted_at']),
+                    style: TextStyle(fontSize: 12 * s, color: t.text3),
+                  ),
+                ],
+              );
+
+              if (busy) {
+                return Row(
                   children: [
-                    Text(
-                      (task['title'] ?? '').toString(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 15 * s, color: t.text2),
-                    ),
-                    SizedBox(height: 2 * s),
-                    Text(
-                      _remainingLabel(task['deleted_at']),
-                      style: TextStyle(fontSize: 12 * s, color: t.text3),
+                    Expanded(child: title),
+                    SizedBox(
+                      width: 16 * s,
+                      height: 16 * s,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: t.text3),
                     ),
                   ],
-                ),
-              ),
-              if (busy)
-                SizedBox(
-                  width: 16 * s,
-                  height: 16 * s,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: t.text3),
-                )
-              else ...[
-                ClarifyButton(
-                  label: 'Восстановить'.tr(widget.currentLang),
-                  icon: LucideIcons.undo2,
-                  variant: ClarifyButtonVariant.outline,
-                  scale: 0.85 * s,
-                  onPressed: () => _act(id, widget.onRestore, 'Задача восстановлена'),
-                ),
-                SizedBox(width: 8 * s),
-                ClarifyButton(
-                  label: 'Удалить навсегда'.tr(widget.currentLang),
-                  icon: LucideIcons.trash2,
-                  variant: ClarifyButtonVariant.danger,
-                  scale: 0.85 * s,
-                  onPressed: () => _act(id, widget.onDeleteForever, 'Задача удалена навсегда'),
-                ),
-              ],
-            ],
+                );
+              }
+
+              final restore = ClarifyButton(
+                label: 'Восстановить'.tr(widget.currentLang),
+                icon: LucideIcons.undo2,
+                variant: ClarifyButtonVariant.outline,
+                scale: 0.85 * s,
+                onPressed: () => _act(id, widget.onRestore, 'Задача восстановлена'),
+              );
+              final purge = ClarifyButton(
+                label: 'Удалить навсегда'.tr(widget.currentLang),
+                icon: LucideIcons.trash2,
+                variant: ClarifyButtonVariant.danger,
+                scale: 0.85 * s,
+                onPressed: () => _act(id, widget.onDeleteForever, 'Задача удалена навсегда'),
+              );
+
+              if (!narrow) {
+                return Row(
+                  children: [
+                    Expanded(child: title),
+                    restore,
+                    SizedBox(width: 8 * s),
+                    purge,
+                  ],
+                );
+              }
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  title,
+                  SizedBox(height: 10 * s),
+                  Row(children: [restore, SizedBox(width: 8 * s), purge]),
+                ],
+              );
+            },
           ),
         );
       },
