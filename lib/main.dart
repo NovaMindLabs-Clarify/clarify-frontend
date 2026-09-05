@@ -698,14 +698,46 @@ class _AuthScreenState extends State<AuthScreen> {
           );
           debugPrint('✅ Успешный вход в Supabase!');
         } on AuthException catch (e) {
-          throw Exception(e.message);
+          // Раньше это заворачивалось в обычное исключение и попадало в общий
+          // catch, который рапортовал «Ошибка сети. Проверьте интернет» —
+          // человека отправляли чинить интернет, когда отказал вход. Теперь
+          // причина называется своими словами.
+          debugPrint('❌ Supabase отклонил одноразовый токен: ${e.message}');
+          if (mounted) {
+            ClarifyToast.show(
+              context,
+              '${'Не удалось подтвердить вход'.tr(widget.currentLang)}: ${e.message}',
+              variant: ClarifyToastVariant.danger,
+            );
+          }
+          return;
         }
 
         // _isAuthInProgress/_yandexPhase сбрасываются в finally у _loginWithYandex,
         // который дожидается завершения этого метода — не дублируем здесь.
       } else {
-        debugPrint('❌ Ошибка бэкенда: ${response.body}');
-        if (mounted) ClarifyToast.show(context, 'Ошибка авторизации. Попробуйте еще раз.'.tr(widget.currentLang), variant: ClarifyToastVariant.danger);
+        // Показываем КОД ответа: «ошибка авторизации» одинаково выглядит и
+        // когда Яндекс отверг код, и когда у сервера нет ключа Supabase, и
+        // когда сервер упал. Без кода человек не может сказать, что случилось,
+        // а разработчик — воспроизвести.
+        debugPrint('❌ Ошибка бэкенда ${response.statusCode}: ${response.body}');
+        if (mounted) {
+          ClarifyToast.show(
+            context,
+            '${'Сервер отклонил вход'.tr(widget.currentLang)} (${response.statusCode})',
+            variant: ClarifyToastVariant.danger,
+          );
+        }
+      }
+    } on FormatException catch (e) {
+      // Сервер ответил 200, но телом не JSON — это поломка сервера, а не сети.
+      debugPrint('❌ Сервер вернул не JSON: $e');
+      if (mounted) {
+        ClarifyToast.show(
+          context,
+          'Сервер вернул неожиданный ответ'.tr(widget.currentLang),
+          variant: ClarifyToastVariant.danger,
+        );
       }
     } on TimeoutException catch (e) {
       // Отдельно от сетевой ошибки: отправлять человека проверять интернет,
