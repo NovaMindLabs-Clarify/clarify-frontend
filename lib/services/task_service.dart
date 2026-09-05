@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import '../core/config.dart';
 import '../core/log.dart';
 
 class TaskService {
@@ -87,9 +88,32 @@ class TaskService {
     // (обновлённая строка переезжает в конец heap). Из-за этого список задач
     // после отметки "выполнено" приходил в другом порядке, и задачи, у которых
     // ключи сортировки на клиенте совпадают, визуально прыгали по списку.
+    //
+    // Окно загрузки (B3): раньше здесь был select() без единого ограничения —
+    // тянулись все задачи за всю историю, при каждом запуске И при каждом
+    // realtime-событии. Теперь грузим то, что реально нужно на экранах:
+    //   * всё невыполненное — независимо от возраста;
+    //   * выполненное за последний год (окно — AppConfig.completedTasksWindowDays);
+    //   * все подзадачи — иначе у активной задачи «0/2» превратилось бы в «0/1»,
+    //     когда выполненная подзадача выпала из окна по возрасту;
+    //   * выполненное БЕЗ даты отметки — таких задач в базе 2, они старше
+    //     колонки completed_at. Когда неизвестно, когда задачу закрыли, честнее
+    //     оставить её, чем выбросить: NULL в SQL не равен ничему, и без этой
+    //     ветки они не попали бы ни под одно условие и просто исчезли бы.
+    // is_completed сравнивается ещё и с null: колонка nullable, и у задач,
+    // созданных до появления значения по умолчанию, там NULL — без этой ветки
+    // они бы тоже пропали.
+    final cutoff = DateTime.now()
+        .subtract(const Duration(days: AppConfig.completedTasksWindowDays))
+        .toIso8601String();
     final data = await Supabase.instance.client
         .from('tasks')
         .select()
+        .or('is_completed.is.null,'
+            'is_completed.eq.false,'
+            'completed_at.is.null,'
+            'completed_at.gte.$cutoff,'
+            'parent_id.not.is.null')
         .order('id')
         .timeout(const Duration(seconds: 15));
 
