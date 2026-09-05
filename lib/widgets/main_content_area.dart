@@ -4,6 +4,7 @@ import '../core/clarify_date_format.dart';
 import '../core/config.dart';
 import '../core/priority.dart';
 import '../core/localization.dart';
+import '../core/quick_parse.dart';
 import '../core/tags.dart';
 import '../core/theme/design_tokens.dart';
 import 'calendar_day_timeline.dart';
@@ -13,6 +14,7 @@ import 'clarify_illustrations.dart';
 import 'clarify_glass.dart';
 import 'clarify_list_entrance.dart';
 import 'clarify_press_glow.dart';
+import 'clarify_quick_add.dart';
 import 'clarify_reorder_flow.dart';
 import 'clarify_surface.dart';
 import 'friends_screen.dart';
@@ -98,6 +100,10 @@ class MainContentArea extends StatelessWidget {
   final bool sortByPriority;
   final VoidCallback onToggleSortByPriority;
 
+  /// Создание задачи из разобранной строки быстрого ввода (C1).
+  /// null — строка не показывается (например, на экранах без списка задач).
+  final Future<void> Function(QuickParseResult parsed)? onQuickCreate;
+
   /// id задач, у которых на время анимации выполнения порядок «заморожен» на
   /// прежнем значении is_completed — см. _toggleTask в DesktopPlannerScreen.
   /// Пусто в обычном состоянии.
@@ -139,6 +145,7 @@ class MainContentArea extends StatelessWidget {
     required this.onSetProjectColor,
     required this.sortByPriority,
     required this.onToggleSortByPriority,
+    this.onQuickCreate,
     this.frozenCompletedRanks = const {},
     this.pendingChatPartnerId,
     this.pendingChatPartnerName,
@@ -262,6 +269,27 @@ class MainContentArea extends StatelessWidget {
         if (timeCompare != 0) return timeCompare;
         return sameTimeTiebreak(a, b);
       });
+      // Быстрое добавление строкой (C1). Показывается в плоских списках задач,
+      // где «добавить ещё одну» — самое частое действие. В календаре и на доске
+      // проекта своя логика добавления (плюс в ячейке дня, колонка статуса),
+      // туда эта строка не лезет.
+      //
+      // Объявлено ДО ветки пустого списка: именно на пустом экране строка нужна
+      // больше всего — иначе новому человеку предлагается любоваться
+      // иллюстрацией и искать, куда нажать.
+      final quickAdd = onQuickCreate == null
+          ? null
+          : ClarifyQuickAdd(
+              currentLang: currentLang,
+              scale: scale,
+              // Раздел подставляет своё только если человек ничего не сказал:
+              // в «Моём дне» задача без даты — почти наверняка на сегодня, а в
+              // проекте — почти наверняка с его тегом.
+              defaultDate: selectedMenu == 'Мой день' ? DateTime.now() : null,
+              defaultTag: isTagProject ? selectedMenu : null,
+              onSubmit: onQuickCreate!,
+            );
+
       if (targetTasks.isEmpty) {
         final String emptyKey;
         final String hintKey;
@@ -287,25 +315,33 @@ class MainContentArea extends StatelessWidget {
         // сбой загрузки, а видит её первым делом как раз новый человек.
         // Иллюстрации и подсказки уже были на мобильном (mobile_tasks_screen),
         // на десктопе их просто не довели.
-        return Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ClarifyIllustration(type: illustration, size: 84),
-              const SizedBox(height: 18),
-              Text(
-                emptyKey.tr(currentLang),
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: t.text2),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ?quickAdd,
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ClarifyIllustration(type: illustration, size: 84),
+                    const SizedBox(height: 18),
+                    Text(
+                      emptyKey.tr(currentLang),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: t.text2),
+                    ),
+                    const SizedBox(height: 7),
+                    Text(
+                      hintKey.tr(currentLang),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 13, color: t.text3),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 7),
-              Text(
-                hintKey.tr(currentLang),
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: t.text3),
-              ),
-            ],
-          ),
+            ),
+          ],
         );
       }
 
@@ -411,6 +447,7 @@ class MainContentArea extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ?dayCapacity,
+              ?quickAdd,
               ?sortToggle,
               Expanded(
                 child: ListView(

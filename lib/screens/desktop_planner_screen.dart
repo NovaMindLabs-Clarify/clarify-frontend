@@ -1873,6 +1873,21 @@ Map<String, dynamic> _parseSmartInput(String text) {
                                   targetTasks.insert(newIndex, item);
                                 });
                               },
+                              // Быстрое добавление строкой (C1). Разбор уже
+                              // сделан локально в ClarifyQuickAdd — здесь
+                              // только сохранение.
+                              onQuickCreate: (parsed) async {
+                                await _createTaskManually({
+                                  "title": parsed.title,
+                                  "due_date": parsed.date == null ? null : _formatDate(parsed.date!),
+                                  "due_time": parsed.time,
+                                  "priority": parsed.priority ?? 'none',
+                                  "tags": parsed.tag,
+                                  "recurrence": null,
+                                  "is_completed": false,
+                                  "parent_id": null,
+                                });
+                              },
                               onTaskDropped: (task, targetDateStr, currentTargetTaskCount) {
                                 _handleTaskDropped(task: task, targetDateStr: targetDateStr, currentTargetTaskCount: currentTargetTaskCount);
                               },
